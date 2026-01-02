@@ -10,7 +10,7 @@ export class OpeningScene extends BaseScene {
     const w = this.scale.width; const h = this.scale.height;
     this.add.rectangle(w/2, h/2, w, h, 0x000000);
 
-    // タイトルロゴっぽく表示
+    // タイトルロゴ
     this.add.text(w/2, h*0.2, "私立青稜中学校", { font: `32px ${GAME_FONT}`, color: '#aaa' }).setOrigin(0.5);
     this.add.text(w/2, h*0.28, "ＲＰＧ", { font: `60px ${GAME_FONT}`, color: '#fff', stroke:'#00f', strokeThickness:6 }).setOrigin(0.5);
 
@@ -32,40 +32,19 @@ export class OpeningScene extends BaseScene {
 
     this.tweens.add({
         targets: textObj, y: h*0.4, duration: 15000, ease: 'Linear',
-        onComplete: () => {
-             // アニメーション完了後にボタンなどを表示
-        }
+        onComplete: () => {}
     });
 
     // STARTボタン
     this.createButton(w/2, h - 140, 'START', 0xcc3333, () => this.transitionTo('TutorialScene'), 200, 60);
 
-    // アプリ化の説明ボタン
+    // アプリ化説明ボタン
     const installBtn = this.add.text(w/2, h - 50, "【アプリとして保存する方法】", { font: `16px ${GAME_FONT}`, color: '#0ff', underline: true }).setOrigin(0.5).setInteractive();
-    
     installBtn.on('pointerdown', () => {
         const modal = this.add.container(0, 0).setDepth(100);
-        modal.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.9).setInteractive()); // 背景暗く
-        
-        const helpText = `
-【iPhone (Safari) の場合】
-画面下の「共有ボタン」
-(四角から矢印が出ているマーク)
-をタップし、
-「ホーム画面に追加」を選択！
-
-【Android (Chrome) の場合】
-右上のメニュー「︙」から
-「アプリをインストール」
-または
-「ホーム画面に追加」を選択！
-
-これで全画面で遊べます！
-        `;
-        
+        modal.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.9).setInteractive());
+        const helpText = `\n【iPhone (Safari)】\n下の「共有」ボタン\n→「ホーム画面に追加」\n\n【Android (Chrome)】\n右上のメニュー「︙」\n→「アプリをインストール」\n\nこれで全画面で遊べます！`;
         modal.add(this.add.text(w/2, h/2, helpText, { font: `18px ${GAME_FONT}`, color: '#fff', align: 'center', wordWrap:{width:w-40} }).setOrigin(0.5));
-        
-        // 閉じるボタン
         const closeBtn = this.add.rectangle(w/2, h - 100, 150, 50, 0x555555).setInteractive();
         const closeTxt = this.add.text(w/2, h - 100, "閉じる", { font: `20px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
         closeBtn.on('pointerdown', () => modal.destroy());
@@ -74,58 +53,11 @@ export class OpeningScene extends BaseScene {
   }
 }
 
-// --- 以下、他のシーンは変更なしですが、一応結合して使えるように残しておきます ---
-
 export class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
   create() {
-    this.fadeInScene(); this.createGameBackground('skill');
-    this.page = 1;
-    this.showPage1();
-  }
-
-  showPage1() {
-    this.children.removeAll(); 
-    this.createGameBackground('skill');
-    const w = this.scale.width; const h = this.scale.height;
-    this.add.text(w/2, 50, "【チュートリアル 1/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    this.add.text(w/2, 120, "1. 攻 撃", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    const ring = this.add.graphics();
-    ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 180, 30);
-    ring.lineStyle(4, 0xffffff); ring.strokeCircle(w/2, 180, 30);
-    this.add.text(w/2, 230, "リングが重なる瞬間にタップ！", { font: `20px ${GAME_FONT}`, color: '#ccc' }).setOrigin(0.5);
-    this.add.text(w/2, 300, "2. 防 御", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    this.add.text(w/2, 350, "！", { font: `60px ${GAME_FONT}`, color: '#f00' }).setOrigin(0.5);
-    this.add.text(w/2, 400, "「！」が出たら即タップ！\n連打や早押しはペナルティ！", { font: `20px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
-    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage2());
-  }
-
-  showPage2() {
-    this.children.removeAll();
-    this.createGameBackground('shop');
-    const w = this.scale.width; const h = this.scale.height;
-    this.add.text(w/2, 50, "【チュートリアル 2/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    
-    this.add.text(w/2, 130, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    this.add.text(w/2, 240, "① 敵を倒してゴールドを獲得\n\n②「プチレーブ」で強力な技や\nアイテムを購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
-    this.add.text(w/2, 380, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
-    
-    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
-  }
-
-  showPage3() {
-    this.children.removeAll();
-    this.createGameBackground('battle');
-    const w = this.scale.width; const h = this.scale.height;
-    this.add.text(w/2, 50, "【チュートリアル 3/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    this.add.text(w/2, 120, "AP (行動力) について", { font: `24px ${GAME_FONT}`, color: '#ff0' }).setOrigin(0.5);
-    this.add.rectangle(w/2, 170, 200, 20, 0x333333).setStrokeStyle(1, 0x888888);
-    this.add.rectangle(w/2-30, 170, 140, 16, 0xffff00);
-    this.add.text(w/2, 220, "技を使うにはAPが必要です。\n強い技ほど多くのAPを消費します。", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
-    this.add.text(w/2, 300, "＜APの回復方法＞", { font: `20px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    this.add.text(w/2, 360, "・自分のターンが来る (+1)\n・敵の攻撃をパリィする (+1)\n・「パス」コマンドを使う (+1)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'left' }).setOrigin(0.5);
-    
-    this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), 220, 50, true);
+    // すぐに実践チュートリアル（BattleSceneの特殊モード）へ飛ばす
+    this.transitionTo('BattleScene', { isTutorial: true });
   }
 }
 
@@ -176,18 +108,14 @@ export class ShopScene extends BaseScene {
 
   createTabs(w, h) {
       this.tabContainer = this.add.container(0, 110);
-      
-      const tabW = w / 2 - 20;
-      const tabH = 50;
+      const tabW = w / 2 - 20; const tabH = 50;
 
-      // 技タブ
       this.btnSkill = this.add.container(w/4 + 5, 0);
       this.bgSkill = this.add.graphics().fillRoundedRect(-tabW/2, -tabH/2, tabW, tabH, 10);
       this.textSkill = this.add.text(0, 0, "技", {font:`24px ${GAME_FONT}`}).setOrigin(0.5);
       const hitSkill = this.add.rectangle(0,0,tabW,tabH).setInteractive();
       this.btnSkill.add([this.bgSkill, this.textSkill, hitSkill]);
 
-      // 道具タブ
       this.btnItem = this.add.container(w*3/4 - 5, 0);
       this.bgItem = this.add.graphics().fillRoundedRect(-tabW/2, -tabH/2, tabW, tabH, 10);
       this.textItem = this.add.text(0, 0, "道具", {font:`24px ${GAME_FONT}`}).setOrigin(0.5);
@@ -202,36 +130,25 @@ export class ShopScene extends BaseScene {
   }
 
   updateTabStyle() {
-      const activeColor = 0x3333cc;
-      const inactiveColor = 0x222222;
-      
+      const activeColor = 0x3333cc; const inactiveColor = 0x222222;
       this.bgSkill.clear().fillStyle(this.mode==='skill' ? activeColor : inactiveColor, 1).lineStyle(2, 0xffffff).fillRoundedRect(-this.btnSkill.list[2].width/2, -this.btnSkill.list[2].height/2, this.btnSkill.list[2].width, this.btnSkill.list[2].height, 10).strokeRoundedRect(-this.btnSkill.list[2].width/2, -this.btnSkill.list[2].height/2, this.btnSkill.list[2].width, this.btnSkill.list[2].height, 10);
       this.textSkill.setColor(this.mode==='skill' ? '#ffffff' : '#aaaaaa');
-
       this.bgItem.clear().fillStyle(this.mode==='item' ? activeColor : inactiveColor, 1).lineStyle(2, 0xffffff).fillRoundedRect(-this.btnItem.list[2].width/2, -this.btnItem.list[2].height/2, this.btnItem.list[2].width, this.btnItem.list[2].height, 10).strokeRoundedRect(-this.btnItem.list[2].width/2, -this.btnItem.list[2].height/2, this.btnItem.list[2].width, this.btnItem.list[2].height, 10);
       this.textItem.setColor(this.mode==='item' ? '#ffffff' : '#aaaaaa');
   }
 
   refreshList(w, h) {
       if(this.listContainer) this.listContainer.destroy();
-      
       let items = [];
-      if(this.mode === 'skill') {
-          items = SKILL_DB.filter(s => s.cost > 0);
-      } else {
-          items = ITEM_DB;
-      }
+      if(this.mode === 'skill') items = SKILL_DB.filter(s => s.cost > 0);
+      else items = ITEM_DB;
 
       const itemHeight = 90;
       const contentHeight = items.length * itemHeight + 50;
       this.listContainer = this.initScrollView(contentHeight, 150, h - 230);
-
       let y = 50; 
       items.forEach((item) => {
-          let has = false;
-          let spec = "";
-          let rightText = "";
-          
+          let has = false; let spec = ""; let rightText = "";
           if(this.mode === 'skill') {
               has = GAME_DATA.player.ownedSkillIds.includes(item.id);
               spec = `${item.desc}\n[威力:${item.power} / AP:${item.apCost}]`;
@@ -241,32 +158,17 @@ export class ShopScene extends BaseScene {
               spec = item.desc;
               rightText = `${item.cost}G\n(所持:${count})`;
           }
-          
           const btn = this.createScrollableButton(w/2, y, item.name, has?0x333333:0x000000, () => {
               if(this.mode === 'skill') {
                   if(has) return;
-                  if(GAME_DATA.gold >= item.cost) { 
-                      GAME_DATA.gold -= item.cost; 
-                      GAME_DATA.player.ownedSkillIds.push(item.id); 
-                      saveGame(); this.scene.restart(); 
-                  } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
+                  if(GAME_DATA.gold >= item.cost) { GAME_DATA.gold -= item.cost; GAME_DATA.player.ownedSkillIds.push(item.id); saveGame(); this.scene.restart(); } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
               } else {
-                  if(GAME_DATA.gold >= item.cost) {
-                      GAME_DATA.gold -= item.cost;
-                      if(!GAME_DATA.player.items[item.id]) GAME_DATA.player.items[item.id] = 0;
-                      GAME_DATA.player.items[item.id]++;
-                      saveGame(); this.scene.restart();
-                  } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
+                  if(GAME_DATA.gold >= item.cost) { GAME_DATA.gold -= item.cost; if(!GAME_DATA.player.items[item.id]) GAME_DATA.player.items[item.id] = 0; GAME_DATA.player.items[item.id]++; saveGame(); this.scene.restart(); } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
               }
           }, w-40, 75, spec, rightText);
           
-          if(this.mode === 'skill' && has) {
-              btn.list[0].list[2].setColor('#888'); 
-              if(btn.rightTextObj) btn.rightTextObj.setColor('#888');
-          }
-          
-          this.listContainer.add(btn);
-          y += itemHeight;
+          if(this.mode === 'skill' && has) { btn.list[0].list[2].setColor('#888'); if(btn.rightTextObj) btn.rightTextObj.setColor('#888'); }
+          this.listContainer.add(btn); y += itemHeight;
       });
   }
 }
