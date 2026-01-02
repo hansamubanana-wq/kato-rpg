@@ -247,7 +247,7 @@ class TutorialScene extends BaseScene {
   }
 
   showPage1() {
-    this.children.removeAll(); // 前のページを消す
+    this.children.removeAll(); 
     this.createGameBackground('skill');
     const w = this.scale.width; const h = this.scale.height;
 
@@ -373,7 +373,7 @@ class SkillScene extends BaseScene {
 }
 
 // ================================================================
-//  8. バトルシーン (攻撃パターン追加版)
+//  8. バトルシーン (段階的難易度 & カウンター)
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
@@ -412,6 +412,7 @@ class BattleScene extends BaseScene {
     this.input.on('pointerdown', () => this.handleInput());
     this.updateMessage(`${this.ed.name} があらわれた！`);
     this.isPlayerTurn = true; this.qteMode = null; this.qteActive = false;
+    this.perfectGuardChain = true; // カウンター用フラグ
     this.refreshStatus();
   }
 
@@ -543,39 +544,52 @@ class BattleScene extends BaseScene {
     if (this.guardBroken) return;
     this.guardBroken = true; this.px.setVisible(true); this.ps.setTint(0x888); 
     this.cameras.main.shake(100,0.01); this.vibrate(200);
+    this.perfectGuardChain = false; // 失敗したのでカウンター不可
   }
 
-  // --- 【改修】敵の攻撃ターン (3パターン) ---
+  // --- 【AI】敵の攻撃ターン (段階的難易度) ---
   startEnemyTurn() {
-    // パターン決定 (0:通常, 1:連続, 2:フェイント)
-    const pattern = Phaser.Math.Between(0, 2);
-    
-    // 敵データによって傾向を変えるなどの調整も可能
-    
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
-    
-    // 共通: 予備動作
+    this.perfectGuardChain = true; // カウンターチャンス開始
+
+    // 予備動作
     this.tweens.add({ targets: this.es, x: this.es.x + 20, duration: 500, ease: 'Power2' });
 
+    // ステージ進行度に応じた攻撃パターン決定
+    // 0:通常, 1:3連撃, 2:フェイント
+    let pattern = 0;
+    const stage = GAME_DATA.stageIndex;
+
+    if (stage <= 1) {
+        // 序盤: ほぼ通常攻撃
+        pattern = (Math.random() < 0.8) ? 0 : 1; 
+    } else if (stage <= 4) {
+        // 中盤: 3連撃とフェイントが混ざる
+        const r = Math.random();
+        if (r < 0.5) pattern = 0;
+        else if (r < 0.8) pattern = 1;
+        else pattern = 2;
+    } else {
+        // 終盤: 激しい攻撃
+        const r = Math.random();
+        if (r < 0.3) pattern = 0;
+        else if (r < 0.7) pattern = 1;
+        else pattern = 2;
+    }
+
     if (pattern === 0) {
-        // --- 通常攻撃 ---
         this.updateMessage(`${this.ed.name} の攻撃！`);
         this.time.delayedCall(Phaser.Math.Between(1000, 2000), () => this.launchAttack());
     } 
     else if (pattern === 1) {
-        // --- 連続攻撃 (3回) ---
         this.updateMessage(`${this.ed.name} の連続攻撃！`);
-        this.rapidCount = 3; // 残り回数
+        this.rapidCount = 3;
         this.time.delayedCall(1000, () => this.launchRapidAttack());
     } 
     else {
-        // --- フェイント攻撃 ---
         this.updateMessage(`${this.ed.name} が様子を見ている...`);
         this.time.delayedCall(1000, () => {
-            // 一瞬動くフリ (ここで押すとペナルティ)
             this.tweens.add({ targets: this.es, x: this.es.x - 30, duration: 100, yoyo: true });
-            
-            // その後、本攻撃
             this.time.delayedCall(1500, () => {
                 this.updateMessage("不意打ちだ！");
                 this.launchAttack();
@@ -584,7 +598,6 @@ class BattleScene extends BaseScene {
     }
   }
 
-  // 単発攻撃実行
   launchAttack() {
       if (this.guardBroken) { this.executeDefense(false); return; }
       this.qteMode = 'defense_active'; this.gs.setVisible(true);
@@ -594,19 +607,19 @@ class BattleScene extends BaseScene {
       });
   }
 
-  // 連続攻撃実行 (再帰呼び出し)
   launchRapidAttack() {
       if (this.rapidCount <= 0) {
-          // コンボ終了 -> プレイヤーのターンへ
-          this.time.delayedCall(500, () => this.endEnemyTurn());
+          // コンボ終了時、全て完璧ならカウンター
+          if (this.perfectGuardChain) this.triggerCounterAttack();
+          else this.time.delayedCall(500, () => this.endEnemyTurn());
           return;
       }
       
-      if (this.guardBroken) { this.executeDefense(false, true); return; } // ペナルティ中は全弾被弾
+      if (this.guardBroken) { this.executeDefense(false, true); return; }
 
       this.qteMode = 'defense_active'; this.gs.setVisible(true);
       this.eat = this.tweens.add({
-          targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In', // 少し速め
+          targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In',
           onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } }
       });
   }
@@ -615,30 +628,23 @@ class BattleScene extends BaseScene {
     this.gs.setVisible(false); this.qteMode = null; if (this.eat) this.eat.stop();
     this.createImpactEffect(this.es.x - 30, this.es.y);
     this.cameras.main.flash(100, 255, 255, 255); 
-    
-    // 連続攻撃中なら文字を変えるなどしても良い
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
     
-    // 連続攻撃中か判定
-    if (this.rapidCount > 0) {
-        this.executeDefense(true, true);
-    } else {
-        this.executeDefense(true, false);
-    }
+    if (this.rapidCount > 0) this.executeDefense(true, true);
+    else this.executeDefense(true, false);
   }
 
-  // isRapid: 連続攻撃中フラグ
   executeDefense(suc, isRapid = false) {
-    let dmg = Math.floor(this.ed.atk * (isRapid ? 0.6 : 1.0)); // 連続攻撃は1発が少し軽い
+    let dmg = Math.floor(this.ed.atk * (isRapid ? 0.6 : 1.0));
     
     if (suc) { 
-        dmg = 0; 
-        this.playSound('se_parry'); this.vibrate(30); 
+        dmg = 0; this.playSound('se_parry'); this.vibrate(30); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
-        // 弾き演出
         this.tweens.add({ targets: this.es, x: this.ebx, duration: 150, ease: 'Back.Out' });
     } else { 
+        // 失敗したらチェーンを切る
+        this.perfectGuardChain = false;
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
         GAME_DATA.player.hp -= dmg; this.cameras.main.shake(100, 0.02); this.vibrate(100); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
@@ -654,16 +660,32 @@ class BattleScene extends BaseScene {
     } else {
         if (isRapid) {
             this.rapidCount--;
-            // 次の攻撃へ (間隔を空けて)
             this.time.delayedCall(400, () => {
-                // 攻撃モードに戻す (ペナルティ状態でなければ)
                 if(!this.guardBroken) this.qteMode = 'defense_wait'; 
                 this.launchRapidAttack();
             });
         } else {
-            this.time.delayedCall(1000, () => this.endEnemyTurn());
+            // 単発攻撃成功時、即カウンター
+            if (suc && this.perfectGuardChain) this.triggerCounterAttack();
+            else this.time.delayedCall(1000, () => this.endEnemyTurn());
         }
     }
+  }
+
+  // 【新機能】パリィカウンター
+  triggerCounterAttack() {
+      this.time.delayedCall(200, () => {
+          this.updateMessage("見切った！ カウンター！");
+          this.playSwordAnimation(() => {
+              // プレイヤーの攻撃力x2のダメージ
+              let dmg = Math.floor(GAME_DATA.player.atk * 15 * 2.0);
+              this.ed.hp -= dmg;
+              this.showDamagePopup(this.es.x, this.es.y, dmg, true);
+              this.playSound('se_attack');
+              this.vibrate([50, 50, 100]);
+              this.checkEnd();
+          });
+      });
   }
 
   endEnemyTurn() {
