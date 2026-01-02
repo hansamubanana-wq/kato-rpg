@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 const fontStyle = document.createElement('style');
 fontStyle.innerHTML = `
   @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
-  body { font-family: 'DotGothic16', sans-serif; }
+  body { font-family: 'DotGothic16', sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
 `;
 document.head.appendChild(fontStyle);
 const GAME_FONT = 'DotGothic16';
@@ -67,6 +67,13 @@ class BaseScene extends Phaser.Scene {
     this.textures.addCanvas(key, cvs);
   }
 
+  // 【新規】スマホの振動を発生させる (Android対応)
+  vibrate(duration) {
+    if (navigator.vibrate) {
+        navigator.vibrate(duration);
+    }
+  }
+
   createPatternBackground(color1, color2) {
     const w = this.scale.width;
     const h = this.scale.height;
@@ -90,28 +97,18 @@ class BaseScene extends Phaser.Scene {
       });
   }
 
-  // 【新規】インパクトエフェクト（火花）を作成する関数
   createImpactEffect(x, y) {
       const graphics = this.add.graphics();
-      graphics.lineStyle(4, 0xffff00); // 黄色
-      
-      // バッ！と広がる線
+      graphics.lineStyle(4, 0xffff00);
       graphics.beginPath();
       graphics.moveTo(x-20, y-20); graphics.lineTo(x-40, y-40);
       graphics.moveTo(x+20, y-20); graphics.lineTo(x+40, y-40);
       graphics.moveTo(x-20, y+20); graphics.lineTo(x-40, y+40);
       graphics.moveTo(x+20, y+20); graphics.lineTo(x+40, y+40);
       graphics.strokePath();
-
-      // 中心に白い閃光
       const circle = this.add.circle(x, y, 10, 0xffffff);
-      
-      // 一瞬で消えるアニメーション
       this.tweens.add({
-          targets: [graphics, circle],
-          scale: 1.5,
-          alpha: 0,
-          duration: 200,
+          targets: [graphics, circle], scale: 1.5, alpha: 0, duration: 200,
           onComplete: () => { graphics.destroy(); circle.destroy(); }
       });
   }
@@ -137,7 +134,10 @@ class BaseScene extends Phaser.Scene {
     visualContainer.add([shadow, bg, txt]);
     
     const hitArea = this.add.rectangle(0, 0, w + 10, h + 20, 0x000000, 0).setInteractive();
-    hitArea.on('pointerdown', () => visualContainer.setScale(0.95));
+    hitArea.on('pointerdown', () => {
+        visualContainer.setScale(0.95);
+        this.vibrate(10); // ボタンを押した瞬間の「カチッ」感
+    });
     hitArea.on('pointerup', () => { visualContainer.setScale(1.0); cb(); });
     hitArea.on('pointerout', () => visualContainer.setScale(1.0));
 
@@ -231,8 +231,10 @@ class ShopScene extends BaseScene {
         if (GAME_DATA.gold >= skill.cost) {
           GAME_DATA.gold -= skill.cost;
           GAME_DATA.player.ownedSkillIds.push(skill.id);
+          this.vibrate(50); // 購入時の振動
           this.scene.restart();
         } else {
+          this.vibrate(100); // エラー時の振動
           price.setText("不足!"); this.time.delayedCall(500, ()=>this.scene.restart());
         }
       });
@@ -263,6 +265,7 @@ class SkillScene extends BaseScene {
       hit.on('pointerdown', () => {
         if (GAME_DATA.player.equippedSkillIds.length <= 1) return;
         GAME_DATA.player.equippedSkillIds.splice(idx, 1);
+        this.vibrate(20);
         this.scene.restart();
       });
       y += 55;
@@ -280,6 +283,7 @@ class SkillScene extends BaseScene {
       hit.on('pointerdown', () => {
         if (GAME_DATA.player.equippedSkillIds.length >= 6) return;
         GAME_DATA.player.equippedSkillIds.push(sid);
+        this.vibrate(20);
         this.scene.restart();
       });
       y += 55;
@@ -304,7 +308,6 @@ class BattleScene extends BaseScene {
     this.startIdleAnimation(this.playerSprite);
     this.enemySprite = this.add.sprite(w*0.8, h*0.4, this.enemyData.key).setScale(5);
     this.startIdleAnimation(this.enemySprite);
-    // 初期位置を保存（アニメーションで戻るため）
     this.enemyBaseX = this.enemySprite.x;
     this.enemyBaseY = this.enemySprite.y;
 
@@ -360,7 +363,11 @@ class BattleScene extends BaseScene {
         const btn = this.add.graphics().fillStyle(s.type==='heal'?0x228822:0x882222, 1).lineStyle(2,0xffffff).fillRoundedRect(-75, -25, 150, 50, 8).strokeRoundedRect(-75, -25, 150, 50, 8);
         const txt = this.add.text(0, 0, s.name, {font:`18px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
         const hit = this.add.rectangle(0, 0, 160, 60).setInteractive();
-        hit.on('pointerdown', () => { this.input.stopPropagation(); this.selectSkill(s); });
+        hit.on('pointerdown', () => { 
+            this.input.stopPropagation(); 
+            this.vibrate(10);
+            this.selectSkill(s); 
+        });
         container.add([btn, txt, hit]);
         this.skillMenu.add(container);
     });
@@ -368,7 +375,11 @@ class BattleScene extends BaseScene {
     const bBtn = this.add.graphics().fillStyle(0x555555, 1).fillRoundedRect(-50, -20, 100, 40, 5);
     const bTxt = this.add.text(0, 0, '戻る', {font:`16px ${GAME_FONT}`}).setOrigin(0.5);
     const bHit = this.add.rectangle(0, 0, 110, 50).setInteractive();
-    bHit.on('pointerdown', () => { this.input.stopPropagation(); this.skillMenu.setVisible(false); this.mainMenu.setVisible(true); });
+    bHit.on('pointerdown', () => { 
+        this.input.stopPropagation(); 
+        this.vibrate(10);
+        this.skillMenu.setVisible(false); this.mainMenu.setVisible(true); 
+    });
     backContainer.add([bBtn, bTxt, bHit]);
     this.skillMenu.add(backContainer);
   }
@@ -379,12 +390,18 @@ class BattleScene extends BaseScene {
     else if (this.qteMode === 'defense_active') this.resolveDefenseQTE();
   }
 
-  openSkillMenu() { if(this.isPlayerTurn) { this.mainMenu.setVisible(false); this.skillMenu.setVisible(true); this.updateMessage("行動を選択してください"); } }
+  openSkillMenu() { 
+      if(this.isPlayerTurn) { 
+          this.vibrate(10);
+          this.mainMenu.setVisible(false); this.skillMenu.setVisible(true); this.updateMessage("行動を選択してください"); 
+      } 
+  }
   selectSkill(s) { this.skillMenu.setVisible(false); this.selectedSkill = s; if (s.type === 'heal') this.executeHeal(s); else this.startAttackQTE(s); }
 
   activateLimitBreak() {
     this.isPlayerTurn = false;
     GAME_DATA.player.stress = 0;
+    this.vibrate(1000); // 必殺技の長振動
     this.cameras.main.flash(500, 255, 0, 0); 
     this.cameras.main.shake(500, 0.05);      
     this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
@@ -422,7 +439,11 @@ class BattleScene extends BaseScene {
   }
   executeAttack(res) {
     let dmg = this.selectedSkill.power * GAME_DATA.player.atk;
-    if (res==='PERFECT') dmg = Math.floor(dmg*1.5); else if (res!=='GOOD') dmg = Math.floor(dmg*0.5);
+    let vibe = 50;
+    if (res==='PERFECT') { dmg = Math.floor(dmg*1.5); vibe = 200; } 
+    else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); vibe = 20; }
+    
+    this.vibrate(vibe); // 攻撃の手応え
     this.enemyData.hp -= dmg;
     this.updateMessage(`${dmg} ダメージ！`);
     GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
@@ -444,18 +465,18 @@ class BattleScene extends BaseScene {
 
   triggerGuardPenalty() {
     if (this.guardBroken) return;
-    this.guardBroken = true; this.penaltyX.setVisible(true); this.playerSprite.setTint(0x888888); this.cameras.main.shake(100,0.01);
+    this.guardBroken = true; this.penaltyX.setVisible(true); this.playerSprite.setTint(0x888888); 
+    this.cameras.main.shake(100,0.01);
+    this.vibrate(200); // 失敗時のブブッという振動
   }
 
-  // 【強化版】敵の攻撃ターン演出
   startEnemyTurn() {
     this.updateMessage(`${this.enemyData.name} の構え...`);
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.penaltyX.setVisible(false); this.playerSprite.clearTint();
     
-    // 1. 力を溜める（後ろに下がる）
     this.tweens.add({
         targets: this.enemySprite,
-        x: this.enemySprite.x + 20, // 後ろへ
+        x: this.enemySprite.x + 20,
         duration: 500,
         ease: 'Power2'
     });
@@ -463,19 +484,14 @@ class BattleScene extends BaseScene {
     const delay = Phaser.Math.Between(1000, 2000);
     this.time.delayedCall(delay, () => {
         if (this.guardBroken) { this.executeDefense(false); return; }
-
-        // 2. 突進開始！
         this.qteMode = 'defense_active';
         this.guardSignal.setVisible(true);
-
-        // 敵が猛スピードでプレイヤーに向かってくる
         this.enemyAttackTween = this.tweens.add({
             targets: this.enemySprite,
-            x: this.playerSprite.x + 50, // プレイヤーの目の前まで
-            duration: 300, // 高速
-            ease: 'Expo.In', // 加速する
+            x: this.playerSprite.x + 50,
+            duration: 300,
+            ease: 'Expo.In',
             onComplete: () => {
-                // プレイヤーに到達したら（＝パリィ失敗なら）
                 if (this.qteMode === 'defense_active') {
                     this.guardSignal.setVisible(false);
                     this.executeDefense(false);
@@ -488,17 +504,11 @@ class BattleScene extends BaseScene {
   resolveDefenseQTE() {
     this.guardSignal.setVisible(false);
     this.qteMode = null;
-    
-    // 突進トゥイーンを停止
     if (this.enemyAttackTween) this.enemyAttackTween.stop();
-
-    // 成功エフェクト
-    this.createImpactEffect(this.enemySprite.x - 30, this.enemySprite.y); // 衝突地点で火花
-    this.cameras.main.flash(200, 255, 255, 255); // 白フラッシュ
-    
+    this.createImpactEffect(this.enemySprite.x - 30, this.enemySprite.y);
+    this.cameras.main.flash(200, 255, 255, 255);
     this.qteText.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qteText, y:this.qteText.y-50, alpha:0, duration:500, onComplete:()=>{this.qteText.setVisible(false); this.qteText.setAlpha(1); this.qteText.y+=50;}});
-    
     this.executeDefense(true);
   }
 
@@ -508,23 +518,20 @@ class BattleScene extends BaseScene {
     if (suc) { 
         dmg = 0; 
         this.updateMessage("パリィ成功！弾き返した！"); 
+        this.vibrate([30, 30, 30]); // 成功時のタタタン！という振動
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 20);
-
-        // 敵が大きく弾き飛ばされる演出
         this.tweens.add({
             targets: this.enemySprite,
-            x: this.enemyBaseX, // 元の位置へ
+            x: this.enemyBaseX,
             duration: 300,
-            ease: 'Back.Out' // ビヨーンと戻る
+            ease: 'Back.Out'
         });
-
     } else { 
         this.updateMessage(`${dmg} のダメージ！`); 
         GAME_DATA.player.hp -= dmg; 
         this.cameras.main.shake(200, 0.02);
+        this.vibrate(300); // 被弾時の強い振動
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
-        
-        // 攻撃が当たった後、ゆっくり元の位置に戻る
         this.tweens.add({
             targets: this.enemySprite,
             x: this.enemyBaseX,
@@ -560,6 +567,7 @@ class BattleScene extends BaseScene {
     GAME_DATA.gold += this.enemyData.gold;
     GAME_DATA.player.exp += this.enemyData.exp;
     GAME_DATA.stageIndex++; 
+    this.vibrate([100, 50, 100, 50, 200]); // 勝利のファンファーレ的振動
     let msg = `勝利！\n${this.enemyData.gold}G 獲得`;
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) {
         GAME_DATA.player.ownedSkillIds.push(7); msg += "\nレア技【居残り指導】習得！";
