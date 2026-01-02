@@ -12,7 +12,7 @@ document.head.appendChild(fontStyle);
 const GAME_FONT = 'DotGothic16';
 
 // ================================================================
-//  1. データ定義 (HP超強化版)
+//  1. データ定義 (スキル増量版)
 // ================================================================
 const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0' };
 const ARTS = {
@@ -23,28 +23,50 @@ const ARTS = {
   kitai: [".....666666.....","....66666666....","...666666666....","...661111166....","...661010166....","...661111166....","...661111166....","....2222222.....","...222222222....","...222222222....","....7777777.....","....77...77.....","....77...77.....","....00...00....."],
   fukumorita: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","....7777777.....","...777777777....","...777222777....","...777777777....","...777777777....","....77...77.....","....77...77.....","....22...22....."],
   aota: ["......0000......",".....000000.....","....00....00....","....01111110....","....01011010....","....01111110....",".....223322.....","....33333333....","....33333333....","....33333333....","....77777777....","....77....77....","....77....77....","....00....00...."],
-  kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."]
+  kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."],
+  // 背景パーツ
+  bg_blackboard: ["BBBBBBBBBBBBBBBB","B00000000000000B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B00000000000000B","BBBBBBBBBBBBBBBB"],
+  bg_window: ["DDDDDDDD","D222222D","D222222D","D222222D","DDDDDDDD","D222222D","D222222D","D222222D","DDDDDDDD"],
+  bg_shelf: ["BBBBBBBB","B992299B","BBBBBBBB","B292922B","BBBBBBBB","B922992B","BBBBBBBB"],
+  bg_locker: ["CCCCCCCC","C888888C","C878888C","C888888C","C888888C","C888888C","C888888C","CCCCCCCC"],
+  bg_window_sunset: ["EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE"]
 };
 
-// 【調整】後半の敵のHPを大幅に引き上げ
+// 敵データ (HP高め)
 const STAGES = [
   { id: 0, name: '土蔵', hp: 150, atk: 12, exp: 20, gold: 100, key: 'dozo' },
   { id: 1, name: '前田', hp: 300, atk: 18, exp: 40, gold: 150, key: 'maeda' },
   { id: 2, name: '松田先生', hp: 600, atk: 25, exp: 80, gold: 250, key: 'matsuda' },
   { id: 3, name: '北井先生', hp: 1200, atk: 35, exp: 120, gold: 400, key: 'kitai' },
   { id: 4, name: '福盛田先生', hp: 2500, atk: 45, exp: 200, gold: 600, key: 'fukumorita' },
-  { id: 5, name: '青田校長', hp: 5000, atk: 60, exp: 500, gold: 1000, key: 'aota' }, // 5000!
-  { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' } // 1万!
+  { id: 5, name: '青田校長', hp: 5000, atk: 60, exp: 500, gold: 1000, key: 'aota' },
+  { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
+// 【大幅追加】スキルデータ
+// speed: 数字が大きいほど判定が速い（難しい）。1.0が標準。
 const SKILL_DB = [
-  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 35, speed: 1.2, cost: 150, desc: '威力中・速度中' },
-  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, desc: '威力小・当てやすい' },
-  { id: 4, name: '定規ソード', type: 'attack', power: 70, speed: 1.5, cost: 500, desc: '威力大・難しい' },
-  { id: 5, name: '難問の出題', type: 'attack', power: 120, speed: 2.2, cost: 1200, desc: '超威力・激ムズ' },
-  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 300, desc: 'HP回復魔法' },
-  { id: 7, name: '居残り指導', type: 'attack', power: 200, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義' }
+  // 初期技
+  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃。確実に出席をとる。' },
+  
+  // 序盤
+  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, desc: '威力は低いが、当てやすい。' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, desc: 'スナップを効かせた投擲。' },
+  
+  // 中盤
+  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, desc: '鋭い一撃。判定が少し速い。' },
+  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, desc: '長い定規で切り裂く。威力大。' },
+  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, desc: '基本となる回復魔法。' },
+
+  // 後半
+  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, desc: '鈍器のような重み。当てやすい。' },
+  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, desc: '超威力だが、判定が激ムズ。' },
+  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, desc: '高速採点による連続攻撃。' },
+  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, desc: '体力を大幅に回復する。' },
+
+  // ロマン・隠し
+  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, desc: '絶望的な威力。判定は一瞬。' },
+  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義。' }
 ];
 
 const GAME_DATA = {
@@ -126,7 +148,18 @@ class BaseScene extends Phaser.Scene {
     const noise = this.add.graphics(); noise.fillStyle(0x000000, 0.05);
     for(let y=0; y<h; y+=4) for(let x=0; x<w; x+=4) if(Math.random()>0.5) noise.fillRect(x,y,4,4);
     bgContainer.add([wall, floor, noise]);
-    if (type === 'battle') bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x440000, 0.3));
+    
+    if (type === 'world') {
+        const bb = this.add.sprite(w/2, h*0.3, 'bg_blackboard').setScale(10).setAlpha(0.7);
+        bgContainer.add(bb);
+    } else if (type === 'shop') {
+        for(let i=0; i<3; i++) bgContainer.add(this.add.sprite(60+i*140, h*0.4, 'bg_shelf').setScale(6));
+    } else if (type === 'skill') {
+        for(let i=0; i<4; i++) bgContainer.add(this.add.sprite(50+i*100, h*0.4, 'bg_locker').setScale(6));
+    } else if (type === 'battle') {
+        for(let i=0; i<2; i++) bgContainer.add(this.add.sprite(100+i*200, h*0.3, 'bg_window_sunset').setScale(8).setAlpha(0.8));
+        bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x440000, 0.3));
+    }
     bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3));
   }
 
@@ -252,7 +285,6 @@ class TutorialScene extends BaseScene {
 
     this.add.text(w/2, 50, "【チュートリアル 1/2】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     
-    // 戦闘説明
     this.add.text(w/2, 120, "1. 攻 撃", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     const ring = this.add.graphics();
     ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 180, 30);
@@ -273,7 +305,6 @@ class TutorialScene extends BaseScene {
 
     this.add.text(w/2, 50, "【チュートリアル 2/2】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
 
-    // 育成説明
     this.add.text(w/2, 150, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     this.add.text(w/2, 220, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技を購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
 
@@ -308,7 +339,7 @@ class WorldScene extends BaseScene {
 }
 
 // ================================================================
-//  6. 購買部 & 7. 編成
+//  6. 購買部 & 7. 編成 (説明文にスペック追加)
 // ================================================================
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
@@ -323,11 +354,15 @@ class ShopScene extends BaseScene {
     SKILL_DB.filter(s => s.cost > 0).forEach((s, i) => {
         const c = this.add.container(0, 0);
         const has = GAME_DATA.player.ownedSkillIds.includes(s.id);
-        const bg = this.add.graphics().fillStyle(has?0x333:0x000, 0.8).lineStyle(2, 0xfff).fillRoundedRect(20, y, w-40, 70, 8).strokeRoundedRect(20, y, w-40, 70, 8);
-        const t1 = this.add.text(40, y+10, s.name, { font:`22px ${GAME_FONT}`, color: has?'#888':'#fff'});
-        const t2 = this.add.text(40, y+40, s.desc, { font:`16px ${GAME_FONT}`, color:'#aaa'});
-        const pr = this.add.text(w-40, y+35, has?"済":`${s.cost}G`, { font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
-        const hit = this.add.rectangle(w/2, y+35, w-20, 70).setInteractive();
+        const bg = this.add.graphics().fillStyle(has?0x333:0x000, 0.8).lineStyle(2, 0xfff).fillRoundedRect(20, y, w-40, 75, 8).strokeRoundedRect(20, y, w-40, 75, 8);
+        const t1 = this.add.text(40, y+8, s.name, { font:`22px ${GAME_FONT}`, color: has?'#888':'#fff'});
+        
+        // スペック詳細表示
+        const spec = (s.type === 'heal') ? `回復力:${s.power}` : `威力:${s.power} / 速度:${s.speed}`;
+        const t2 = this.add.text(40, y+35, `${s.desc}\n[${spec}]`, { font:`14px ${GAME_FONT}`, color:'#aaa'});
+        
+        const pr = this.add.text(w-40, y+37, has?"済":`${s.cost}G`, { font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
+        const hit = this.add.rectangle(w/2, y+37, w-20, 75).setInteractive();
         hit.on('pointerdown', () => {
             if(has) return;
             if(GAME_DATA.gold >= s.cost) { GAME_DATA.gold -= s.cost; GAME_DATA.player.ownedSkillIds.push(s.id); this.playSound('se_select'); this.scene.restart(); }
@@ -335,7 +370,7 @@ class ShopScene extends BaseScene {
         });
         c.add([bg, t1, t2, pr, hit]); c.setScale(0);
         this.tweens.add({ targets: c, scale: 1, duration: 300, delay: i*50, ease: 'Back.Out' });
-        y += 85;
+        y += 90;
     });
   }
 }
@@ -352,27 +387,32 @@ class SkillScene extends BaseScene {
     let y = 120;
     const makeItem = (s, i, eq) => {
         const c = this.add.container(0, 0);
-        const btn = this.add.graphics().fillStyle(eq?0x060:0x444, 1).lineStyle(1,0xfff).fillRoundedRect(30, y, w-60, 45, 5).strokeRoundedRect(30, y, w-60, 45, 5);
-        const tx = this.add.text(w/2, y+22, s.name, {font:`20px ${GAME_FONT}`}).setOrigin(0.5);
-        const h = this.add.rectangle(w/2, y+22, w-60, 50).setInteractive();
+        const btn = this.add.graphics().fillStyle(eq?0x060:0x444, 1).lineStyle(1,0xfff).fillRoundedRect(30, y, w-60, 50, 5).strokeRoundedRect(30, y, w-60, 50, 5);
+        const tx = this.add.text(w/2, y+15, s.name, {font:`20px ${GAME_FONT}`}).setOrigin(0.5);
+        
+        // スペック簡易表示
+        const spec = (s.type === 'heal') ? `[回復:${s.power}]` : `[攻:${s.power}/速:${s.speed}]`;
+        const sub = this.add.text(w/2, y+35, spec, {font:`12px ${GAME_FONT}`, color:'#ccc'}).setOrigin(0.5);
+
+        const h = this.add.rectangle(w/2, y+25, w-60, 50).setInteractive();
         h.on('pointerdown', () => {
             if(eq) { if(GAME_DATA.player.equippedSkillIds.length>1) GAME_DATA.player.equippedSkillIds.splice(i,1); }
             else { if(GAME_DATA.player.equippedSkillIds.length<6) GAME_DATA.player.equippedSkillIds.push(s.id); }
             this.playSound('se_select'); this.scene.restart();
         });
-        c.add([btn, tx, h]); c.setScale(0);
+        c.add([btn, tx, sub, h]); c.setScale(0);
         this.tweens.add({ targets: c, scale: 1, duration: 300, delay: i*30, ease: 'Back.Out' });
         return c;
     };
-    GAME_DATA.player.equippedSkillIds.forEach((sid, i) => { makeItem(SKILL_DB.find(x=>x.id===sid), i, true); y+=55; });
+    GAME_DATA.player.equippedSkillIds.forEach((sid, i) => { makeItem(SKILL_DB.find(x=>x.id===sid), i, true); y+=60; });
     y += 20; this.add.text(30, y, "所持リスト", {font:`18px ${GAME_FONT}`, color:'#ff8'}); y+=30;
     let li = 0;
-    GAME_DATA.player.ownedSkillIds.forEach(sid => { if(!GAME_DATA.player.equippedSkillIds.includes(sid)) { makeItem(SKILL_DB.find(x=>x.id===sid), li, false); y+=55; li++; }});
+    GAME_DATA.player.ownedSkillIds.forEach(sid => { if(!GAME_DATA.player.equippedSkillIds.includes(sid)) { makeItem(SKILL_DB.find(x=>x.id===sid), li, false); y+=60; li++; }});
   }
 }
 
 // ================================================================
-//  8. バトルシーン (段階的難易度 & カウンター修正版)
+//  8. バトルシーン (カウンター威力調整版)
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
@@ -546,34 +586,23 @@ class BattleScene extends BaseScene {
     this.perfectGuardChain = false; // 失敗したのでカウンター不可
   }
 
-  // --- 【AI】敵の攻撃ターン (段階的難易度) ---
   startEnemyTurn() {
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
-    this.perfectGuardChain = true; // カウンターチャンス開始
+    this.perfectGuardChain = true; 
 
-    // 予備動作
     this.tweens.add({ targets: this.es, x: this.es.x + 20, duration: 500, ease: 'Power2' });
 
-    // ステージ進行度に応じた攻撃パターン決定
-    // 0:通常, 1:3連撃, 2:フェイント
     let pattern = 0;
     const stage = GAME_DATA.stageIndex;
 
     if (stage <= 1) {
-        // 序盤: ほぼ通常攻撃
         pattern = (Math.random() < 0.8) ? 0 : 1; 
     } else if (stage <= 4) {
-        // 中盤: 3連撃とフェイントが混ざる
         const r = Math.random();
-        if (r < 0.5) pattern = 0;
-        else if (r < 0.8) pattern = 1;
-        else pattern = 2;
+        if (r < 0.5) pattern = 0; else if (r < 0.8) pattern = 1; else pattern = 2;
     } else {
-        // 終盤: 激しい攻撃
         const r = Math.random();
-        if (r < 0.3) pattern = 0;
-        else if (r < 0.7) pattern = 1;
-        else pattern = 2;
+        if (r < 0.3) pattern = 0; else if (r < 0.7) pattern = 1; else pattern = 2;
     }
 
     if (pattern === 0) {
@@ -608,7 +637,6 @@ class BattleScene extends BaseScene {
 
   launchRapidAttack() {
       if (this.rapidCount <= 0) {
-          // コンボ終了時、全て完璧ならカウンター
           if (this.perfectGuardChain) this.triggerCounterAttack();
           else this.time.delayedCall(500, () => this.endEnemyTurn());
           return;
@@ -627,19 +655,12 @@ class BattleScene extends BaseScene {
     this.gs.setVisible(false); this.qteMode = null; if (this.eat) this.eat.stop();
     this.createImpactEffect(this.es.x - 30, this.es.y);
     this.cameras.main.flash(100, 255, 255, 255); 
-    
-    // 連続攻撃中なら文字を変えるなどしても良い
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
     
-    if (this.rapidCount > 0) {
-        this.executeDefense(true, true);
-    } else {
-        this.executeDefense(true, false);
-    }
+    if (this.rapidCount > 0) this.executeDefense(true, true); else this.executeDefense(true, false);
   }
 
-  // isRapid: 連続攻撃中フラグ
   executeDefense(suc, isRapid = false) {
     let dmg = Math.floor(this.ed.atk * (isRapid ? 0.6 : 1.0));
     
@@ -648,7 +669,6 @@ class BattleScene extends BaseScene {
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
         this.tweens.add({ targets: this.es, x: this.ebx, duration: 150, ease: 'Back.Out' });
     } else { 
-        // 失敗したらチェーンを切る
         this.perfectGuardChain = false;
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
         GAME_DATA.player.hp -= dmg; this.cameras.main.shake(100, 0.02); this.vibrate(100); 
@@ -670,19 +690,18 @@ class BattleScene extends BaseScene {
                 this.launchRapidAttack();
             });
         } else {
-            // 単発攻撃成功時、即カウンター
             if (suc && this.perfectGuardChain) this.triggerCounterAttack();
             else this.time.delayedCall(1000, () => this.endEnemyTurn());
         }
     }
   }
 
-  // 【新機能】パリィカウンター
+  // 【カウンター威力強化】 プレイヤーの攻撃力 + 敵HPの10%
   triggerCounterAttack() {
       this.time.delayedCall(200, () => {
           this.updateMessage("見切った！ カウンター！");
           this.playSwordAnimation(() => {
-              // プレイヤーの攻撃力x50 + 敵HPの10%
+              // 威力計算：基礎ダメージ(ATK*50) + 敵の最大HPの10% (相手が強いほど強くなる)
               let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
               
               this.ed.hp -= dmg;
@@ -690,7 +709,6 @@ class BattleScene extends BaseScene {
               this.playSound('se_attack');
               this.vibrate([50, 50, 100]);
               
-              // 【修正】カウンター後は敵のターンに戻るのではなく、勝敗判定をしてからプレイヤーのターンへ
               this.refreshStatus();
               if (this.ed.hp <= 0) {
                   this.winBattle();
