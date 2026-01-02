@@ -28,32 +28,53 @@ export class BattleScene extends BaseScene {
     this.ed.maxHp = this.ed.hp; 
     this.ed.status = null; 
 
-    // キャラ配置 (少し上に)
-    this.ps = this.add.sprite(w*0.2, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
-    this.es = this.add.sprite(w*0.8, h*0.35, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
+    // --- キャラ配置 (中央寄り) ---
+    this.ps = this.add.sprite(w*0.25, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
+    this.es = this.add.sprite(w*0.75, h*0.4, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
 
-    // UI配置調整 (座標を広げる)
-    this.add.text(w*0.1, h*0.65, GAME_DATA.player.name, {font:`16px ${GAME_FONT}`});
-    this.phb = this.createHpBar(w*0.1, h*0.68, 100, 10, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
-    this.add.text(w*0.1, h*0.71, "Stress", {font:`12px ${GAME_FONT}`, color:'#fa0'});
-    this.sb = this.createStressBar(w*0.1, h*0.73, 100, 8);
-    this.apBar = this.createApBar(w*0.1 + 30, h*0.77);
+    // --- 上部ステータスエリア ---
+    const topY = 40;
+    // 敵HPバー (右上)
+    this.add.text(w-20, topY, this.ed.name, {font:`20px ${GAME_FONT}`}).setOrigin(1, 0);
+    this.ehb = this.createHpBar(w-170, topY+30, 150, 15, this.ed.hp, this.ed.maxHp); // 右端合わせ
 
-    this.ehb = this.createHpBar(w*0.7, h*0.3, 100, 10, this.ed.hp, this.ed.maxHp);
-    this.add.text(w*0.7, h*0.27, this.ed.name, {font:`16px ${GAME_FONT}`});
+    // プレイヤーHPバー & ストレス (左上)
+    this.add.text(20, topY, GAME_DATA.player.name, {font:`20px ${GAME_FONT}`});
+    this.phb = this.createHpBar(20, topY+30, 150, 15, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
+    
+    // ストレスバー (HPの下)
+    this.add.text(20, topY+55, "Stress", {font:`14px ${GAME_FONT}`, color:'#fa0'});
+    this.sb = this.createStressBar(80, topY+63, 90, 10); // 少し右にずらして配置
 
-    this.createMessageBox(w, h);
+    // APバー (さらに下、中央寄り)
+    this.apBar = this.createApBar(w/2 - 90, topY + 90);
+
+
+    // --- 下部コマンドエリア (2x2配置) ---
+    this.createMessageBox(w, h); // メッセージウィンドウは一番下
     this.mm = this.add.container(0, 0);
     
-    // ボタンを小さくして整理
-    const btnW = 120, btnH = 50;
-    this.mm.add(this.createButton(w*0.3, h-230, 'コマンド', 0xc33, () => this.openSkillMenu(), btnW, btnH));
-    this.mm.add(this.createButton(w*0.7, h-230, 'アイテム', 0x383, () => this.openItemMenu(), btnW, btnH));
-    this.mm.add(this.createButton(w*0.7, h-160, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
-    this.lb = this.createButton(w*0.3, h-160, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), btnW, btnH, true);
-    this.lb.setVisible(false); this.mm.add(this.lb);
+    // ボタン配置の基準位置 (メッセージウィンドウの上)
+    const cmdY = h - 230; 
+    const btnW = 160; 
+    const btnH = 60;
+    const gapX = 10;
+    const gapY = 15;
 
+    // 左上: コマンド
+    this.mm.add(this.createButton(w/2 - btnW/2 - gapX, cmdY, 'コマンド', 0xc33, () => this.openSkillMenu(), btnW, btnH));
+    // 右上: アイテム
+    this.mm.add(this.createButton(w/2 + btnW/2 + gapX, cmdY, 'アイテム', 0x383, () => this.openItemMenu(), btnW, btnH));
+    // 左下: ブチギレ (条件付き表示)
+    this.lb = this.createButton(w/2 - btnW/2 - gapX, cmdY + btnH + gapY, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), btnW, btnH, true);
+    this.lb.setVisible(false); 
+    this.mm.add(this.lb);
+    // 右下: パス
+    this.mm.add(this.createButton(w/2 + btnW/2 + gapX, cmdY + btnH + gapY, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
+
+
+    // --- QTE等のUI要素 ---
     this.qt = this.add.graphics().setDepth(100); this.qr = this.add.graphics().setDepth(100);
     this.qtxt = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.gs = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
@@ -103,7 +124,6 @@ export class BattleScene extends BaseScene {
       this.im = this.add.container(0, h-320).setVisible(false).setDepth(50);
       const bg = this.add.graphics().fillStyle(0x000, 0.9).lineStyle(2, 0xfff).fillRoundedRect(10, 0, w-20, 310, 10).strokeRoundedRect(10, 0, w-20, 310, 10);
       this.im.add(bg);
-      // 戻るボタン
       const bc = this.createBackButton(w, () => { this.im.setVisible(false); this.mm.setVisible(true); });
       this.im.add(bc);
   }
