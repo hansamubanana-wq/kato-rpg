@@ -2,25 +2,28 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#000000" />
-    <title>加藤先生の数学クエスト</title>
+    
+    <link rel="icon" type="image/png" href="/icon.png" />
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
     <link rel="manifest" href="/manifest.json" />
+    
+    <title>青稜中学校RPG</title>
+
     <style>
       body {
         margin: 0;
         padding: 0;
-        background-color: #000;
-        overflow: hidden;
+        background-color: #000000; /* 背景を黒に */
+        overflow: hidden; /* 余計なスクロールバーを消す */
         display: flex;
         justify-content: center;
         align-items: center;
-        height: 100vh;
-        touch-action: none; /* スマホでのスクロール/ズーム無効化 */
-        -webkit-user-select: none; /* 長押しメニュー無効化 */
-        user-select: none;
+        height: 100vh; /* 画面いっぱいに表示 */
+      }
+      #game-container {
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* ちょっとリッチな影 */
       }
     </style>
   </head>
