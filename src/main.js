@@ -203,10 +203,11 @@ class BaseScene extends Phaser.Scene {
   }
 
   // 【完全修正版】スクロールリスト用ボタン
-  // シーン全体のフラグに頼らず、個別のタッチ位置で判定する最強の方式
+  // 画面全体のスクロールフラグではなく、ボタン個別のタッチ座標で判定
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
+    
     const sh = this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
@@ -216,8 +217,8 @@ class BaseScene extends Phaser.Scene {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
     }
+    
     if(rightText) {
-        // 右端テキストの配置修正
         const rt = this.add.text((w/2) - 20, 0, rightText, { font: `22px ${GAME_FONT}`, color: '#ff0' }).setOrigin(1, 0.5);
         vc.add(rt);
         c.rightTextObj = rt; 
@@ -226,15 +227,16 @@ class BaseScene extends Phaser.Scene {
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
     let startY = 0;
     
-    // タップ開始時のY座標を記録
+    // タップ開始時の座標を記録
     hit.on('pointerdown', (pointer) => { 
         startY = pointer.y;
         vc.setScale(0.95); 
     });
     
-    // タップ終了時、移動距離が10px未満なら「クリック」とみなす
+    // タップ終了時、指の移動が少なければクリックとみなす
     hit.on('pointerup', (pointer) => { 
         vc.setScale(1.0); 
+        // 10px以上動いていなければクリック
         if (Math.abs(pointer.y - startY) < 10) {
             this.playSound('se_select'); 
             cb(); 
@@ -274,15 +276,32 @@ class BaseScene extends Phaser.Scene {
       return container;
   }
 
+  // スクロール判定（入力ブロックなし）
   initScrollView(contentHeight, maskY, maskH) {
       this.scrollContainer = this.add.container(0, maskY);
       const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
       const mask = shape.createGeometryMask(); this.scrollContainer.setMask(mask);
-      const hitZone = this.add.rectangle(this.scale.width/2, maskY + maskH/2, this.scale.width, maskH, 0x000000, 0).setInteractive();
-      const minScroll = Math.min(0, maskH - contentHeight - 50); const maxScroll = 0;
-      let dragStartY = 0; let containerStartY = 0;
-      this.input.on('pointerdown', (pointer) => { if (pointer.y >= maskY && pointer.y <= maskY + maskH) { dragStartY = pointer.y; containerStartY = this.scrollContainer.y; } });
-      this.input.on('pointermove', (pointer) => { if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) { const diff = pointer.y - dragStartY; this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY); } });
+      
+      const minScroll = Math.min(0, maskH - contentHeight - 50); 
+      const maxScroll = 0;
+      let dragStartY = 0; 
+      let containerStartY = 0;
+
+      // 画面全体でスクロール操作を受け付ける
+      this.input.on('pointerdown', (pointer) => {
+          if (pointer.y >= maskY && pointer.y <= maskY + maskH) {
+              dragStartY = pointer.y;
+              containerStartY = this.scrollContainer.y;
+          }
+      });
+
+      this.input.on('pointermove', (pointer) => {
+          if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) {
+              const diff = pointer.y - dragStartY;
+              this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY);
+          }
+      });
+      
       return this.scrollContainer;
   }
 }
@@ -739,7 +758,6 @@ class BattleScene extends BaseScene {
     });
   }
 
-  // 【修正】Limit Break
   activateLimitBreak() {
     this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
     this.refreshStatus();
