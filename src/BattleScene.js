@@ -16,6 +16,9 @@ export class BattleScene extends BaseScene {
     
     const w = this.scale.width; const h = this.scale.height;
     
+    // チュートリアル用のフラグ（最初は自由操作禁止）
+    this.tutorialFreeMode = false;
+
     // 敵データ生成
     let enemy = null;
     if (this.isTutorial) {
@@ -52,7 +55,7 @@ export class BattleScene extends BaseScene {
     this.createMessageBox(w, h); 
     this.mm = this.add.container(0, 0);
     
-    // ボタンの座標を計算して保持（チュートリアルで使うため）
+    // ボタン配置
     const cmdY = h - 230; 
     const btnW = 160; const btnH = 60; const gapX = 10;
     
@@ -81,13 +84,9 @@ export class BattleScene extends BaseScene {
     
     // --- チュートリアル用レイヤー ---
     this.tutorialLayer = this.add.container(0, 0).setDepth(2000).setVisible(false);
-    // 暗幕（画面全体を覆う透明度ありの黒）
     this.tutorialOverlay = this.add.rectangle(w/2, h/2, w*2, h*2, 0x000000, 0.7).setInteractive();
-    // ここを押せ！の枠線
     this.guideRect = this.add.graphics();
-    // 指アイコン
     this.tutorialHand = this.add.text(0, 0, '👆', {fontSize:'40px'}).setOrigin(0.5, 0);
-    // クリック判定用の透明ボタン
     this.guideZone = this.add.rectangle(0,0,100,100,0xff0000,0.01).setInteractive();
     
     this.tutorialLayer.add([this.tutorialOverlay, this.guideRect, this.tutorialHand, this.guideZone]);
@@ -109,69 +108,50 @@ export class BattleScene extends BaseScene {
 
   // --- チュートリアル進行 ---
 
-  // ステップ1: コマンドボタンを押させる
   startTutorialStep1() {
       this.tutorialStep = 1;
       this.updateMessage("まずは攻撃だ！\n「コマンド」をタップ！");
-      // 座標を直接指定してガイドを表示
       this.showGuide(this.btnPos.cmd.x, this.btnPos.cmd.y, 160, 60, () => {
           this.openSkillMenu();
       });
   }
 
-  // ステップ2: 技（出席確認）を選ばせる
   startTutorialStep2() {
       this.tutorialStep = 2;
       this.updateMessage("技を選ぼう！\n「出席確認」をタップ！");
-      // スキルメニューの1番上の位置（固定値で計算）
       const x = this.scale.width * 0.25; 
       const y = this.sm.y + 60; 
       this.showGuide(x, y, 160, 60, () => {
-          // 最初のスキル（出席確認）を実行
           const skill = this.skillButtons[0].skill;
           this.selectSkill(skill);
       });
   }
 
-  // ステップ3: QTEの説明（ここは操作させない）
   startTutorialStep3() {
       this.tutorialStep = 3;
       this.tutorialLayer.setVisible(false);
       this.updateMessage("黄色い輪が重なる瞬間に\n画面をタップ！");
   }
 
-  // ガイド表示関数（確実な実装）
   showGuide(x, y, w, h, callback) {
       this.tutorialLayer.setVisible(true);
-      
-      // 枠線を描画（黄色でピカピカさせる）
       this.guideRect.clear();
       this.guideRect.lineStyle(4, 0xffff00, 1);
       this.guideRect.strokeRoundedRect(x - w/2, y - h/2, w, h, 10);
-      
-      // 指を配置
       this.tutorialHand.setPosition(x, y + 40);
-      
-      // 指アニメーション
       this.tweens.killTweensOf(this.tutorialHand);
-      this.tweens.add({
-          targets: this.tutorialHand, y: y + 60, duration: 500, yoyo: true, repeat: -1
-      });
-
-      // 判定エリアを配置（ここだけクリック可能にする）
+      this.tweens.add({ targets: this.tutorialHand, y: y + 60, duration: 500, yoyo: true, repeat: -1 });
       this.guideZone.setPosition(x, y);
       this.guideZone.setDisplaySize(w, h);
-      this.guideZone.setInteractive(); // 有効化
-      
-      // 一度押したら次へ
+      this.guideZone.setInteractive();
       this.guideZone.once('pointerdown', (pointer) => {
-          pointer.event.stopPropagation(); // 他への伝播を止める
+          pointer.event.stopPropagation(); 
           this.tutorialLayer.setVisible(false);
           callback();
       });
   }
 
-  // --- 以下、通常ロジック ---
+  // --- 通常ロジック ---
 
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
@@ -200,17 +180,19 @@ export class BattleScene extends BaseScene {
         if (s.status === 'sleep') val += ' [眠り]';
         const sub = this.add.text(0, 12, `AP:${s.apCost}/${val}`, {font:`11px ${GAME_FONT}`, color:'#ff0'}).setOrigin(0.5);
         
-        // チュートリアル中はここのクリックイベントを無効化（ガイドゾーンが担当するため）
         const hRect = this.add.rectangle(0,0,160,60).setInteractive();
         hRect.on('pointerdown', () => { 
-            if (this.isTutorial) return; 
+            // 【修正】チュートリアル中でも「フリーモード」なら操作可能にする
+            if (this.isTutorial && !this.tutorialFreeMode) return; 
+            
             if (GAME_DATA.player.ap >= s.apCost) { this.input.stopPropagation(); this.vibrate(10); this.selectSkill(s); } else { this.vibrate(50); } 
         });
         c.add([b, t, sub, hRect]); this.sm.add(c);
         this.skillButtons.push({ container: c, bg: b, skill: s });
     });
     const bc = this.createBackButton(w, () => { 
-        if(this.isTutorial) return;
+        // 【修正】フリーモードなら戻れる
+        if(this.isTutorial && !this.tutorialFreeMode) return;
         this.sm.setVisible(false); this.mm.setVisible(true); 
     });
     this.sm.add(bc);
@@ -243,7 +225,10 @@ export class BattleScene extends BaseScene {
   }
 
   openItemMenu() {
-      if(!this.isPlayerTurn || this.isTutorial) return;
+      // 【修正】フリーモードならアイテムも使えるようにする（一応）
+      if(!this.isPlayerTurn) return;
+      if(this.isTutorial && !this.tutorialFreeMode) return; 
+
       this.mm.setVisible(false); this.im.setVisible(true);
       this.im.each(c => { if(c.list && c.y < 250) c.destroy(); }); 
       const items = Object.keys(GAME_DATA.player.items).map(id => {
@@ -297,7 +282,8 @@ export class BattleScene extends BaseScene {
   }
 
   skipTurn() {
-      if(this.isPlayerTurn && !this.isTutorial) {
+      // 【修正】フリーモードならパス可能
+      if(this.isPlayerTurn && (!this.isTutorial || this.tutorialFreeMode)) {
           this.isPlayerTurn = false; this.mm.setVisible(false);
           this.showApPopup(this.ps.x, this.ps.y - 50);
           GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
@@ -528,21 +514,34 @@ export class BattleScene extends BaseScene {
       GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
       this.showApPopup(this.ps.x, this.ps.y - 50);
       this.mm.setVisible(true); this.px.setVisible(false); this.ps.clearTint(); 
-      if(this.isTutorial) { this.updateMessage("さあ、反撃だ！\n好きなように戦え！"); this.tutorialLayer.setVisible(false); } 
-      else { this.updateMessage("ターン開始"); }
+      
+      if(this.isTutorial) {
+          this.updateMessage("さあ、反撃だ！\n好きなように戦え！");
+          this.tutorialLayer.setVisible(false); // ガイド消去
+          
+          // 【修正】ここでフリーモードを解禁！
+          this.tutorialFreeMode = true;
+      } else {
+          this.updateMessage("ターン開始"); 
+      }
       this.refreshStatus();
   }
 
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; 
+    
+    // チュートリアル終了後も進まない
     if(!this.isTraining && !this.isTutorial) GAME_DATA.stageIndex++; 
+    
     this.sound.stopAll(); this.playSound('se_win'); this.vibrate([100, 50, 100, 50, 200]); 
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) { GAME_DATA.player.ownedSkillIds.push(7); msg += "\nレア技【居残り指導】習得！"; }
     if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) { GAME_DATA.player.level++; GAME_DATA.player.maxHp+=20; GAME_DATA.player.hp = GAME_DATA.player.maxHp; GAME_DATA.player.atk += 0.2; GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5); msg += "\nレベルアップ！"; }
+    
     this.updateMessage(msg + "\n(クリックで次へ)");
     this.mm.setVisible(false);
     saveGame(); 
+
     this.input.once('pointerdown', () => {
         if(!this.isTraining && GAME_DATA.stageIndex === 12) this.transitionTo('NormalClearScene');
         else if(!this.isTraining && GAME_DATA.stageIndex === 13) this.transitionTo('TrueClearScene');
