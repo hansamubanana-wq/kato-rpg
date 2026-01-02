@@ -70,45 +70,126 @@ export class OpeningScene extends BaseScene {
   }
 }
 
-// チュートリアル（1ページ目）
+// ★ここから5ページ版チュートリアル
 export class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
   create() {
     this.fadeInScene(); 
-    this.createGameBackground('skill');
-    this.page = 1;
     this.showPage1();
   }
 
+  // 1. 攻撃と防御
   showPage1() {
     this.children.removeAll(); 
-    this.createGameBackground('skill');
+    this.createGameBackground('battle');
     const w = this.scale.width; const h = this.scale.height;
     
-    this.add.text(w/2, 50, "【チュートリアル 1/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    this.add.text(w/2, 120, "1. 攻 撃", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    this.add.text(w/2, 50, "チュートリアル (1/5)", { font: `24px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    this.add.text(w/2, 100, "基本ルール", { font: `32px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     
-    // リングの図解
+    // 攻撃の説明
+    this.add.text(w/2, 180, "⚔️ 攻 撃", { font: `24px ${GAME_FONT}`, color: '#0ff' }).setOrigin(0.5);
     const ring = this.add.graphics();
-    ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 190, 40);
-    ring.lineStyle(4, 0xffffff); ring.strokeCircle(w/2, 190, 40); // 重なってる感じ
-    this.add.text(w/2, 250, "黄色い輪が重なる瞬間に\n画面をタップ！", { font: `20px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
+    ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 240, 30);
+    ring.lineStyle(2, 0xffffff); ring.strokeCircle(w/2, 240, 30);
+    this.add.text(w/2, 290, "黄色い輪が重なる瞬間に\n画面をタップ！", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
     
-    this.add.text(w/2, 320, "2. 防 御 (パリィ)", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    this.add.text(w/2, 370, "！", { font: `60px ${GAME_FONT}`, color: '#f00', stroke:'#fff', strokeThickness:4 }).setOrigin(0.5);
-    // 【修正】攻撃パターンについて追記
-    this.add.text(w/2, 430, "敵の頭上に「！」が出たら\n即座に画面をタップ！\n成功するとダメージ0＆AP回復！\n\n※攻撃パターンは\n数種類あるので注意！", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
+    // 防御の説明
+    this.add.text(w/2, 360, "🛡️ 防 御 (パリィ)", { font: `24px ${GAME_FONT}`, color: '#0ff' }).setOrigin(0.5);
+    this.add.text(w/2, 410, "！", { font: `50px ${GAME_FONT}`, color: '#f00', stroke:'#fff', strokeThickness:4 }).setOrigin(0.5);
+    this.add.text(w/2, 470, "敵の頭上に「！」が出たら\n即座に画面をタップ！\n※攻撃パターンは複数あります！", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
     
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage2());
   }
 
+  // 2. APシステム
   showPage2() {
+    this.children.removeAll();
+    this.createGameBackground('battle');
+    const w = this.scale.width; const h = this.scale.height;
+    this.add.text(w/2, 50, "チュートリアル (2/5)", { font: `24px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    this.add.text(w/2, 100, "AP (行動力)", { font: `32px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    
+    // APバー図解
+    const c = this.add.container(w/2 - 60, 160);
+    for(let i=0; i<5; i++) c.add(this.add.rectangle(i*30, 0, 24, 24, 0xffff00).setStrokeStyle(2,0x888));
+    
+    const exp = `
+強力な技ほど多くのAPを消費します。
+APが足りないと何もできません。
+
+＜APの回復方法＞
+✅ 自分のターンが来る (+1)
+✅ パリィ成功 (+1)
+✅ 「パス」コマンド (+1)
+✅ アイテム「酒」 (全回復)
+    `;
+    this.add.text(w/2, 320, exp, { font: `18px ${GAME_FONT}`, color: '#fff', align:'left', lineSpacing:10 }).setOrigin(0.5);
+    
+    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
+  }
+
+  // 3. ストレスとブチギレ
+  showPage3() {
+    this.children.removeAll();
+    this.createGameBackground('secret'); 
+    const w = this.scale.width; const h = this.scale.height;
+    this.add.text(w/2, 50, "チュートリアル (3/5)", { font: `24px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    this.add.text(w/2, 100, "ストレスとブチギレ", { font: `32px ${GAME_FONT}`, color: '#f00', stroke:'#fff', strokeThickness:4 }).setOrigin(0.5);
+
+    // ストレスバー図解
+    this.add.rectangle(w/2, 180, 200, 20, 0x440000).setStrokeStyle(2, 0xffffff);
+    this.add.rectangle(w/2, 180, 200, 16, 0xff0000);
+    this.add.text(w/2, 150, "ストレスゲージ", { font: `16px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+
+    const exp = `
+攻撃を受けたり、パリィを成功させると
+加藤先生の「ストレス」が溜まります。
+
+ゲージが最大になると...
+必殺技【ブチギレ】が発動可能！
+
+敵に超特大ダメージを与え、
+ストレスを全て解消します。
+    `;
+    this.add.text(w/2, 330, exp, { font: `18px ${GAME_FONT}`, color: '#fff', align:'center', lineSpacing:10 }).setOrigin(0.5);
+
+    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage4());
+  }
+
+  // 4. 状態異常とアイテム
+  showPage4() {
+    this.children.removeAll();
+    this.createGameBackground('battle');
+    const w = this.scale.width; const h = this.scale.height;
+    this.add.text(w/2, 50, "チュートリアル (4/5)", { font: `24px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    this.add.text(w/2, 100, "状態異常とアイテム", { font: `32px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+
+    const statusExp = `
+🔥 炎上 (Burn)
+ターン終了時にダメージを受ける。
+
+💤 居眠り (Sleep)
+行動不能になる。攻撃されると起きる。
+
+これらは敵にも有効です！
+「チョーク投げ(眠り)」などで
+戦略的に戦いましょう。
+    `;
+    this.add.text(w/2, 230, statusExp, { font: `18px ${GAME_FONT}`, color: '#fff', align:'left', lineSpacing:8 }).setOrigin(0.5);
+
+    this.add.text(w/2, 380, "アイテムは「プチレーブ」で購入可能。\nピンチの時は惜しまず使おう！", { font: `16px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
+
+    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage5());
+  }
+
+  // 5. 成長と編成
+  showPage5() {
     this.children.removeAll();
     this.createGameBackground('shop');
     const w = this.scale.width; const h = this.scale.height;
-    this.add.text(w/2, 50, "【チュートリアル 2/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    
-    this.add.text(w/2, 130, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    this.add.text(w/2, 50, "チュートリアル (5/5)", { font: `24px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    this.add.text(w/2, 100, "準備こそ全て", { font: `32px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     
     const info = `
 ① 敵を倒してGoldを獲得
@@ -117,39 +198,11 @@ export class TutorialScene extends BaseScene {
 強力な技やアイテムを購入
 
 ③「編成」で技を装備！
-(最大6つまで)
+(最大6つまで装備可能)
     `;
-    this.add.text(w/2, 260, info, { font: `22px ${GAME_FONT}`, color: '#fff', align:'center', lineSpacing:10 }).setOrigin(0.5);
+    this.add.text(w/2, 240, info, { font: `20px ${GAME_FONT}`, color: '#fff', align:'center', lineSpacing:10 }).setOrigin(0.5);
     
-    this.add.text(w/2, 400, "※ 買った技はセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
-    
-    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
-  }
-
-  showPage3() {
-    this.children.removeAll();
-    this.createGameBackground('battle');
-    const w = this.scale.width; const h = this.scale.height;
-    this.add.text(w/2, 50, "【チュートリアル 3/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    
-    this.add.text(w/2, 120, "AP (行動力) について", { font: `24px ${GAME_FONT}`, color: '#ff0' }).setOrigin(0.5);
-    
-    // APバーの図解
-    const c = this.add.container(w/2 - 60, 160);
-    for(let i=0; i<5; i++) {
-        c.add(this.add.rectangle(i*25, 0, 20, 20, 0xffff00).setStrokeStyle(1,0x888));
-    }
-    
-    this.add.text(w/2, 220, "技を使うにはAPが必要です。\n強い技ほど多くのAPを消費します。", { font: `20px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
-    
-    this.add.text(w/2, 300, "＜APの回復方法＞", { font: `20px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    const rec = `
-・自分のターンが来る (+1)
-・敵の攻撃をパリィする (+1)
-・「パス」コマンドを使う (+1)
-・アイテム「酒」を使う (全回復)
-    `;
-    this.add.text(w/2, 380, rec, { font: `20px ${GAME_FONT}`, color: '#fff', align:'left' }).setOrigin(0.5);
+    this.add.text(w/2, 380, "⚠ 重要 ⚠\n買った技は「編成」画面で\nセットしないと使えません！", { font: `22px ${GAME_FONT}`, color: '#f55', align:'center', stroke:'#fff', strokeThickness:2 }).setOrigin(0.5);
     
     this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), 220, 50, true);
   }
@@ -382,7 +435,6 @@ export class TrueClearScene extends BaseScene {
     const charaY = h * 0.65;
     const chars = [];
 
-    // ステージの敵キャラ（一部除く）
     let bossCount = 0;
     STAGES.forEach((stage, i) => {
         if (stage.key !== 'dozo' && stage.key !== 'kingetsu') { 
@@ -392,7 +444,6 @@ export class TrueClearScene extends BaseScene {
         }
     });
 
-    // 主人公
     const kato = this.add.sprite(w/2, charaY - 40, 'kato').setScale(8);
     this.startIdleAnimation(kato);
     chars.push(kato);
@@ -405,7 +456,6 @@ export class TrueClearScene extends BaseScene {
         });
     });
 
-    // テキスト
     const titleText = this.add.text(w/2, h*0.15, "祝・完全制覇！", {
         font:`48px ${GAME_FONT}`, color:'#ffcc00', stroke:'#000', strokeThickness:6
     }).setOrigin(0.5).setScale(0).setDepth(100);
@@ -429,7 +479,6 @@ Thank you for playing!`;
 
     this.tweens.add({ targets: msgText, alpha: 1, y: h*0.4, duration: 2500, delay: 3500 });
 
-    // 戻るボタン
     this.time.delayedCall(7000, () => {
         const btn = this.createButton(w/2, h*0.9, 'タイトルへ戻る', 0x555555, () => {
             this.cameras.main.fadeOut(1000, 0,0,0);
