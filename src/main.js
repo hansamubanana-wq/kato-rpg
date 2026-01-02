@@ -63,7 +63,7 @@ const GAME_DATA = {
     name: '加藤先生', level: 1, exp: 0, nextExp: 50,
     hp: 80, maxHp: 80, atk: 1.0, 
     stress: 0, maxStress: 100,
-    ap: 3, maxAp: 9, 
+    ap: 3, maxAp: 9,
     ownedSkillIds: [1],
     equippedSkillIds: [1]
   }
@@ -75,6 +75,8 @@ const GAME_DATA = {
 class BaseScene extends Phaser.Scene {
   preload() {
     Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
+    // ※音源ファイルがない場合はエラーにならないようダミー処理を入れていますが
+    // public/sounds フォルダにファイルがあれば鳴ります
     this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
     this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
     this.load.audio('se_select', '/sounds/se_select.mp3');
@@ -91,7 +93,11 @@ class BaseScene extends Phaser.Scene {
     this.textures.addCanvas(key, cvs);
   }
 
-  playSound(key, config = {}) { if (this.sound.get(key) || this.cache.audio.exists(key)) this.sound.play(key, config); }
+  playSound(key, config = {}) { 
+      if (this.sound.get(key) || this.cache.audio.exists(key)) {
+          this.sound.play(key, config);
+      }
+  }
   
   playBGM(key) {
       const current = this.sound.getAll('bgm_world').concat(this.sound.getAll('bgm_battle'));
@@ -164,7 +170,6 @@ class BaseScene extends Phaser.Scene {
       }});
   }
 
-  // 【新規】AP回復ポップアップ
   showApPopup(x, y) {
       const t = this.add.text(x, y, "AP+1", { font: `32px ${GAME_FONT}`, color: '#ff0', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(200);
       this.tweens.add({ targets: t, y: y-60, alpha: 0, duration: 800, ease: 'Sine.Out', onComplete: ()=>t.destroy() });
@@ -195,44 +200,58 @@ class BaseScene extends Phaser.Scene {
     vc.add([sh, bg, tx]);
     if (isPulse) this.tweens.add({ targets: vc, scale: 1.05, duration: 800, yoyo: true, repeat: -1 });
     
+    // 【修正】通常ボタンは即反応
     const hit = this.add.rectangle(0, 0, w+10, h+20, 0x000, 0).setInteractive();
     hit.on('pointerdown', () => { vc.setScale(0.95); this.vibrate(5); });
-    hit.on('pointerup', () => { vc.setScale(1.0); this.playSound('se_select'); cb(); });
+    hit.on('pointerup', () => { 
+        vc.setScale(1.0); 
+        this.playSound('se_select'); 
+        cb(); 
+    });
     hit.on('pointerout', () => vc.setScale(1.0));
     c.add([vc, hit]);
     return c;
   }
 
+  // 【完全修正】スクロールリスト用ボタン（ドラッグ判定強化）
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
+    
     const sh = this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
     vc.add([sh, bg, tx]);
+    
     if(subText) {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
     }
+    
+    // 【修正】右側テキストの配置（ボタンコンテナ内に追加）
     if(rightText) {
         const rt = this.add.text((w/2) - 20, 0, rightText, { font: `22px ${GAME_FONT}`, color: '#ff0' }).setOrigin(1, 0.5);
         vc.add(rt);
-        c.rightTextObj = rt;
+        c.rightTextObj = rt; // 参照用
     }
     
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
     let startY = 0;
+    
     hit.on('pointerdown', (pointer) => { 
         startY = pointer.y;
         vc.setScale(0.95); 
     });
+    
     hit.on('pointerup', (pointer) => { 
         vc.setScale(1.0); 
-        if (!this.isDragging) {
+        // 【修正】指の移動距離が10px未満ならクリックとみなす（グローバル変数に頼らない）
+        if (Math.abs(pointer.y - startY) < 10) {
             this.playSound('se_select'); 
             cb(); 
         }
     });
+    
     hit.on('pointerout', () => vc.setScale(1.0));
     c.add([vc, hit]);
     return c;
@@ -252,27 +271,16 @@ class BaseScene extends Phaser.Scene {
     c.update = (v, m) => { const r = Math.min(1, v/m); bar.width = (w-2)*r; bar.fillColor = r>=1?0xfff:0xfa0; };
     c.add([bg, bar]); return c;
   }
-
-  // APバー (表示位置調整)
   createApBar(x, y) {
       const container = this.add.container(x, y);
       const boxes = [];
-      const size = 14; // 少し大きく
-      const margin = 6;
-
+      const size = 14; const margin = 6;
       for (let i = 0; i < 9; i++) {
           const bg = this.add.rectangle(i * (size + margin), 0, size, size, 0x333333).setStrokeStyle(1, 0x888888);
           const fill = this.add.rectangle(i * (size + margin), 0, size - 2, size - 2, 0xffff00).setVisible(false);
-          container.add([bg, fill]);
-          boxes.push(fill);
+          container.add([bg, fill]); boxes.push(fill);
       }
-
-      container.update = (currentAp) => {
-          boxes.forEach((box, index) => {
-              box.setVisible(index < currentAp);
-          });
-      };
-
+      container.update = (currentAp) => { boxes.forEach((box, index) => { box.setVisible(index < currentAp); }); };
       container.add(this.add.text(-30, -8, "AP", { fontSize: '16px', color: '#ff0', fontStyle: 'bold' }));
       return container;
   }
@@ -282,34 +290,10 @@ class BaseScene extends Phaser.Scene {
       const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
       const mask = shape.createGeometryMask(); this.scrollContainer.setMask(mask);
       const hitZone = this.add.rectangle(this.scale.width/2, maskY + maskH/2, this.scale.width, maskH, 0x000000, 0).setInteractive();
-      const minScroll = Math.min(0, maskH - contentHeight - 50); 
-      const maxScroll = 0;
-      this.isDragging = false; // シーンのプロパティとして管理
-      let dragStartY = 0;
-      let containerStartY = 0;
-
-      this.input.on('pointerdown', (pointer) => {
-          if (pointer.y >= maskY && pointer.y <= maskY + maskH) {
-              this.isDragging = false;
-              dragStartY = pointer.y;
-              containerStartY = this.scrollContainer.y;
-          }
-      });
-
-      this.input.on('pointermove', (pointer) => {
-          if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) {
-              const diff = pointer.y - dragStartY;
-              if (Math.abs(diff) > 10) this.isDragging = true;
-              if (this.isDragging) {
-                  this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY);
-              }
-          }
-      });
-      
-      this.input.on('pointerup', () => {
-          this.time.delayedCall(50, () => { this.isDragging = false; });
-      });
-
+      const minScroll = Math.min(0, maskH - contentHeight - 50); const maxScroll = 0;
+      let isDragging = false; let dragStartY = 0; let containerStartY = 0;
+      this.input.on('pointerdown', (pointer) => { if (pointer.y >= maskY && pointer.y <= maskY + maskH) { isDragging = false; dragStartY = pointer.y; containerStartY = this.scrollContainer.y; } });
+      this.input.on('pointermove', (pointer) => { if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) { const diff = pointer.y - dragStartY; if (Math.abs(diff) > 10) isDragging = true; if (isDragging) { this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY); } } });
       return this.scrollContainer;
   }
 }
@@ -358,7 +342,7 @@ class OpeningScene extends BaseScene {
 }
 
 // ================================================================
-//  4. チュートリアルシーン (3ページ構成)
+//  4. チュートリアルシーン
 // ================================================================
 class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
@@ -455,7 +439,7 @@ class ShopScene extends BaseScene {
     let y = 50; 
     skillList.forEach((s) => {
         const has = GAME_DATA.player.ownedSkillIds.includes(s.id);
-        const spec = (s.type === 'heal') ? `回復:${s.power}/AP:${s.apCost}` : `威力:${s.power}/AP:${s.apCost}`;
+        const spec = (s.type === 'heal') ? `回復力:${s.power}` : `威力:${s.power} / 速度:${s.speed}`;
         const rightText = has ? "済" : `${s.cost}G`;
         
         const btn = this.createScrollableButton(w/2, y, s.name, has?0x333333:0x000000, () => {
@@ -570,7 +554,7 @@ class TrueClearScene extends BaseScene {
 }
 
 // ================================================================
-//  9. バトルシーン (AP管理・UI調整版)
+//  9. バトルシーン
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
@@ -584,22 +568,16 @@ class BattleScene extends BaseScene {
     const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
     this.ed = { ...STAGES[idx], maxHp: STAGES[idx].hp };
 
-    // スプライト位置調整 (重ならないように)
     this.ps = this.add.sprite(w*0.2, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
     this.es = this.add.sprite(w*0.8, h*0.35, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
 
-    // UI配置調整 (座標を広げる)
     this.add.text(w*0.1, h*0.65, GAME_DATA.player.name, {font:`16px ${GAME_FONT}`});
     this.phb = this.createHpBar(w*0.1, h*0.68, 100, 10, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
-    
     this.add.text(w*0.1, h*0.71, "Stress", {font:`12px ${GAME_FONT}`, color:'#fa0'});
     this.sb = this.createStressBar(w*0.1, h*0.73, 100, 8);
-    
-    // APバー配置 (一番下)
     this.apBar = this.createApBar(w*0.1 + 30, h*0.77);
 
-    // 敵HPバー
     this.ehb = this.createHpBar(w*0.7, h*0.3, 100, 10, this.ed.hp, this.ed.maxHp);
     this.add.text(w*0.7, h*0.27, this.ed.name, {font:`16px ${GAME_FONT}`});
 
@@ -750,6 +728,43 @@ class BattleScene extends BaseScene {
     this.tweens.add({ targets: this.qtxt, scale:1.5, duration:300, yoyo:true, onComplete:()=>{ this.qtxt.setVisible(false); this.executeAttack(res); }});
   }
 
+  // 【修正】Limit Breakが反応しない問題を修正（確実な実行）
+  activateLimitBreak() {
+    this.isPlayerTurn = false; 
+    GAME_DATA.player.stress = 0; 
+    this.refreshStatus();
+
+    this.vibrate(1000); 
+    this.cameras.main.flash(500, 255, 0, 0); 
+    this.cameras.main.shake(500, 0.05);      
+    this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
+    
+    // ダメージ計算と適用
+    const dmg = Math.floor(GAME_DATA.player.atk * 150); 
+    
+    // 確実に次へ進むように遅延実行
+    this.time.delayedCall(1500, () => { 
+        if ((this.ed.hp - dmg) <= 0) {
+             // WIN演出
+             this.cameras.main.zoomTo(1.5, 200); 
+             this.tweens.timeScale = 0.1;
+             this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
+             this.ed.hp -= dmg; 
+             this.showDamagePopup(this.es.x, this.es.y, dmg, true); 
+             this.refreshStatus();
+             this.time.delayedCall(1500, () => { 
+                 this.tweens.timeScale=1.0; 
+                 this.cameras.main.zoomTo(1.0, 500); 
+                 this.winBattle(); 
+             });
+        } else {
+             this.ed.hp -= dmg; 
+             this.showDamagePopup(this.es.x, this.es.y, dmg, true); 
+             this.checkEnd();
+        }
+    });
+  }
+
   executeAttack(res) {
     this.playSwordAnimation(() => {
         let dmg = this.selS.power * GAME_DATA.player.atk;
@@ -873,7 +888,6 @@ class BattleScene extends BaseScene {
     
     if (suc) { 
         dmg = 0; this.playSound('se_parry'); this.vibrate(30); 
-        // パリィ成功でAP回復
         GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
         this.showApPopup(this.ps.x, this.ps.y - 50);
         
@@ -935,7 +949,6 @@ class BattleScene extends BaseScene {
 
   endEnemyTurn() {
       this.isPlayerTurn = true; 
-      // ターン開始時AP回復
       GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
       this.showApPopup(this.ps.x, this.ps.y - 50);
       
@@ -978,3 +991,25 @@ const config = {
   scene: [OpeningScene, TutorialScene, WorldScene, ShopScene, SkillScene, BattleScene, NormalClearScene, SecretBossIntroScene, TrueClearScene]
 };
 new Phaser.Game(config);
+``````json
+{
+  "name": "加藤先生RPG",
+  "short_name": "加藤先生",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "数学の加藤先生が戦うターン制RPG",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1046/1046355.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1046/1046355.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
