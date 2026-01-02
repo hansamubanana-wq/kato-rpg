@@ -66,36 +66,26 @@ class BaseScene extends Phaser.Scene {
     this.textures.addCanvas(key, cvs);
   }
 
-  // 【新規】ドットパターン背景を描画する
   createPatternBackground(color1, color2) {
     const w = this.scale.width;
     const h = this.scale.height;
     const bg = this.add.graphics();
     bg.fillStyle(color1, 1);
-    bg.fillRect(0, 0, w, h); // ベースの色
-
+    bg.fillRect(0, 0, w, h);
     bg.fillStyle(color2, 1);
-    const patternSize = 8; // ドットの大きさ
+    const patternSize = 8;
     for (let y = 0; y < h; y += patternSize * 2) {
         for (let x = 0; x < w; x += patternSize * 2) {
-            // 市松模様を描く
             bg.fillRect(x, y, patternSize, patternSize);
             bg.fillRect(x + patternSize, y + patternSize, patternSize, patternSize);
         }
     }
-    // 画面全体を少し暗くするフィルター
     this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3);
   }
 
-  // 【新規】キャラの待機アニメーション（ふわふわ動く）
   startIdleAnimation(target) {
       this.tweens.add({
-          targets: target,
-          y: '+=10', // 10ピクセル下へ
-          duration: 1000, // 1秒かけて
-          yoyo: true, // 行って戻る
-          repeat: -1, // 無限ループ
-          ease: 'Sine.easeInOut' // 滑らかな動き
+          targets: target, y: '+=10', duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
       });
   }
 
@@ -109,17 +99,38 @@ class BaseScene extends Phaser.Scene {
     return bg;
   }
 
+  // 【修正】ボタンの当たり判定を最前面に持ってくる修正
   createButton(x, y, text, color, cb) {
     const container = this.add.container(x, y);
     const w = 180, h = 50;
+    
+    // 背景
     const shadow = this.add.graphics().fillStyle(0x000000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xffffff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
-    const hitArea = this.add.rectangle(0, 0, w, h).setInteractive();
+    
+    // 文字（当たり判定より「後ろ」に追加してしまうと、文字をクリックしたときに反応しなくなることがある）
     const txt = this.add.text(0, 0, text, { font: `20px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    hitArea.on('pointerdown', () => { container.setScale(0.95); cb(); });
-    hitArea.on('pointerup', () => container.setScale(1.0));
-    hitArea.on('pointerout', () => container.setScale(1.0));
-    container.add([shadow, bg, hitArea, txt]);
+
+    // 当たり判定 (最前面に透明な板を置く)
+    const hitArea = this.add.rectangle(0, 0, w, h, 0x000000, 0).setInteractive();
+
+    // イベント設定: pointerup（指を離したとき）で実行することで、誤動作を防ぐ
+    hitArea.on('pointerdown', () => {
+        container.setScale(0.95);
+    });
+    
+    hitArea.on('pointerup', () => {
+        container.setScale(1.0);
+        cb(); // ここで実行！
+    });
+
+    hitArea.on('pointerout', () => {
+        container.setScale(1.0);
+    });
+
+    // コンテナに追加する順番が重要：hitAreaを最後（＝最前面）にする
+    container.add([shadow, bg, txt, hitArea]);
+    
     return container;
   }
 
@@ -147,7 +158,6 @@ class WorldScene extends BaseScene {
   constructor() { super('WorldScene'); }
   preload() { Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k])); }
   create() {
-    // 背景色を変更 (グレー系の市松模様)
     this.createPatternBackground(0x444444, 0x333333);
     const w = this.scale.width; const h = this.scale.height;
 
@@ -156,7 +166,7 @@ class WorldScene extends BaseScene {
     this.add.text(30, 60, `Gold: ${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ffff00' });
 
     const kato = this.add.sprite(w/2, h*0.35, 'kato').setScale(6);
-    this.startIdleAnimation(kato); // 待機アニメ再生
+    this.startIdleAnimation(kato);
 
     this.add.text(w/2, h*0.5, "「次はどうしますか？」", { font:`20px ${GAME_FONT}` }).setOrigin(0.5);
 
@@ -177,7 +187,6 @@ class WorldScene extends BaseScene {
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
   create() {
-    // 背景色を変更 (青系の市松模様)
     this.createPatternBackground(0x222255, 0x111133);
     const w = this.scale.width;
     
@@ -190,13 +199,18 @@ class ShopScene extends BaseScene {
 
     SKILL_DB.filter(s => s.cost > 0).forEach(skill => {
       const isOwned = GAME_DATA.player.ownedSkillIds.includes(skill.id);
+      
       const bg = this.add.graphics().fillStyle(isOwned?0x333333:0x000000, 0.8)
                   .lineStyle(2, 0xffffff).fillRoundedRect(20, y, w-40, 70, 8).strokeRoundedRect(20, y, w-40, 70, 8);
-      const hitArea = this.add.rectangle(w/2, y+35, w-40, 70).setInteractive();
+      
+      // 文字を先に描画
       this.add.text(40, y+10, skill.name, { font:`22px ${GAME_FONT}`, color: isOwned ? '#888' : '#fff'});
       this.add.text(40, y+40, skill.desc, { font:`16px ${GAME_FONT}`, color:'#aaa'});
       const price = this.add.text(w-40, y+35, isOwned?"済":`${skill.cost}G`, { font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
       
+      // 当たり判定を一番最後に追加
+      const hitArea = this.add.rectangle(w/2, y+35, w-40, 70).setInteractive();
+
       hitArea.on('pointerdown', () => {
         if (isOwned) return;
         if (GAME_DATA.gold >= skill.cost) {
@@ -218,7 +232,6 @@ class ShopScene extends BaseScene {
 class SkillScene extends BaseScene {
   constructor() { super('SkillScene'); }
   create() {
-    // 背景色を変更 (緑系の市松模様)
     this.createPatternBackground(0x225522, 0x113311);
     const w = this.scale.width; const h = this.scale.height;
     
@@ -230,8 +243,9 @@ class SkillScene extends BaseScene {
     GAME_DATA.player.equippedSkillIds.forEach((sid, idx) => {
       const s = SKILL_DB.find(x => x.id === sid);
       const btn = this.add.graphics().fillStyle(0x006600, 1).lineStyle(1,0xffffff).fillRoundedRect(30, y, w-60, 45, 5).strokeRoundedRect(30, y, w-60, 45, 5);
-      const hit = this.add.rectangle(w/2, y+22, w-60, 45).setInteractive();
       this.add.text(w/2, y+22, s.name, {font:`20px ${GAME_FONT}`}).setOrigin(0.5);
+      // 当たり判定を最後に
+      const hit = this.add.rectangle(w/2, y+22, w-60, 45).setInteractive();
       hit.on('pointerdown', () => {
         if (GAME_DATA.player.equippedSkillIds.length <= 1) return;
         GAME_DATA.player.equippedSkillIds.splice(idx, 1);
@@ -247,8 +261,9 @@ class SkillScene extends BaseScene {
       if (GAME_DATA.player.equippedSkillIds.includes(sid)) return;
       const s = SKILL_DB.find(x => x.id === sid);
       const btn = this.add.graphics().fillStyle(0x444444, 1).lineStyle(1,0xffffff).fillRoundedRect(30, y, w-60, 45, 5).strokeRoundedRect(30, y, w-60, 45, 5);
-      const hit = this.add.rectangle(w/2, y+22, w-60, 45).setInteractive();
       this.add.text(w/2, y+22, s.name, {font:`20px ${GAME_FONT}`}).setOrigin(0.5);
+      // 当たり判定を最後に
+      const hit = this.add.rectangle(w/2, y+22, w-60, 45).setInteractive();
       hit.on('pointerdown', () => {
         if (GAME_DATA.player.equippedSkillIds.length >= 6) return;
         GAME_DATA.player.equippedSkillIds.push(sid);
@@ -266,14 +281,12 @@ class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
   preload() { Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k])); }
   create() {
-    // 背景色を変更 (バトルっぽい暗い赤系の市松模様)
     this.createPatternBackground(0x552222, 0x331111);
     const w = this.scale.width; const h = this.scale.height;
 
     const stageIdx = Math.min(GAME_DATA.stageIndex, STAGES.length - 1);
     this.enemyData = { ...STAGES[stageIdx], maxHp: STAGES[stageIdx].hp };
 
-    // スプライト表示＆待機アニメーション開始
     this.playerSprite = this.add.sprite(w*0.2, h*0.6, 'kato').setScale(5);
     this.startIdleAnimation(this.playerSprite);
     this.enemySprite = this.add.sprite(w*0.8, h*0.4, this.enemyData.key).setScale(5);
@@ -317,24 +330,27 @@ class BattleScene extends BaseScene {
     const equipped = GAME_DATA.player.equippedSkillIds.map(id => SKILL_DB.find(s => s.id === id));
     equipped.forEach((s, i) => {
         const x = w * 0.25 + (i%2) * (w*0.5); const y = 50 + Math.floor(i/2) * 80;
+        
         const container = this.add.container(x, y);
         const btn = this.add.graphics().fillStyle(s.type==='heal'?0x228822:0x882222, 1).lineStyle(2,0xffffff).fillRoundedRect(-75, -25, 150, 50, 8).strokeRoundedRect(-75, -25, 150, 50, 8);
-        const hit = this.add.rectangle(0, 0, 150, 50).setInteractive();
         const txt = this.add.text(0, 0, s.name, {font:`18px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
+        const hit = this.add.rectangle(0, 0, 150, 50).setInteractive(); // 当たり判定を最後に
+        
         hit.on('pointerdown', () => { this.input.stopPropagation(); this.selectSkill(s); });
-        container.add([btn, hit, txt]);
+        container.add([btn, txt, hit]);
         this.skillMenu.add(container);
     });
     
     const backContainer = this.add.container(w/2, 270);
     const bBtn = this.add.graphics().fillStyle(0x555555, 1).fillRoundedRect(-50, -20, 100, 40, 5);
-    const bHit = this.add.rectangle(0, 0, 100, 40).setInteractive();
     const bTxt = this.add.text(0, 0, '戻る', {font:`16px ${GAME_FONT}`}).setOrigin(0.5);
+    const bHit = this.add.rectangle(0, 0, 100, 40).setInteractive();
     bHit.on('pointerdown', () => { this.input.stopPropagation(); this.skillMenu.setVisible(false); this.mainMenu.setVisible(true); });
-    backContainer.add([bBtn, bHit, bTxt]);
+    backContainer.add([bBtn, bTxt, bHit]);
     this.skillMenu.add(backContainer);
   }
 
+  // --- ゲームロジック ---
   handleInput() {
     if (this.qteMode === 'attack' && this.qteActive) this.resolveAttackQTE();
     else if (this.qteMode === 'defense_wait') this.triggerGuardPenalty();
