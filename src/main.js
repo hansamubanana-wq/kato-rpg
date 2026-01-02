@@ -1,35 +1,37 @@
 import Phaser from 'phaser';
+import { OpeningScene, TutorialScene, WorldScene, ShopScene, SkillScene, NormalClearScene, SecretBossIntroScene, TrueClearScene } from './MenuScenes';
+import { BattleScene } from './BattleScene';
+import { loadGame } from './data'; // データをロードする関数をインポート
 
-// 【ここを修正しました】
-// フォルダ分けされていないので、 './scenes/...' ではなく './...' から読み込みます
-import { OpeningScene, TutorialScene, WorldScene, ShopScene, SkillScene, NormalClearScene, SecretBossIntroScene, TrueClearScene } from './MenuScenes.js';
-import { BattleScene } from './BattleScene.js';
+// ★重要：ゲーム起動時に必ずセーブデータをロードする！
+loadGame();
 
-// ゲームの設定
 const config = {
   type: Phaser.AUTO,
-  width: 400,
-  height: 800,
+  width: 360,
+  height: 640,
   backgroundColor: '#000000',
   parent: 'game-container',
-  pixelArt: true,
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
-  // 読み込むシーンのリスト
+  pixelArt: true, // ドット絵をくっきり表示
   scene: [
     OpeningScene,
     TutorialScene,
     WorldScene,
+    BattleScene,
     ShopScene,
     SkillScene,
-    BattleScene,
     NormalClearScene,
     SecretBossIntroScene,
     TrueClearScene
-  ]
+  ],
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  // スマホで音が鳴らない問題対策
+  audio: {
+    disableWebAudio: false
+  }
 };
 
-// ゲーム開始
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
