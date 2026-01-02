@@ -1,8 +1,7 @@
 import Phaser from 'phaser';
 
 // ================================================================
-//  0. フォント読み込み (Google Fonts: DotGothic16)
-//  CSSを動的に追加して、レトロな日本語フォントを使えるようにします
+//  0. フォント読み込み
 // ================================================================
 const fontStyle = document.createElement('style');
 fontStyle.innerHTML = `
@@ -10,18 +9,12 @@ fontStyle.innerHTML = `
   body { font-family: 'DotGothic16', sans-serif; }
 `;
 document.head.appendChild(fontStyle);
-
-// ゲーム内で使うフォント名
 const GAME_FONT = 'DotGothic16';
 
 // ================================================================
 //  1. データ定義
 // ================================================================
-
-// ドット絵パレット
 const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0' };
-
-// アートデータ
 const ARTS = {
   kato: ["......0000......",".....000000.....","....00000000....","....00000000....","....01111110....","....03111130....","....01111110....",".....222222.....","....22233222....","....22222222....","....22222222....",".....33..33.....",".....33..33.....",".....00..00....."],
   dozo: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","...333333333....","...333333333....","...333333333....","...333333333....","....3333333.....","....77...77.....","....77...77.....","....00...00....."],
@@ -32,8 +25,6 @@ const ARTS = {
   aota: ["......0000......",".....000000.....","....00....00....","....01111110....","....01011010....","....01111110....",".....223322.....","....33333333....","....33333333....","....33333333....","....77777777....","....77....77....","....77....77....","....00....00...."],
   kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."]
 };
-
-// 敵リスト (コメントmsgは削除しました)
 const STAGES = [
   { id: 0, name: '土蔵', hp: 30, atk: 5, exp: 10, gold: 50, key: 'dozo' },
   { id: 1, name: '前田', hp: 50, atk: 8, exp: 20, gold: 80, key: 'maeda' },
@@ -43,8 +34,6 @@ const STAGES = [
   { id: 5, name: '青田校長', hp: 300, atk: 25, exp: 200, gold: 500, key: 'aota' },
   { id: 6, name: '金月', hp: 500, atk: 40, exp: 500, gold: 999, key: 'kingetsu' }
 ];
-
-// スキルデータ
 const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 10, speed: 1.0, cost: 0, desc: '基本攻撃' },
   { id: 2, name: 'チョーク投げ', type: 'attack', power: 25, speed: 1.2, cost: 100, desc: '威力中・速度中' },
@@ -54,7 +43,6 @@ const SKILL_DB = [
   { id: 6, name: '公式の確認', type: 'heal', power: 50, speed: 0, cost: 200, desc: 'HP回復魔法' },
   { id: 7, name: '居残り指導', type: 'attack', power: 100, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義' }
 ];
-
 const GAME_DATA = {
   gold: 0,
   stageIndex: 0,
@@ -67,7 +55,7 @@ const GAME_DATA = {
 };
 
 // ================================================================
-//  2. 共通UIシステム (リッチなUIを作るクラス)
+//  2. 共通UIシステム
 // ================================================================
 class BaseScene extends Phaser.Scene {
   createTextureFromText(key, art) {
@@ -78,65 +66,75 @@ class BaseScene extends Phaser.Scene {
     this.textures.addCanvas(key, cvs);
   }
 
-  // リッチなパネル（ウィンドウ背景）
-  createPanel(x, y, w, h) {
-    // 影
-    this.add.graphics().fillStyle(0x000000, 0.5).fillRoundedRect(x+4, y+4, w, h, 10);
-    // 本体
+  // 【新規】ドットパターン背景を描画する
+  createPatternBackground(color1, color2) {
+    const w = this.scale.width;
+    const h = this.scale.height;
     const bg = this.add.graphics();
-    bg.fillStyle(0x002244, 0.95); // 濃い紺色
+    bg.fillStyle(color1, 1);
+    bg.fillRect(0, 0, w, h); // ベースの色
+
+    bg.fillStyle(color2, 1);
+    const patternSize = 8; // ドットの大きさ
+    for (let y = 0; y < h; y += patternSize * 2) {
+        for (let x = 0; x < w; x += patternSize * 2) {
+            // 市松模様を描く
+            bg.fillRect(x, y, patternSize, patternSize);
+            bg.fillRect(x + patternSize, y + patternSize, patternSize, patternSize);
+        }
+    }
+    // 画面全体を少し暗くするフィルター
+    this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3);
+  }
+
+  // 【新規】キャラの待機アニメーション（ふわふわ動く）
+  startIdleAnimation(target) {
+      this.tweens.add({
+          targets: target,
+          y: '+=10', // 10ピクセル下へ
+          duration: 1000, // 1秒かけて
+          yoyo: true, // 行って戻る
+          repeat: -1, // 無限ループ
+          ease: 'Sine.easeInOut' // 滑らかな動き
+      });
+  }
+
+  createPanel(x, y, w, h) {
+    this.add.graphics().fillStyle(0x000000, 0.5).fillRoundedRect(x+4, y+4, w, h, 10);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x002244, 0.95);
     bg.lineStyle(2, 0xffffff, 1);
     bg.fillRoundedRect(x, y, w, h, 10);
     bg.strokeRoundedRect(x, y, w, h, 10);
     return bg;
   }
 
-  // リッチなボタン
   createButton(x, y, text, color, cb) {
     const container = this.add.container(x, y);
     const w = 180, h = 50;
-    
-    // ボタンの背景 (影付き)
     const shadow = this.add.graphics().fillStyle(0x000000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xffffff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
-    
-    // インタラクティブ設定（タッチ時のアニメーション付き）
     const hitArea = this.add.rectangle(0, 0, w, h).setInteractive();
-    
     const txt = this.add.text(0, 0, text, { font: `20px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-
-    hitArea.on('pointerdown', () => {
-        container.setScale(0.95); // 押した時に少し小さくなる
-        cb();
-    });
+    hitArea.on('pointerdown', () => { container.setScale(0.95); cb(); });
     hitArea.on('pointerup', () => container.setScale(1.0));
     hitArea.on('pointerout', () => container.setScale(1.0));
-
     container.add([shadow, bg, hitArea, txt]);
     return container;
   }
 
-  // HPバーの作成
   createHpBar(x, y, w, h, current, max) {
     const container = this.add.container(x, y);
-    // 背景（黒）
     const bg = this.add.rectangle(0, 0, w, h, 0x000000).setOrigin(0, 0.5).setStrokeStyle(1, 0xffffff);
-    // バー（緑〜赤）
     const bar = this.add.rectangle(0, 0, w, h-2, 0x00ff00).setOrigin(0, 0.5);
-    
-    // HP更新用の関数を持たせる
     container.update = (newVal, maxVal) => {
         const ratio = Math.max(0, Math.min(1, newVal / maxVal));
         bar.width = (w-2) * ratio;
-        // 色変化（半分以下で黄色、1/4で赤）
         if (ratio < 0.25) bar.fillColor = 0xff0000;
         else if (ratio < 0.5) bar.fillColor = 0xffff00;
         else bar.fillColor = 0x00ff00;
     };
-    
-    // 初期表示
     container.update(current, max);
-    
     container.add([bg, bar]);
     return container;
   }
@@ -149,23 +147,22 @@ class WorldScene extends BaseScene {
   constructor() { super('WorldScene'); }
   preload() { Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k])); }
   create() {
-    this.cameras.main.setBackgroundColor('#333333');
+    // 背景色を変更 (グレー系の市松模様)
+    this.createPatternBackground(0x444444, 0x333333);
     const w = this.scale.width; const h = this.scale.height;
 
-    // ステータスヘッダー
     this.createPanel(10, 10, w-20, 80);
     this.add.text(30, 30, `Lv:${GAME_DATA.player.level} ${GAME_DATA.player.name}`, { font:`24px ${GAME_FONT}` });
     this.add.text(30, 60, `Gold: ${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ffff00' });
 
-    // キャラ表示
-    this.add.sprite(w/2, h*0.35, 'kato').setScale(6);
+    const kato = this.add.sprite(w/2, h*0.35, 'kato').setScale(6);
+    this.startIdleAnimation(kato); // 待機アニメ再生
+
     this.add.text(w/2, h*0.5, "「次はどうしますか？」", { font:`20px ${GAME_FONT}` }).setOrigin(0.5);
 
-    // 次の敵
     let nextEnemy = STAGES[Math.min(GAME_DATA.stageIndex, STAGES.length-1)];
     const stageName = (GAME_DATA.stageIndex >= STAGES.length) ? "裏ボス周回" : `Stage ${GAME_DATA.stageIndex+1}: ${nextEnemy.name}`;
 
-    // ボタン配置
     this.createButton(w/2, h*0.65, '出撃する', 0xcc3333, () => this.scene.start('BattleScene'));
     this.add.text(w/2, h*0.65 + 40, `(${stageName})`, {font:`14px ${GAME_FONT}`, color:'#aaa'}).setOrigin(0.5);
 
@@ -180,7 +177,8 @@ class WorldScene extends BaseScene {
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
   create() {
-    this.cameras.main.setBackgroundColor('#222244');
+    // 背景色を変更 (青系の市松模様)
+    this.createPatternBackground(0x222255, 0x111133);
     const w = this.scale.width;
     
     this.add.text(w/2, 40, `購買部`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5);
@@ -190,16 +188,11 @@ class ShopScene extends BaseScene {
     let y = 120;
     const h = this.scale.height;
 
-    // スクロール可能なエリアにする代わりの簡易リスト
     SKILL_DB.filter(s => s.cost > 0).forEach(skill => {
       const isOwned = GAME_DATA.player.ownedSkillIds.includes(skill.id);
-      
-      // パネル背景
       const bg = this.add.graphics().fillStyle(isOwned?0x333333:0x000000, 0.8)
                   .lineStyle(2, 0xffffff).fillRoundedRect(20, y, w-40, 70, 8).strokeRoundedRect(20, y, w-40, 70, 8);
-      
       const hitArea = this.add.rectangle(w/2, y+35, w-40, 70).setInteractive();
-
       this.add.text(40, y+10, skill.name, { font:`22px ${GAME_FONT}`, color: isOwned ? '#888' : '#fff'});
       this.add.text(40, y+40, skill.desc, { font:`16px ${GAME_FONT}`, color:'#aaa'});
       const price = this.add.text(w-40, y+35, isOwned?"済":`${skill.cost}G`, { font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
@@ -225,7 +218,8 @@ class ShopScene extends BaseScene {
 class SkillScene extends BaseScene {
   constructor() { super('SkillScene'); }
   create() {
-    this.cameras.main.setBackgroundColor('#224422');
+    // 背景色を変更 (緑系の市松模様)
+    this.createPatternBackground(0x225522, 0x113311);
     const w = this.scale.width; const h = this.scale.height;
     
     this.add.text(w/2, 40, "スキル編成", {font:`28px ${GAME_FONT}`}).setOrigin(0.5);
@@ -266,46 +260,42 @@ class SkillScene extends BaseScene {
 }
 
 // ================================================================
-//  6. バトルシーン (HPゲージ実装)
+//  6. バトルシーン
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
   preload() { Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k])); }
   create() {
-    this.cameras.main.setBackgroundColor('#222222');
+    // 背景色を変更 (バトルっぽい暗い赤系の市松模様)
+    this.createPatternBackground(0x552222, 0x331111);
     const w = this.scale.width; const h = this.scale.height;
 
     const stageIdx = Math.min(GAME_DATA.stageIndex, STAGES.length - 1);
     this.enemyData = { ...STAGES[stageIdx], maxHp: STAGES[stageIdx].hp };
 
-    // スプライト
+    // スプライト表示＆待機アニメーション開始
     this.playerSprite = this.add.sprite(w*0.2, h*0.6, 'kato').setScale(5);
+    this.startIdleAnimation(this.playerSprite);
     this.enemySprite = this.add.sprite(w*0.8, h*0.4, this.enemyData.key).setScale(5);
+    this.startIdleAnimation(this.enemySprite);
 
-    // HPゲージの表示 (createHpBarを使用)
-    // プレイヤー
     this.playerHpBar = this.createHpBar(w*0.1, h*0.6 + 60, 100, 10, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
     this.add.text(w*0.1, h*0.6 + 40, GAME_DATA.player.name, {font:`16px ${GAME_FONT}`});
-    // 敵
     this.enemyHpBar = this.createHpBar(w*0.7, h*0.4 - 70, 100, 10, this.enemyData.hp, this.enemyData.maxHp);
     this.add.text(w*0.7, h*0.4 - 90, this.enemyData.name, {font:`16px ${GAME_FONT}`});
 
-    // UI
     this.createMessageBox(w, h);
     
-    // コマンドパネル（下部に固定）
     this.mainMenu = this.add.container(0, 0);
     this.mainMenu.add(this.createButton(w*0.75, h-220, 'コマンド', 0xcc3333, () => this.openSkillMenu()));
     this.mainMenu.add(this.createButton(w*0.75, h-150, '逃げる', 0x555555, () => this.scene.start('WorldScene')));
 
-    // QTE要素
     this.qteTarget = this.add.graphics().setDepth(100);
     this.qteRing = this.add.graphics().setDepth(100);
     this.qteText = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.guardSignal = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
     this.penaltyX = this.add.text(w*0.2, h*0.6, '×', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setVisible(false).setDepth(200);
 
-    // スキルメニュー準備
     this.createSkillMenu(w, h);
 
     this.input.on('pointerdown', () => this.handleInput());
@@ -314,7 +304,6 @@ class BattleScene extends BaseScene {
     this.isPlayerTurn = true; this.qteMode = null; this.qteActive = false;
   }
 
-  // HP更新用ヘルパー
   refreshStatus() {
       this.playerHpBar.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.enemyHpBar.update(this.enemyData.hp, this.enemyData.maxHp);
@@ -322,26 +311,21 @@ class BattleScene extends BaseScene {
 
   createSkillMenu(w, h) {
     this.skillMenu = this.add.container(0, h-320).setVisible(false).setDepth(50);
-    // パネル背景
     const bg = this.add.graphics().fillStyle(0x000000, 0.9).lineStyle(2, 0xffffff).fillRoundedRect(10, 0, w-20, 310, 10).strokeRoundedRect(10, 0, w-20, 310, 10);
     this.skillMenu.add(bg);
     
     const equipped = GAME_DATA.player.equippedSkillIds.map(id => SKILL_DB.find(s => s.id === id));
     equipped.forEach((s, i) => {
         const x = w * 0.25 + (i%2) * (w*0.5); const y = 50 + Math.floor(i/2) * 80;
-        
-        // スキルボタン
         const container = this.add.container(x, y);
         const btn = this.add.graphics().fillStyle(s.type==='heal'?0x228822:0x882222, 1).lineStyle(2,0xffffff).fillRoundedRect(-75, -25, 150, 50, 8).strokeRoundedRect(-75, -25, 150, 50, 8);
         const hit = this.add.rectangle(0, 0, 150, 50).setInteractive();
         const txt = this.add.text(0, 0, s.name, {font:`18px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
-        
         hit.on('pointerdown', () => { this.input.stopPropagation(); this.selectSkill(s); });
         container.add([btn, hit, txt]);
         this.skillMenu.add(container);
     });
     
-    // 戻るボタン
     const backContainer = this.add.container(w/2, 270);
     const bBtn = this.add.graphics().fillStyle(0x555555, 1).fillRoundedRect(-50, -20, 100, 40, 5);
     const bHit = this.add.rectangle(0, 0, 100, 40).setInteractive();
@@ -351,7 +335,6 @@ class BattleScene extends BaseScene {
     this.skillMenu.add(backContainer);
   }
 
-  // --- ゲームロジック ---
   handleInput() {
     if (this.qteMode === 'attack' && this.qteActive) this.resolveAttackQTE();
     else if (this.qteMode === 'defense_wait') this.triggerGuardPenalty();
@@ -406,7 +389,6 @@ class BattleScene extends BaseScene {
     else this.time.delayedCall(1000, () => this.startEnemyTurn());
   }
 
-  // 防御
   triggerGuardPenalty() {
     if (this.guardBroken) return;
     this.guardBroken = true; this.penaltyX.setVisible(true); this.playerSprite.setTint(0x888888); this.cameras.main.shake(100,0.01);
@@ -459,7 +441,6 @@ class BattleScene extends BaseScene {
   }
 
   createMessageBox(w, h) {
-      // リッチなメッセージウィンドウ
       this.createPanel(10, h-100, w-20, 90);
       this.messageText = this.add.text(30, h-85, '', {font:`18px ${GAME_FONT}`, wordWrap:{width:w-60}});
   }
