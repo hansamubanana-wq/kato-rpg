@@ -23,7 +23,8 @@ export class BattleScene extends BaseScene {
         enemy = { ...STAGES[0], maxHp: 50, hp: 50, atk: 5, name: "練習用土蔵" }; 
     } else if (this.isTraining) {
         const maxIdx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
-        enemy = { ...STAGES[Phaser.Math.Between(0, maxIdx)] }; 
+        const rndIdx = Phaser.Math.Between(0, maxIdx);
+        enemy = { ...STAGES[0] }; 
         enemy.name = "練習用" + enemy.name; 
     } else {
         const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
@@ -54,7 +55,7 @@ export class BattleScene extends BaseScene {
 
     this.topUI.add([eName, this.ehb, pName, this.phb, sLabel, this.sb, this.apBar]);
 
-    // --- チュートリアルスキップ ---
+    // --- チュートリアルスキップボタン ---
     if (this.isTutorial) {
         const skipBtn = this.add.container(w - 60, 90);
         const sBg = this.add.rectangle(0, 0, 100, 40, 0x555555).setStrokeStyle(1, 0xffffff);
@@ -95,6 +96,8 @@ export class BattleScene extends BaseScene {
     this.qtxt = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.gs = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
     
+    // this.px (×印) は削除済み
+
     this.createSkillMenu(w, h);
     this.createItemMenu(w, h);
     
@@ -298,13 +301,11 @@ export class BattleScene extends BaseScene {
       }
   }
 
-  // ★安全対策版：複雑なアニメーション処理
   playSwordAnimation(cb) {
       const animType = this.selS ? this.selS.anim : 'normal';
       const s = this.add.graphics(); 
       s.setDepth(200);
 
-      // 安全策：完了処理を関数化し、二重呼び出し防止とクリーンアップを徹底
       let isFinished = false;
       const finish = () => {
           if(isFinished) return;
@@ -381,7 +382,7 @@ export class BattleScene extends BaseScene {
           }
       } catch(e) {
           console.error("Anim error", e);
-          finish(); // エラーでも必ず次へ進む
+          finish(); 
       }
   }
 
@@ -420,7 +421,6 @@ export class BattleScene extends BaseScene {
         this.cameras.main.zoomTo(1.0, 200);
         this.setCinematicMode(false);
 
-        // ★getSkillPowerが失敗してもデフォルト値を使う安全設計
         let power = 10;
         try { power = getSkillPower(this.selS); } catch(e) { power = this.selS.power; }
         
@@ -506,6 +506,7 @@ export class BattleScene extends BaseScene {
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
     this.perfectGuardChain = true; 
     
+    // 【強化】攻撃前の予備動作（後ろに少し下がる）
     this.tweens.add({ targets: this.es, x: this.ebx + 30, duration: 400, ease: 'Power1' });
 
     if(this.isTutorial) {
@@ -525,6 +526,7 @@ export class BattleScene extends BaseScene {
     }
   }
 
+  // ★攻撃開始：ランダムでアニメーション変化
   launchAttack() {
       if (this.guardBroken) { this.executeDefense(false); return; }
       this.qteMode = 'defense_active'; this.gs.setVisible(true);
@@ -533,6 +535,7 @@ export class BattleScene extends BaseScene {
 
       const rndAnim = Math.random();
       if (rndAnim < 0.33) {
+          // ジャンプ攻撃
           this.tweens.chain({
               targets: this.es,
               tweens: [
@@ -542,11 +545,13 @@ export class BattleScene extends BaseScene {
           });
           this.eat = { stop: () => this.tweens.killTweensOf(this.es) };
       } else if (rndAnim < 0.66) {
+          // 回転アタック
           this.eat = this.tweens.add({
               targets: this.es, x: this.ps.x + 50, angle: 360, duration: 400, ease: 'Linear',
               onComplete: () => { this.es.angle = 0; if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
           });
       } else {
+          // 通常
           this.eat = this.tweens.add({
               targets: this.es, x: this.ps.x + 50, duration: this.isTutorial ? 600 : 300, 
               ease: 'Expo.In',
