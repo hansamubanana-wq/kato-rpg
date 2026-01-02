@@ -16,7 +16,6 @@ export class BattleScene extends BaseScene {
     
     const w = this.scale.width; const h = this.scale.height;
     
-    // チュートリアル用のフラグ（最初は自由操作禁止）
     this.tutorialFreeMode = false;
 
     // 敵データ生成
@@ -50,6 +49,24 @@ export class BattleScene extends BaseScene {
     this.add.text(20, topY+55, "ストレス", {font:`14px ${GAME_FONT}`, color:'#fa0'});
     this.sb = this.createStressBar(80, topY+63, 90, 10); 
     this.apBar = this.createApBar(w/2 - 90, topY + 90);
+
+    // 【追加】チュートリアルスキップボタン
+    if (this.isTutorial) {
+        const skipBtn = this.add.container(w - 60, 90);
+        const sBg = this.add.rectangle(0, 0, 100, 40, 0x555555).setStrokeStyle(1, 0xffffff);
+        const sTxt = this.add.text(0, 0, "SKIP >>", { font: `16px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+        const sHit = this.add.rectangle(0, 0, 100, 40).setInteractive();
+        
+        sHit.on('pointerdown', () => {
+            this.vibrate(20);
+            // チュートリアルレイヤーを消して勝利へ
+            if(this.tutorialLayer) this.tutorialLayer.setVisible(false);
+            this.ed.hp = 0;
+            this.winBattle();
+        });
+        skipBtn.add([sBg, sTxt, sHit]);
+        skipBtn.setDepth(3000); // 最前面
+    }
 
     // コマンドエリア
     this.createMessageBox(w, h); 
@@ -182,16 +199,13 @@ export class BattleScene extends BaseScene {
         
         const hRect = this.add.rectangle(0,0,160,60).setInteractive();
         hRect.on('pointerdown', () => { 
-            // 【修正】チュートリアル中でも「フリーモード」なら操作可能にする
             if (this.isTutorial && !this.tutorialFreeMode) return; 
-            
             if (GAME_DATA.player.ap >= s.apCost) { this.input.stopPropagation(); this.vibrate(10); this.selectSkill(s); } else { this.vibrate(50); } 
         });
         c.add([b, t, sub, hRect]); this.sm.add(c);
         this.skillButtons.push({ container: c, bg: b, skill: s });
     });
     const bc = this.createBackButton(w, () => { 
-        // 【修正】フリーモードなら戻れる
         if(this.isTutorial && !this.tutorialFreeMode) return;
         this.sm.setVisible(false); this.mm.setVisible(true); 
     });
@@ -225,7 +239,6 @@ export class BattleScene extends BaseScene {
   }
 
   openItemMenu() {
-      // 【修正】フリーモードならアイテムも使えるようにする（一応）
       if(!this.isPlayerTurn) return;
       if(this.isTutorial && !this.tutorialFreeMode) return; 
 
@@ -282,7 +295,6 @@ export class BattleScene extends BaseScene {
   }
 
   skipTurn() {
-      // 【修正】フリーモードならパス可能
       if(this.isPlayerTurn && (!this.isTutorial || this.tutorialFreeMode)) {
           this.isPlayerTurn = false; this.mm.setVisible(false);
           this.showApPopup(this.ps.x, this.ps.y - 50);
@@ -517,7 +529,7 @@ export class BattleScene extends BaseScene {
       
       if(this.isTutorial) {
           this.updateMessage("さあ、反撃だ！\n好きなように戦え！");
-          this.tutorialLayer.setVisible(false); // ガイド消去
+          this.tutorialLayer.setVisible(false); 
           
           // 【修正】ここでフリーモードを解禁！
           this.tutorialFreeMode = true;
