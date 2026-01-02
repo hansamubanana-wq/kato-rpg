@@ -75,20 +75,30 @@ export class BattleScene extends BaseScene {
     // --- 下部UI ---
     this.createMessageBox(w, h); 
     this.mm = this.add.container(0, 0);
+    
+    // ★ここで変数をしっかり定義！（これが抜けていました）
     const cmdY = h - 230; 
+    const btnW = 160; 
+    const btnH = 60; 
+    const gapX = 10;
     
     this.btnPos = {
-        cmd: { x: w/2 - 85, y: cmdY },
-        item: { x: w/2 + 85, y: cmdY },
-        lb: { x: w/2 - 85, y: cmdY + 75 },
-        pass: { x: w/2 + 85, y: cmdY + 75 }
+        cmd: { x: w/2 - btnW/2 - gapX, y: cmdY },
+        item: { x: w/2 + btnW/2 + gapX, y: cmdY },
+        lb: { x: w/2 - btnW/2 - gapX, y: cmdY + btnH + 15 },
+        pass: { x: w/2 + btnW/2 + gapX, y: cmdY + btnH + 15 }
     };
 
+    // createButtonに btnW, btnH を渡すように戻しました
     this.btnCmd = this.createButton(this.btnPos.cmd.x, this.btnPos.cmd.y, 'コマンド', 0xc33, () => this.openSkillMenu(), btnW, btnH);
     this.mm.add(this.btnCmd);
+    
     this.mm.add(this.createButton(this.btnPos.item.x, this.btnPos.item.y, 'アイテム', 0x383, () => this.openItemMenu(), btnW, btnH));
-    this.lb = this.createButton(this.btnPos.lb.x, this.btnPos.lb.y, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), 160, 60, true);
-    this.lb.setVisible(false); this.mm.add(this.lb);
+    
+    this.lb = this.createButton(this.btnPos.lb.x, this.btnPos.lb.y, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), btnW, btnH, true);
+    this.lb.setVisible(false); 
+    this.mm.add(this.lb);
+    
     this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
 
     // --- QTE UI ---
@@ -96,7 +106,7 @@ export class BattleScene extends BaseScene {
     this.qtxt = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.gs = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
     
-    // ※ this.px (×印) は完全に削除済み
+    // ★ this.px (×印) は完全に削除済みです
 
     this.createSkillMenu(w, h);
     this.createItemMenu(w, h);
