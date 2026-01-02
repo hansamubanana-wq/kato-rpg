@@ -2,26 +2,27 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>私立青稜中学校 RPG</title>
 
     <link rel="icon" type="image/png" href="/icon.png" />
     <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="manifest" href="/manifest.json" />
 
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
     <meta property="og:title" content="私立青稜中学校 RPG" />
-    <meta property="og:description" content="数学教師・加藤となって、反抗期パンデミックに立ち向かえ！簡単操作のタップアクションRPG。" />
+    <meta property="og:description" content="数学教師・加藤となって、反抗期パンデミックに立ち向かえ！" />
     <meta property="og:type" content="website" />
-    
     <meta property="og:url" content="https://kato-rpg.vercel.app" />
     <meta property="og:image" content="https://kato-rpg.vercel.app/icon.png" />
-
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="私立青稜中学校 RPG" />
     <meta name="twitter:description" content="数学教師・加藤となって、反抗期パンデミックに立ち向かえ！" />
     
     <style>
-      body { margin: 0; padding: 0; background-color: #000; overflow: hidden; }
+      body { margin: 0; padding: 0; background-color: #000; overflow: hidden; touch-action: none; }
       #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
       canvas { max-width: 100%; max-height: 100%; }
     </style>
