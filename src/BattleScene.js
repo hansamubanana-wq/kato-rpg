@@ -50,7 +50,7 @@ export class BattleScene extends BaseScene {
     this.sb = this.createStressBar(80, topY+63, 90, 10); 
     this.apBar = this.createApBar(w/2 - 90, topY + 90);
 
-    // 【追加】チュートリアルスキップボタン
+    // チュートリアルスキップボタン
     if (this.isTutorial) {
         const skipBtn = this.add.container(w - 60, 90);
         const sBg = this.add.rectangle(0, 0, 100, 40, 0x555555).setStrokeStyle(1, 0xffffff);
@@ -59,13 +59,12 @@ export class BattleScene extends BaseScene {
         
         sHit.on('pointerdown', () => {
             this.vibrate(20);
-            // チュートリアルレイヤーを消して勝利へ
             if(this.tutorialLayer) this.tutorialLayer.setVisible(false);
             this.ed.hp = 0;
             this.winBattle();
         });
         skipBtn.add([sBg, sTxt, sHit]);
-        skipBtn.setDepth(3000); // 最前面
+        skipBtn.setDepth(3000);
     }
 
     // コマンドエリア
@@ -333,14 +332,17 @@ export class BattleScene extends BaseScene {
     if(this.isTutorial) this.updateMessage("黄色い輪が重なる瞬間に\n画面をタップ！");
     else this.updateMessage(`${s.name}！\nタイミング！`);
     const tx = this.es.x; const ty = this.es.y;
-    this.qt.clear().lineStyle(4, 0xfff).strokeCircle(tx, ty, 50).setVisible(true);
-    this.qr.clear(); this.qrs = 2.5; this.qteMode = 'attack';
+    // 【修正】色を修正
+    this.qt.clear().lineStyle(4, 0xffffff).strokeCircle(tx, ty, 50).setVisible(true); // 白
+    this.qr.clear().lineStyle(4, 0xffff00).strokeCircle(tx, ty, 50 * this.qrs); // 黄色
+    this.qteMode = 'attack';
     this.time.delayedCall(200, () => {
         this.qteActive = true;
         this.qe = this.time.addEvent({ delay: 16, loop: true, callback: () => {
             if (!this.qteActive) return;
             this.qrs -= (0.03 * s.speed);
-            this.qr.clear().lineStyle(4, 0xff0).strokeCircle(tx, ty, 50 * this.qrs);
+            // 【修正】色を修正
+            this.qr.clear().lineStyle(4, 0xffff00).strokeCircle(tx, ty, 50 * this.qrs);
             if (this.qrs <= 0.5) { this.qteActive = false; this.qe.remove(); this.finishQTE('MISS'); }
         }});
     });
