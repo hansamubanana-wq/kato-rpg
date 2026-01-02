@@ -37,7 +37,9 @@ export class BattleScene extends BaseScene {
     // --- キャラ配置 ---
     this.ps = this.add.sprite(w*0.25, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
     this.es = this.add.sprite(w*0.75, h*0.4, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
-    this.ebx = this.es.x; this.eby = this.es.y;
+    // 初期位置を保存（戻るために必要）
+    this.ebx = this.es.x; 
+    this.eby = this.es.y;
 
     // --- UIグループ化 (上部) ---
     this.topUI = this.add.container(0, 0);
@@ -53,7 +55,6 @@ export class BattleScene extends BaseScene {
     this.sb = this.createStressBar(80, topY+63, 90, 10); 
     this.apBar = this.createApBar(w/2 - 90, topY + 90);
 
-    // createHpBarなどはコンテナを返すので、それらをtopUIに追加
     this.topUI.add([eName, this.ehb, pName, this.phb, sLabel, this.sb, this.apBar]);
 
     // --- チュートリアルスキップボタン ---
@@ -70,13 +71,11 @@ export class BattleScene extends BaseScene {
         });
         skipBtn.add([sBg, sTxt, sHit]);
         skipBtn.setDepth(3000);
-        this.topUI.add(skipBtn); // これも消えるようにする
+        this.topUI.add(skipBtn);
     }
 
-    // --- メッセージボックス (下部UI) ---
+    // --- 下部UI ---
     this.createMessageBox(w, h); 
-    
-    // --- コマンドボタン (下部UI) ---
     this.mm = this.add.container(0, 0);
     const cmdY = h - 230; 
     const btnW = 160; const btnH = 60; const gapX = 10;
@@ -95,13 +94,12 @@ export class BattleScene extends BaseScene {
     this.lb.setVisible(false); this.mm.add(this.lb);
     this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
 
-    // --- QTE UI (これは消さない、または演出時だけ出す) ---
+    // --- QTE UI ---
     this.qt = this.add.graphics().setDepth(100); this.qr = this.add.graphics().setDepth(100);
     this.qtxt = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.gs = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
     this.px = this.add.text(w*0.2, h*0.6, '×', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setVisible(false).setDepth(200);
 
-    // メニュー類
     this.createSkillMenu(w, h);
     this.createItemMenu(w, h);
     
@@ -127,36 +125,27 @@ export class BattleScene extends BaseScene {
     }
   }
 
-  // ★ シネマティックモード切り替え（UIの表示/非表示）
   setCinematicMode(enabled) {
       this.topUI.setVisible(!enabled);
       this.msgContainer.setVisible(!enabled);
-      // ボタンは「有効」かつ「プレイヤーのターン」の時だけ表示
       if (enabled) {
           this.mm.setVisible(false);
       } else {
-          // 演出終了時、プレイヤーのターンならボタンを出す
           if (this.isPlayerTurn) this.mm.setVisible(true);
       }
   }
 
-  // --- チュートリアル ---
+  // --- チュートリアル進行 ---
   startTutorialStep1() {
       this.tutorialStep = 1;
       this.updateMessage("まずは攻撃だ！\n「コマンド」をタップ！");
-      this.showGuide(this.btnPos.cmd.x, this.btnPos.cmd.y, 160, 60, () => {
-          this.openSkillMenu();
-      });
+      this.showGuide(this.btnPos.cmd.x, this.btnPos.cmd.y, 160, 60, () => { this.openSkillMenu(); });
   }
   startTutorialStep2() {
       this.tutorialStep = 2;
       this.updateMessage("技を選ぼう！\n「出席確認」をタップ！");
-      const x = this.scale.width * 0.25; 
-      const y = this.sm.y + 60; 
-      this.showGuide(x, y, 160, 60, () => {
-          const skill = this.skillButtons[0].skill;
-          this.selectSkill(skill);
-      });
+      const x = this.scale.width * 0.25; const y = this.sm.y + 60; 
+      this.showGuide(x, y, 160, 60, () => { const skill = this.skillButtons[0].skill; this.selectSkill(skill); });
   }
   startTutorialStep3() {
       this.tutorialStep = 3;
@@ -175,12 +164,11 @@ export class BattleScene extends BaseScene {
       this.guideZone.setDisplaySize(w, h);
       this.guideZone.setInteractive();
       this.guideZone.once('pointerdown', (pointer) => {
-          pointer.event.stopPropagation(); 
-          this.tutorialLayer.setVisible(false);
-          callback();
+          pointer.event.stopPropagation(); this.tutorialLayer.setVisible(false); callback();
       });
   }
 
+  // --- ロジック ---
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
@@ -207,7 +195,6 @@ export class BattleScene extends BaseScene {
         if (s.status === 'burn') val += ' [炎上]';
         if (s.status === 'sleep') val += ' [眠り]';
         const sub = this.add.text(0, 12, `AP:${s.apCost}/${val}`, {font:`11px ${GAME_FONT}`, color:'#ff0'}).setOrigin(0.5);
-        
         const hRect = this.add.rectangle(0,0,160,60).setInteractive();
         hRect.on('pointerdown', () => { 
             if (this.isTutorial && !this.tutorialFreeMode) return; 
@@ -252,7 +239,6 @@ export class BattleScene extends BaseScene {
   openItemMenu() {
       if(!this.isPlayerTurn) return;
       if(this.isTutorial && !this.tutorialFreeMode) return; 
-
       this.mm.setVisible(false); this.im.setVisible(true);
       this.im.each(c => { if(c.list && c.y < 250) c.destroy(); }); 
       const items = Object.keys(GAME_DATA.player.items).map(id => {
@@ -301,10 +287,7 @@ export class BattleScene extends BaseScene {
       if (s.type === 'heal') this.executeHeal(s); 
       else {
           if (this.isTutorial && this.tutorialStep === 2) this.startTutorialStep3();
-          
-          // ★攻撃開始：シネマティックON
           this.setCinematicMode(true);
-          
           this.cameras.main.zoomTo(1.2, 200, 'Sine.easeInOut');
           this.startAttackQTE(s); 
       }
@@ -322,9 +305,8 @@ export class BattleScene extends BaseScene {
 
   playSwordAnimation(cb) {
       const animType = this.selS ? this.selS.anim : 'normal';
-      const s = this.add.graphics(); 
-      s.setDepth(200);
-
+      const s = this.add.graphics(); s.setDepth(200);
+      // (アニメーション処理は変更なし)
       if (animType === 'check') {
           s.lineStyle(8, 0x00ff00); s.beginPath(); const startX = this.es.x - 40; const startY = this.es.y; s.moveTo(startX, startY);
           this.tweens.addCounter({ from: 0, to: 100, duration: 300, onUpdate: (tw) => { s.clear(); s.lineStyle(8, 0x00ff00); s.beginPath(); s.moveTo(startX, startY); const p = tw.getValue(); if(p < 40) s.lineTo(startX + p, startY + p); else { s.lineTo(startX + 40, startY + 40); s.lineTo(startX + 40 + (p-40)*1.5, startY + 40 - (p-40)*2.5); } s.strokePath(); }, onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } });
@@ -382,7 +364,6 @@ export class BattleScene extends BaseScene {
 
   executeAttack(res) {
     this.playSwordAnimation(() => {
-        // ★攻撃アニメ終了：UIを戻す
         this.cameras.main.zoomTo(1.0, 200);
         this.setCinematicMode(false);
 
@@ -417,10 +398,7 @@ export class BattleScene extends BaseScene {
   activateLimitBreak() {
       this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
       this.refreshStatus(); this.vibrate(1000); 
-      
-      // ★ブチギレ開始：シネマティックON
       this.setCinematicMode(true);
-
       const bg = this.add.rectangle(this.scale.width/2, this.scale.height/2, this.scale.width, this.scale.height, 0x000000).setDepth(290).setAlpha(0);
       this.tweens.add({ targets: bg, alpha: 0.8, duration: 200 });
       if(!this.textures.exists('kato_cutin')) this.createTextureFromText('kato_cutin', ARTS.kato_cutin);
@@ -432,9 +410,7 @@ export class BattleScene extends BaseScene {
           this.selS = { anim: 'heavy' };
           this.playSwordAnimation(() => {
               this.hitStop(300); this.damageFlash(this.es);
-              // ブチギレ後もUIを戻す
               this.setCinematicMode(false);
-              
               if ((this.ed.hp - dmg) <= 0) { this.createExplosion(this.es.x, this.es.y); this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1; this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); }); } 
               else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd(); }
           });
@@ -468,7 +444,9 @@ export class BattleScene extends BaseScene {
 
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
     this.perfectGuardChain = true; 
-    this.tweens.add({ targets: this.es, x: this.es.x + 20, duration: 500, ease: 'Power2' });
+    
+    // 【強化】攻撃前の予備動作（後ろに少し下がる）
+    this.tweens.add({ targets: this.es, x: this.ebx + 30, duration: 400, ease: 'Power1' });
 
     if(this.isTutorial) {
         this.updateMessage("敵の攻撃だ！\n「！」が出たらタップ！");
@@ -487,18 +465,40 @@ export class BattleScene extends BaseScene {
     }
   }
 
+  // ★攻撃開始：ランダムでアニメーション変化
   launchAttack() {
       if (this.guardBroken) { this.executeDefense(false); return; }
       this.qteMode = 'defense_active'; this.gs.setVisible(true);
-      // ★敵攻撃：シネマティックON
       this.setCinematicMode(true);
       this.cameras.main.zoomTo(1.1, 200);
-      this.eat = this.tweens.add({
-          targets: this.es, x: this.ps.x + 50, duration: this.isTutorial ? 600 : 300, 
-          ease: 'Expo.In',
-          onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
-      });
+
+      const rndAnim = Math.random();
+      if (rndAnim < 0.33) {
+          // ジャンプ攻撃 (Jump)
+          this.tweens.chain({
+              targets: this.es,
+              tweens: [
+                  { y: this.es.y - 150, duration: 300, ease: 'Power1' }, // Jump Up
+                  { y: this.ps.y, x: this.ps.x + 50, duration: 200, ease: 'Bounce.Out', onStart: () => { if(this.qteMode==='defense_active') this.gs.setVisible(false); this.executeDefense(false); } }
+              ]
+          });
+          this.eat = { stop: () => this.tweens.killTweensOf(this.es) }; // 簡易的な停止用
+      } else if (rndAnim < 0.66) {
+          // 回転アタック (Spin)
+          this.eat = this.tweens.add({
+              targets: this.es, x: this.ps.x + 50, angle: 360, duration: 400, ease: 'Linear',
+              onComplete: () => { this.es.angle = 0; if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
+          });
+      } else {
+          // 通常タックル (Slide)
+          this.eat = this.tweens.add({
+              targets: this.es, x: this.ps.x + 50, duration: this.isTutorial ? 600 : 300, 
+              ease: 'Expo.In',
+              onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
+          });
+      }
   }
+
   launchRapidAttack() { 
       if (this.rapidCount <= 0) { if (this.perfectGuardChain) this.triggerCounterAttack(); else this.time.delayedCall(500, () => this.endEnemyTurn()); return; } 
       if (this.guardBroken) { this.executeDefense(false, true); return; } 
@@ -512,25 +512,29 @@ export class BattleScene extends BaseScene {
       this.qteMode = 'defense_active'; this.gs.setVisible(true); this.es.setTint(0xff00ff); 
       this.setCinematicMode(true);
       this.cameras.main.zoomTo(1.1, 200);
-      this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 500, ease: 'Quad.InOut', onComplete: () => { this.es.clearTint(); if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); 
+      // ゆらゆら近づく
+      this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, y: { value: this.es.y + 20, yoyo: true, duration: 100, repeat: 4 }, duration: 800, ease: 'Linear', onComplete: () => { this.es.clearTint(); if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); 
   }
   launchDelayAttack() { 
       if (this.guardBroken) { this.executeDefense(false); return; } 
       this.qteMode = 'defense_active'; this.gs.setVisible(true); 
       this.setCinematicMode(true);
       this.cameras.main.zoomTo(1.1, 200);
-      this.tweens.add({ targets: this.es, x: this.ps.x + 150, duration: 400, ease: 'Quad.Out', onComplete: () => { this.time.delayedCall(Phaser.Math.Between(400, 1000), () => { if (this.guardBroken) return; this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 100, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); }); } }); 
+      // フェイント（後ろに下がる）
+      this.tweens.add({ targets: this.es, x: this.ebx + 150, duration: 400, ease: 'Quad.Out', onComplete: () => { this.time.delayedCall(Phaser.Math.Between(400, 1000), () => { if (this.guardBroken) return; this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 100, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); }); } }); 
   }
 
   resolveDefenseQTE() {
-    this.gs.setVisible(false); this.qteMode = null; if (this.eat) this.eat.stop();
+    this.gs.setVisible(false); this.qteMode = null; 
+    if (this.eat) { 
+        if(this.eat.stop) this.eat.stop(); 
+        this.tweens.killTweensOf(this.es); // 全Tween停止
+    }
     this.createImpactEffect(this.es.x - 30, this.es.y);
     this.cameras.main.flash(100, 255, 255, 255); 
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
-    // ★パリィ成功：UI戻す
     this.cameras.main.zoomTo(1.0, 200);
-    // ただし連続攻撃中は戻さない
     if (this.rapidCount <= 0) this.setCinematicMode(false);
 
     if (this.rapidCount > 0) this.executeDefense(true, true); else this.executeDefense(true, false);
@@ -545,19 +549,19 @@ export class BattleScene extends BaseScene {
         GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
         this.showApPopup(this.ps.x, this.ps.y - 50);
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
-        this.tweens.add({ targets: this.es, x: this.ebx, duration: 150, ease: 'Back.Out' });
+        // ★敵を元の位置に戻す (XもYも)
+        this.tweens.add({ targets: this.es, x: this.ebx, y: this.eby, angle: 0, duration: 150, ease: 'Back.Out' });
     } else { 
         this.damageFlash(this.ps);
         this.cameras.main.zoomTo(1.0, 200);
-        // ★被弾：UI戻す
         this.setCinematicMode(false);
-
         this.perfectGuardChain = false;
         if (this.currentAttackType === 'status') { const rnd = Math.random(); if (rnd < 0.5) { GAME_DATA.player.status = 'burn'; this.showStatusPopup(this.ps.x, this.ps.y - 50, "炎上した！"); } else { GAME_DATA.player.status = 'sleep'; this.showStatusPopup(this.ps.x, this.ps.y - 50, "眠らされた！"); } }
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
         GAME_DATA.player.hp -= dmg; this.cameras.main.shake(100, 0.02); this.vibrate(100); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
-        this.tweens.add({ targets: this.es, x: this.ebx, delay: 100, duration: 200, ease: 'Power2' });
+        // ★敵を元の位置に戻す
+        this.tweens.add({ targets: this.es, x: this.ebx, y: this.eby, angle: 0, delay: 100, duration: 200, ease: 'Power2' });
     }
     
     this.qteMode = null; this.es.clearTint(); this.refreshStatus();
@@ -582,9 +586,7 @@ export class BattleScene extends BaseScene {
           this.playSwordAnimation(() => {
               let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
               this.hitStop(300); this.damageFlash(this.es);
-              // カウンター後もUI戻す
               this.setCinematicMode(false);
-
               if ((this.ed.hp - dmg) <= 0) { this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1; this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack'); const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0); this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' }); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); }); } 
               else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.playSound('se_attack'); this.vibrate([50, 50, 100]); this.refreshStatus(); this.time.delayedCall(1000, () => this.endEnemyTurn()); }
           });
@@ -600,7 +602,6 @@ export class BattleScene extends BaseScene {
       this.showApPopup(this.ps.x, this.ps.y - 50);
       this.mm.setVisible(true); this.px.setVisible(false); this.ps.clearTint(); 
       
-      // ★ターン開始時はUIを確実に出す
       this.setCinematicMode(false);
 
       if(this.isTutorial) {
@@ -635,7 +636,6 @@ export class BattleScene extends BaseScene {
   }
 
   createMessageBox(w, h) {
-      // メッセージボックスもコンテナ化して一括非表示できるように
       this.msgContainer = this.add.container(0, 0);
       const panel = this.createPanel(10, h-100, w-20, 90);
       this.messageText = this.add.text(30, h-85, '', {font:`18px ${GAME_FONT}`, wordWrap:{width:w-60}});
