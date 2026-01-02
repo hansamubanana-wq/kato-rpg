@@ -38,8 +38,8 @@ export class OpeningScene extends BaseScene {
         onComplete: () => this.transitionTo('TutorialScene')
     });
 
-    // データ消去ボタンを削除し、SKIPボタンのみ配置
-    this.createButton(w/2, h - 80, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
+    this.createButton(w/2, h - 120, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
+    this.createButton(w/2, h - 50, 'データ消去して最初から', 0x880000, () => resetGame());
   }
 }
 
@@ -72,11 +72,9 @@ export class TutorialScene extends BaseScene {
     this.createGameBackground('shop');
     const w = this.scale.width; const h = this.scale.height;
     this.add.text(w/2, 50, "【チュートリアル 2/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    
     this.add.text(w/2, 130, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     this.add.text(w/2, 240, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技や\nアイテムを購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
     this.add.text(w/2, 380, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
-    
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
   }
 
@@ -91,7 +89,6 @@ export class TutorialScene extends BaseScene {
     this.add.text(w/2, 220, "技を使うにはAPが必要です。\n強い技ほど多くのAPを消費します。", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
     this.add.text(w/2, 300, "＜APの回復方法＞", { font: `20px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     this.add.text(w/2, 360, "・自分のターンが来る (+1)\n・敵の攻撃をパリィする (+1)\n・「パス」コマンドを使う (+1)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'left' }).setOrigin(0.5);
-    
     this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), 220, 50, true);
   }
 }
@@ -145,14 +142,14 @@ export class ShopScene extends BaseScene {
       const tabW = w / 2 - 20;
       const tabH = 50;
 
-      // 技タブボタン
+      // 技タブ
       this.btnSkill = this.add.container(w/4 + 5, 0);
       this.bgSkill = this.add.graphics().fillRoundedRect(-tabW/2, -tabH/2, tabW, tabH, 10);
       this.textSkill = this.add.text(0, 0, "技", {font:`24px ${GAME_FONT}`}).setOrigin(0.5);
       const hitSkill = this.add.rectangle(0,0,tabW,tabH).setInteractive();
       this.btnSkill.add([this.bgSkill, this.textSkill, hitSkill]);
 
-      // 道具タブボタン
+      // 道具タブ
       this.btnItem = this.add.container(w*3/4 - 5, 0);
       this.bgItem = this.add.graphics().fillRoundedRect(-tabW/2, -tabH/2, tabW, tabH, 10);
       this.textItem = this.add.text(0, 0, "道具", {font:`24px ${GAME_FONT}`}).setOrigin(0.5);
@@ -199,7 +196,8 @@ export class ShopScene extends BaseScene {
           
           if(this.mode === 'skill') {
               has = GAME_DATA.player.ownedSkillIds.includes(item.id);
-              spec = (item.type === 'heal') ? `回復:${item.power}/AP:${item.apCost}` : `威力:${item.power}/AP:${item.apCost}`;
+              // 【修正】詳細を表示
+              spec = `${item.desc}\n[威力:${item.power} / AP:${item.apCost}]`;
               rightText = has ? "済" : `${item.cost}G`;
           } else {
               const count = GAME_DATA.player.items[item.id] || 0;
