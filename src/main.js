@@ -66,7 +66,6 @@ const GAME_DATA = {
 class BaseScene extends Phaser.Scene {
   preload() {
     Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
-    // サウンドロード（自分のファイル名に合わせてね）
     this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
     this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
     this.load.audio('se_select', '/sounds/se_select.mp3');
@@ -194,19 +193,16 @@ class BaseScene extends Phaser.Scene {
 }
 
 // ================================================================
-//  3. オープニング（ストーリー）シーン 【新規】
+//  3. オープニング（ストーリー）シーン
 // ================================================================
 class OpeningScene extends BaseScene {
   constructor() { super('OpeningScene'); }
   create() {
     this.fadeInScene(); 
-    this.playBGM('bgm_world'); // イントロBGM
+    this.playBGM('bgm_world');
     const w = this.scale.width; const h = this.scale.height;
-
-    // 黒背景
     this.add.rectangle(w/2, h/2, w, h, 0x000000);
 
-    // スターウォーズ風スクロールテキスト
     const storyText = `
 私立レトロ高校。
 かつては進学校だったこの場所も
@@ -227,51 +223,64 @@ class OpeningScene extends BaseScene {
     `;
 
     const textObj = this.add.text(w/2, h + 100, storyText, { 
-        font: `24px ${GAME_FONT}`, 
-        color: '#ffff00', 
-        align: 'center',
-        wordWrap: { width: w - 40 }
+        font: `24px ${GAME_FONT}`, color: '#ffff00', align: 'center', wordWrap: { width: w - 40 }
     }).setOrigin(0.5, 0);
 
-    // スクロールアニメーション
     this.tweens.add({
-        targets: textObj,
-        y: -600,
-        duration: 15000, // 15秒かけて流れる
-        ease: 'Linear',
+        targets: textObj, y: -600, duration: 15000, ease: 'Linear',
         onComplete: () => this.transitionTo('TutorialScene')
     });
 
-    // スキップボタン
     this.createButton(w/2, h - 50, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
   }
 }
 
 // ================================================================
-//  4. チュートリアルシーン 【新規】
+//  4. チュートリアルシーン (2ページ構成)
 // ================================================================
 class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
   create() {
-    this.fadeInScene(); 
+    this.fadeInScene(); this.createGameBackground('skill');
+    this.page = 1;
+    this.showPage1();
+  }
+
+  showPage1() {
+    this.children.removeAll(); // 前のページを消す
     this.createGameBackground('skill');
     const w = this.scale.width; const h = this.scale.height;
 
-    this.add.text(w/2, 50, "【戦い方のおさらい】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-
-    // 攻撃の説明
+    this.add.text(w/2, 50, "【チュートリアル 1/2】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    
+    // 戦闘説明
     this.add.text(w/2, 120, "1. 攻 撃", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     const ring = this.add.graphics();
-    ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 180, 40); // 黄色リング
-    ring.lineStyle(4, 0xffffff); ring.strokeCircle(w/2, 180, 40); // 白ターゲット
-    this.add.text(w/2, 240, "リングが重なる瞬間にタップ！", { font: `20px ${GAME_FONT}`, color: '#ccc' }).setOrigin(0.5);
+    ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 180, 30);
+    ring.lineStyle(4, 0xffffff); ring.strokeCircle(w/2, 180, 30);
+    this.add.text(w/2, 230, "リングが重なる瞬間にタップ！", { font: `20px ${GAME_FONT}`, color: '#ccc' }).setOrigin(0.5);
 
-    // 防御の説明
     this.add.text(w/2, 300, "2. 防 御", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     this.add.text(w/2, 350, "！", { font: `60px ${GAME_FONT}`, color: '#f00' }).setOrigin(0.5);
-    this.add.text(w/2, 400, "敵の攻撃前「！」が出たらタップ！\nパリィ成功で大チャンス！", { font: `20px ${GAME_FONT}`, color: '#ccc', align: 'center' }).setOrigin(0.5);
+    this.add.text(w/2, 400, "「！」が出たら即タップ！\n連打や早押しはペナルティ！", { font: `20px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
 
-    this.createButton(w/2, h - 80, '理解した！', 0xcc3333, () => this.transitionTo('WorldScene'), true);
+    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage2());
+  }
+
+  showPage2() {
+    this.children.removeAll();
+    this.createGameBackground('shop');
+    const w = this.scale.width; const h = this.scale.height;
+
+    this.add.text(w/2, 50, "【チュートリアル 2/2】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+
+    // 育成説明
+    this.add.text(w/2, 150, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    this.add.text(w/2, 220, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技を購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
+
+    this.add.text(w/2, 350, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
+
+    this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), true);
   }
 }
 
@@ -364,7 +373,7 @@ class SkillScene extends BaseScene {
 }
 
 // ================================================================
-//  8. バトルシーン
+//  8. バトルシーン (攻撃パターン追加版)
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
@@ -536,53 +545,130 @@ class BattleScene extends BaseScene {
     this.cameras.main.shake(100,0.01); this.vibrate(200);
   }
 
+  // --- 【改修】敵の攻撃ターン (3パターン) ---
   startEnemyTurn() {
-    this.updateMessage(`${this.ed.name} の構え...`);
+    // パターン決定 (0:通常, 1:連続, 2:フェイント)
+    const pattern = Phaser.Math.Between(0, 2);
+    
+    // 敵データによって傾向を変えるなどの調整も可能
+    
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
+    
+    // 共通: 予備動作
     this.tweens.add({ targets: this.es, x: this.es.x + 20, duration: 500, ease: 'Power2' });
-    const delay = Phaser.Math.Between(1000, 2000);
-    this.time.delayedCall(delay, () => {
-        if (this.guardBroken) { this.executeDefense(false); return; }
-        this.qteMode = 'defense_active'; this.gs.setVisible(true);
-        this.eat = this.tweens.add({
-            targets: this.es, x: this.ps.x + 50, duration: 300, ease: 'Expo.In',
-            onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
+
+    if (pattern === 0) {
+        // --- 通常攻撃 ---
+        this.updateMessage(`${this.ed.name} の攻撃！`);
+        this.time.delayedCall(Phaser.Math.Between(1000, 2000), () => this.launchAttack());
+    } 
+    else if (pattern === 1) {
+        // --- 連続攻撃 (3回) ---
+        this.updateMessage(`${this.ed.name} の連続攻撃！`);
+        this.rapidCount = 3; // 残り回数
+        this.time.delayedCall(1000, () => this.launchRapidAttack());
+    } 
+    else {
+        // --- フェイント攻撃 ---
+        this.updateMessage(`${this.ed.name} が様子を見ている...`);
+        this.time.delayedCall(1000, () => {
+            // 一瞬動くフリ (ここで押すとペナルティ)
+            this.tweens.add({ targets: this.es, x: this.es.x - 30, duration: 100, yoyo: true });
+            
+            // その後、本攻撃
+            this.time.delayedCall(1500, () => {
+                this.updateMessage("不意打ちだ！");
+                this.launchAttack();
+            });
         });
-    });
+    }
+  }
+
+  // 単発攻撃実行
+  launchAttack() {
+      if (this.guardBroken) { this.executeDefense(false); return; }
+      this.qteMode = 'defense_active'; this.gs.setVisible(true);
+      this.eat = this.tweens.add({
+          targets: this.es, x: this.ps.x + 50, duration: 300, ease: 'Expo.In',
+          onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
+      });
+  }
+
+  // 連続攻撃実行 (再帰呼び出し)
+  launchRapidAttack() {
+      if (this.rapidCount <= 0) {
+          // コンボ終了 -> プレイヤーのターンへ
+          this.time.delayedCall(500, () => this.endEnemyTurn());
+          return;
+      }
+      
+      if (this.guardBroken) { this.executeDefense(false, true); return; } // ペナルティ中は全弾被弾
+
+      this.qteMode = 'defense_active'; this.gs.setVisible(true);
+      this.eat = this.tweens.add({
+          targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In', // 少し速め
+          onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } }
+      });
   }
 
   resolveDefenseQTE() {
     this.gs.setVisible(false); this.qteMode = null; if (this.eat) this.eat.stop();
     this.createImpactEffect(this.es.x - 30, this.es.y);
-    this.cameras.main.flash(300, 255, 255, 255); this.hitStop(300); 
+    this.cameras.main.flash(100, 255, 255, 255); 
+    
+    // 連続攻撃中なら文字を変えるなどしても良い
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
-    this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:500, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
-    this.executeDefense(true);
+    this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
+    
+    // 連続攻撃中か判定
+    if (this.rapidCount > 0) {
+        this.executeDefense(true, true);
+    } else {
+        this.executeDefense(true, false);
+    }
   }
 
-  executeDefense(suc) {
-    let dmg = this.ed.atk;
+  // isRapid: 連続攻撃中フラグ
+  executeDefense(suc, isRapid = false) {
+    let dmg = Math.floor(this.ed.atk * (isRapid ? 0.6 : 1.0)); // 連続攻撃は1発が少し軽い
+    
     if (suc) { 
         dmg = 0; 
-        this.playSound('se_parry'); this.vibrate([20, 20, 20, 20, 500]); 
-        GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 20);
-        this.tweens.add({ targets: this.es, x: this.ebx, duration: 300, ease: 'Back.Out' });
+        this.playSound('se_parry'); this.vibrate(30); 
+        GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
+        // 弾き演出
+        this.tweens.add({ targets: this.es, x: this.ebx, duration: 150, ease: 'Back.Out' });
     } else { 
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
-        GAME_DATA.player.hp -= dmg; this.cameras.main.shake(200, 0.02); this.vibrate(300); 
-        GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
-        this.tweens.add({ targets: this.es, x: this.ebx, delay: 200, duration: 500, ease: 'Power2' });
+        GAME_DATA.player.hp -= dmg; this.cameras.main.shake(100, 0.02); this.vibrate(100); 
+        GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
+        this.tweens.add({ targets: this.es, x: this.ebx, delay: 100, duration: 200, ease: 'Power2' });
     }
-    this.qteMode = null; this.refreshStatus();
+    
+    this.qteMode = null;
+    this.refreshStatus();
+    
     if (GAME_DATA.player.hp <= 0) {
         this.updateMessage("敗北... (クリックで戻る)");
         this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); });
     } else {
-        this.time.delayedCall(1000, () => { 
-            this.isPlayerTurn = true; this.mm.setVisible(true); this.px.setVisible(false); this.ps.clearTint(); 
-            this.updateMessage("ターン開始"); this.refreshStatus();
-        });
+        if (isRapid) {
+            this.rapidCount--;
+            // 次の攻撃へ (間隔を空けて)
+            this.time.delayedCall(400, () => {
+                // 攻撃モードに戻す (ペナルティ状態でなければ)
+                if(!this.guardBroken) this.qteMode = 'defense_wait'; 
+                this.launchRapidAttack();
+            });
+        } else {
+            this.time.delayedCall(1000, () => this.endEnemyTurn());
+        }
     }
+  }
+
+  endEnemyTurn() {
+      this.isPlayerTurn = true; this.mm.setVisible(true); this.px.setVisible(false); this.ps.clearTint(); 
+      this.updateMessage("ターン開始"); this.refreshStatus();
   }
 
   winBattle() {
