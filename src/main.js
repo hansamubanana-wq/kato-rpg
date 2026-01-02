@@ -31,6 +31,7 @@ const ARTS = {
   bg_window_sunset: ["EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE"]
 };
 
+// 敵データ (HP高め)
 const STAGES = [
   { id: 0, name: '土蔵', hp: 150, atk: 12, exp: 20, gold: 100, key: 'dozo' },
   { id: 1, name: '前田', hp: 300, atk: 18, exp: 40, gold: 150, key: 'maeda' },
@@ -41,6 +42,7 @@ const STAGES = [
   { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
+// スキルデータ
 const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃。確実に出席をとる。' },
   { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, desc: '威力は低いが、当てやすい。' },
@@ -196,29 +198,44 @@ class BaseScene extends Phaser.Scene {
     return c;
   }
 
-  // 【修正】スクロールボタンのバグ修正版
-  createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="") {
+  // 【完全修正版】スクロールリスト用ボタン
+  createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
     const sh = this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     
-    // レイアウト調整
+    // テキスト配置調整
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
     vc.add([sh, bg, tx]);
     
+    // スペック説明（下部）
     if(subText) {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
     }
+
+    // 右側のテキスト（値段や装備中など）
+    if(rightText) {
+        const rt = this.add.text((w/2) - 20, 0, rightText, { font: `22px ${GAME_FONT}`, color: '#ff0' }).setOrigin(1, 0.5);
+        vc.add(rt);
+        // 購入済みならグレーアウトさせる等の処理用に参照できるようにする
+        c.rightTextObj = rt;
+    }
     
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
-    hit.on('pointerdown', () => { vc.setScale(0.95); });
     
-    hit.on('pointerup', () => { 
+    // タップ判定のロジック改善
+    let startY = 0;
+    hit.on('pointerdown', (pointer) => { 
+        startY = pointer.y;
+        vc.setScale(0.95); 
+    });
+    
+    hit.on('pointerup', (pointer) => { 
         vc.setScale(1.0); 
-        // ★修正点: `this.isDragging` を参照する (this.scene ではない)
-        if (!this.isDragging) {
+        // 指が10px以上動いていなければクリックとみなす（スクロール誤爆防止）
+        if (Math.abs(pointer.y - startY) < 10) {
             this.playSound('se_select'); 
             cb(); 
         }
@@ -244,10 +261,8 @@ class BaseScene extends Phaser.Scene {
     c.add([bg, bar]); return c;
   }
 
+  // スクロールビュー初期化（判定用オブジェクトなし版）
   initScrollView(contentHeight, maskY, maskH) {
-      this.isDragging = false;
-      this.dragStartY = 0;
-      this.containerStartY = 0;
       this.scrollContainer = this.add.container(0, maskY);
       
       const shape = this.make.graphics();
@@ -256,29 +271,29 @@ class BaseScene extends Phaser.Scene {
       const mask = shape.createGeometryMask();
       this.scrollContainer.setMask(mask);
 
-      const hitZone = this.add.rectangle(this.scale.width/2, maskY + maskH/2, this.scale.width, maskH, 0x000000, 0).setInteractive();
-      
+      // 画面全体でスクロール操作を受け付ける
       const minScroll = Math.min(0, maskH - contentHeight - 50); 
       const maxScroll = 0;
+      let isDragging = false;
+      let dragStartY = 0;
+      let containerStartY = 0;
 
       this.input.on('pointerdown', (pointer) => {
-          this.isDragging = false;
-          this.dragStartY = pointer.y;
-          this.containerStartY = this.scrollContainer.y;
-      });
-
-      this.input.on('pointermove', (pointer) => {
-          if (pointer.isDown) {
-              const diff = pointer.y - this.dragStartY;
-              if (Math.abs(diff) > 10) this.isDragging = true;
-              if (this.isDragging) {
-                  this.scrollContainer.y = Phaser.Math.Clamp(this.containerStartY + diff, minScroll + maskY, maxScroll + maskY);
-              }
+          if (pointer.y >= maskY && pointer.y <= maskY + maskH) {
+              isDragging = false;
+              dragStartY = pointer.y;
+              containerStartY = this.scrollContainer.y;
           }
       });
 
-      this.input.on('pointerup', () => {
-          this.time.delayedCall(100, () => { this.isDragging = false; });
+      this.input.on('pointermove', (pointer) => {
+          if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) {
+              const diff = pointer.y - dragStartY;
+              if (Math.abs(diff) > 10) isDragging = true;
+              if (isDragging) {
+                  this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY);
+              }
+          }
       });
       
       return this.scrollContainer;
@@ -296,20 +311,21 @@ class OpeningScene extends BaseScene {
     const w = this.scale.width; const h = this.scale.height;
     this.add.rectangle(w/2, h/2, w, h, 0x000000);
 
+    // 【修正】ストーリーテキスト：青稜中学校版
     const storyText = `
-私立レトロ高校。
-かつては進学校だったこの場所も
-今は『赤点ドラゴン』の呪いにより
-無法地帯と化していた……。
+私立青稜中学校。
 
-生徒は宿題を忘れ、
-教師は授業を放棄。
-校内には魔物が跋扈する始末。
+自由な校風で知られるこの名門校に
+突如として『教育崩壊現象』が巻き起こった。
 
-しかし、一人の男が立ち上がる。
+生徒たちはスマホに支配され、
+教師たちはやる気を失い、
+校内は荒廃の一途をたどっていた。
+
+だが、一人の男が立ち上がる。
 数学教師・加藤。
 
-「私が全員、補習にしてやる！！」
+「私が青稜の規律を取り戻す！！」
 
 愛のムチ（物理）で
 学園の平和を取り戻せ！
@@ -320,7 +336,7 @@ class OpeningScene extends BaseScene {
     }).setOrigin(0.5, 0);
 
     this.tweens.add({
-        targets: textObj, y: -600, duration: 15000, ease: 'Linear',
+        targets: textObj, y: -600, duration: 20000, ease: 'Linear',
         onComplete: () => this.transitionTo('TutorialScene')
     });
 
@@ -329,13 +345,12 @@ class OpeningScene extends BaseScene {
 }
 
 // ================================================================
-//  4. チュートリアルシーン (2ページ構成)
+//  4. チュートリアルシーン
 // ================================================================
 class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
   create() {
     this.fadeInScene(); this.createGameBackground('skill');
-    this.page = 1;
     this.showPage1();
   }
 
@@ -343,7 +358,6 @@ class TutorialScene extends BaseScene {
     this.children.removeAll(); 
     this.createGameBackground('skill');
     const w = this.scale.width; const h = this.scale.height;
-
     this.add.text(w/2, 50, "【チュートリアル 1/2】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     this.add.text(w/2, 120, "1. 攻 撃", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     const ring = this.add.graphics();
@@ -383,6 +397,7 @@ class WorldScene extends BaseScene {
     this.add.text(30, 60, `Gold: ${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' });
     const kato = this.add.sprite(w/2, h*0.35, 'kato').setScale(6); this.startIdleAnimation(kato);
     this.add.text(w/2, h*0.5, "「次はどうしますか？」", { font:`20px ${GAME_FONT}` }).setOrigin(0.5);
+    
     let sn = "裏ボス";
     if (GAME_DATA.stageIndex < STAGES.length - 1) {
         sn = `Stage ${GAME_DATA.stageIndex+1}: ${STAGES[GAME_DATA.stageIndex].name}`;
@@ -416,19 +431,24 @@ class ShopScene extends BaseScene {
     skillList.forEach((s) => {
         const has = GAME_DATA.player.ownedSkillIds.includes(s.id);
         const spec = (s.type === 'heal') ? `回復力:${s.power}` : `威力:${s.power} / 速度:${s.speed}`;
+        const rightText = has ? "済" : `${s.cost}G`;
         
-        // ★修正: 金額表示をボタン内部の相対座標に配置
+        // 【修正】createScrollableButtonを使用
         const btn = this.createScrollableButton(w/2, y, s.name, has?0x333333:0x000000, () => {
             if(has) return;
-            if(GAME_DATA.gold >= s.cost) { GAME_DATA.gold -= s.cost; GAME_DATA.player.ownedSkillIds.push(s.id); this.scene.restart(); }
+            if(GAME_DATA.gold >= s.cost) { 
+                GAME_DATA.gold -= s.cost; 
+                GAME_DATA.player.ownedSkillIds.push(s.id); 
+                this.scene.restart(); 
+            }
             else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
-        }, w-40, 75, `${s.desc}\n[${spec}]`);
+        }, w-40, 75, `${s.desc}\n[${spec}]`, rightText);
         
-        // 金額テキストをボタンの右端（相対座標）に追加
-        const priceTxt = this.add.text((w-40)/2 - 10, 0, has?"済":`${s.cost}G`, {font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
-        btn.list[0].add(priceTxt);
-
-        if(has) btn.list[0].list[2].setColor('#888'); 
+        if(has) {
+            btn.list[0].list[2].setColor('#888'); // 文字色グレー
+            if(btn.rightTextObj) btn.rightTextObj.setColor('#888'); // 金額もグレー
+        }
+        
         container.add(btn);
         y += itemHeight;
     });
@@ -654,7 +674,6 @@ class BattleScene extends BaseScene {
             this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
             const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
             this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' });
-            
             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
             this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
         } else {
