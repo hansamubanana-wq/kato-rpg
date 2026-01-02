@@ -2,7 +2,7 @@
 //  データ & 定数定義
 // ================================================================
 export const GAME_FONT = 'DotGothic16';
-export const SAVE_KEY = 'kato_rpg_save_v9'; // バージョン更新
+export const SAVE_KEY = 'kato_rpg_save_v10'; // 構造変更のため更新
 
 // ドット絵データ
 export const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#f00' };
@@ -33,6 +33,7 @@ export const ARTS = {
   bg_window_sunset: ["EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE"]
 };
 
+// 敵データ
 export const STAGES = [
   { id: 0, name: '土蔵', hp: 150, atk: 12, exp: 20, gold: 100, key: 'dozo' },
   { id: 1, name: '中野', hp: 220, atk: 15, exp: 30, gold: 120, key: 'nakano' },
@@ -82,12 +83,14 @@ export let GAME_DATA = {
     hp: 80, maxHp: 80, atk: 1.0, 
     stress: 0, maxStress: 100,
     ap: 3, maxAp: 9,
+    // IDをキー、Lvを値とするオブジェクト
     ownedSkills: { 1: 1 }, 
     equippedSkillIds: [1],
     items: {} 
   }
 };
 
+// ヘルパー関数
 export function getSkillLevel(id) {
     if (!GAME_DATA.player.ownedSkills) return 0;
     return GAME_DATA.player.ownedSkills[id] || 0;
@@ -96,12 +99,13 @@ export function getSkillLevel(id) {
 export function getSkillPower(skill) {
     const lv = getSkillLevel(skill.id);
     if (lv <= 1) return skill.power;
+    // Lv1あがるごとに威力+20%
     return Math.floor(skill.power * (1 + 0.2 * (lv - 1)));
 }
 
 export function getUpgradeCost(skill) {
     const lv = getSkillLevel(skill.id);
-    if (lv === 0) return skill.cost;
+    if (lv === 0) return skill.cost; // 未所持なら定価
     let base = skill.cost > 0 ? skill.cost : 500;
     return Math.floor(base * (0.8 * lv + 0.2)); 
 }
@@ -114,6 +118,7 @@ export function loadGame() {
             const parsed = JSON.parse(d);
             Object.assign(GAME_DATA, parsed);
             if(parsed.player) {
+                // 旧データ(Array)からの移行対応
                 if (Array.isArray(parsed.player.ownedSkillIds)) {
                     GAME_DATA.player.ownedSkills = {};
                     parsed.player.ownedSkillIds.forEach(id => {

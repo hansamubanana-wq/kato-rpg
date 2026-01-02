@@ -30,7 +30,8 @@ export class OpeningScene extends BaseScene {
     }).setOrigin(0.5, 0);
 
     this.tweens.add({
-        targets: textObj, y: h*0.4, duration: 15000, ease: 'Linear'
+        targets: textObj, y: h*0.4, duration: 15000, ease: 'Linear',
+        onComplete: () => {}
     });
 
     this.createButton(w/2, h - 140, 'START', 0xcc3333, () => this.transitionTo('TutorialScene'), 200, 60);
@@ -290,6 +291,7 @@ export class ShopScene extends BaseScene {
               const lv = getSkillLevel(item.id);
               const cost = getUpgradeCost(item);
               const power = getSkillPower(item);
+              
               spec = `${item.desc}\n[威力:${power} / AP:${item.apCost}]`;
               if (lv === 0) {
                   rightText = `習得\n${cost}G`;
@@ -309,12 +311,14 @@ export class ShopScene extends BaseScene {
           const btn = this.createScrollableButton(w/2, y, item.name, isMax?0x333333:0x000000, () => {
               if(this.mode === 'skill') {
                   const lv = getSkillLevel(item.id);
-                  if(lv >= 10) return;
+                  if(lv >= 10) return; // MAX
                   const cost = getUpgradeCost(item);
+                  
                   if(GAME_DATA.gold >= cost) { 
                       GAME_DATA.gold -= cost; 
                       if(!GAME_DATA.player.ownedSkills[item.id]) GAME_DATA.player.ownedSkills[item.id] = 0;
                       GAME_DATA.player.ownedSkills[item.id]++;
+                      // 初めて入手したら自動で装備(空きがあれば)
                       if(GAME_DATA.player.ownedSkills[item.id] === 1 && GAME_DATA.player.equippedSkillIds.length < 6) {
                           GAME_DATA.player.equippedSkillIds.push(item.id);
                       }
@@ -349,8 +353,10 @@ export class SkillScene extends BaseScene {
     this.createButton(w/2, h-60, '完了', 0x555, () => this.transitionTo('WorldScene')).setDepth(20);
 
     const ownedIds = Object.keys(GAME_DATA.player.ownedSkills).map(Number);
+    
     const equipped = GAME_DATA.player.equippedSkillIds.map(id => ({...SKILL_DB.find(x=>x.id===id), isEquip:true}));
     const owned = ownedIds.filter(id => !GAME_DATA.player.equippedSkillIds.includes(id)).map(id => ({...SKILL_DB.find(x=>x.id===id), isEquip:false}));
+    
     const allItems = [...equipped, {isSeparator:true, text:"▼ 所持リスト"}, ...owned];
     const itemHeight = 70;
     const contentHeight = allItems.length * itemHeight + 50;
@@ -363,6 +369,7 @@ export class SkillScene extends BaseScene {
         } else {
             const lv = getSkillLevel(item.id);
             const power = getSkillPower(item);
+            // Lvも表示
             const nameText = `${item.name} Lv.${lv}`;
             const spec = (item.type === 'heal') ? `[威力:${power} / AP:${item.apCost}]` : `[威力:${power} / AP:${item.apCost}]`;
             
@@ -418,25 +425,103 @@ export class SecretBossIntroScene extends BaseScene {
 
 export class TrueClearScene extends BaseScene {
   constructor() { super('TrueClearScene'); }
+
   create() {
     this.sound.stopAll();
     this.playSound('se_win');
-    this.time.delayedCall(2000, () => { this.playBGM('bgm_world'); });
+    this.time.delayedCall(2000, () => {
+        this.playBGM('bgm_world');
+    });
+
     this.cameras.main.fadeIn(2000, 255, 255, 255);
-    const w = this.scale.width; const h = this.scale.height;
-    this.createGameBackground('world'); const sky = this.add.graphics(); sky.fillGradientStyle(0x88ccff, 0x88ccff, 0xffffff, 0xffffff, 1); sky.fillRect(0, 0, w, h * 0.6); sky.setDepth(-50);
-    if (!this.textures.exists('particle_confetti')) { const cvs = document.createElement('canvas'); cvs.width=4; cvs.height=4; const ctx = cvs.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,4,4); this.textures.addCanvas('particle_confetti', cvs); }
-    const emitter = this.add.particles(0, 0, 'particle_confetti', { x: { min: 0, max: w }, y: -50, lifespan: 4000, gravityY: 50, speedX: { min: -20, max: 20 }, scale: { start: 1.5, end: 0.5 }, rotate: { min: 0, max: 360 }, tint: [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff], quantity: 2, frequency: 100 }); emitter.setDepth(-10);
-    const charaY = h * 0.65; const chars = [];
-    STAGES.forEach((stage, i) => { if (stage.key !== 'dozo' && stage.key !== 'kingetsu') { const spr = this.add.sprite(w * 0.1 + (i%5) * 50, charaY - Math.floor(i/5)*30, stage.key).setScale(3.5).setAlpha(0.9); this.startIdleAnimation(spr); chars.push(spr); } });
-    const kato = this.add.sprite(w/2, charaY - 40, 'kato').setScale(8); this.startIdleAnimation(kato); chars.push(kato);
-    chars.forEach((c, i) => { const targetY = c.y; c.y += 300; this.tweens.add({ targets: c, y: targetY, duration: 1500, ease: 'Back.Out', delay: 500 + i * 50 }); });
-    const titleText = this.add.text(w/2, h*0.15, "祝・完全制覇！", { font:`48px ${GAME_FONT}`, color:'#ffcc00', stroke:'#000', strokeThickness:6 }).setOrigin(0.5).setScale(0).setDepth(100);
+    const w = this.scale.width;
+    const h = this.scale.height;
+
+    // 背景
+    this.createGameBackground('world');
+    const sky = this.add.graphics();
+    sky.fillGradientStyle(0x88ccff, 0x88ccff, 0xffffff, 0xffffff, 1);
+    sky.fillRect(0, 0, w, h * 0.6);
+    sky.setDepth(-50);
+
+    // 紙吹雪
+    if (!this.textures.exists('particle_confetti')) {
+        const cvs = document.createElement('canvas'); cvs.width=4; cvs.height=4;
+        const ctx = cvs.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,4,4);
+        this.textures.addCanvas('particle_confetti', cvs);
+    }
+    const emitter = this.add.particles(0, 0, 'particle_confetti', {
+        x: { min: 0, max: w },
+        y: -50,
+        lifespan: 4000,
+        gravityY: 50, speedX: { min: -20, max: 20 },
+        scale: { start: 1.5, end: 0.5 },
+        rotate: { min: 0, max: 360 },
+        tint: [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff],
+        quantity: 2, frequency: 100
+    });
+    emitter.setDepth(-10);
+
+    // キャラクター集合
+    const charaY = h * 0.65;
+    const chars = [];
+
+    // ステージの敵キャラ（一部除く）
+    let bossCount = 0;
+    STAGES.forEach((stage, i) => {
+        if (stage.key !== 'dozo' && stage.key !== 'kingetsu') { 
+             const spr = this.add.sprite(w * 0.1 + (i%5) * 50, charaY - Math.floor(i/5)*30, stage.key).setScale(3.5).setAlpha(0.9);
+             this.startIdleAnimation(spr);
+             chars.push(spr);
+        }
+    });
+
+    // 主人公
+    const kato = this.add.sprite(w/2, charaY - 40, 'kato').setScale(8);
+    this.startIdleAnimation(kato);
+    chars.push(kato);
+
+    chars.forEach((c, i) => {
+        const targetY = c.y;
+        c.y += 300;
+        this.tweens.add({
+            targets: c, y: targetY, duration: 1500, ease: 'Back.Out', delay: 500 + i * 50
+        });
+    });
+
+    // テキスト
+    const titleText = this.add.text(w/2, h*0.15, "祝・完全制覇！", {
+        font:`48px ${GAME_FONT}`, color:'#ffcc00', stroke:'#000', strokeThickness:6
+    }).setOrigin(0.5).setScale(0).setDepth(100);
+
     this.tweens.add({ targets: titleText, scale: 1, duration: 1200, ease: 'Elastic.Out', delay: 2000 });
-    const message = `青稜中学校に、真の平和が訪れた。\n\n反抗期パンデミックは収束し、\n生徒たちの笑顔が戻ってきた。\n\nこれも全て、\n加藤先生の熱い指導のおかげである。\n\nThank you for playing!`;
-    const msgText = this.add.text(w/2, h*0.45, message, { font:`20px ${GAME_FONT}`, color:'#fff', stroke:'#000', strokeThickness:3, align:'center', lineSpacing: 12 }).setOrigin(0.5, 0).setAlpha(0).setDepth(100);
+
+    const message = 
+`青稜中学校に、真の平和が訪れた。
+
+反抗期パンデミックは収束し、
+生徒たちの笑顔が戻ってきた。
+
+これも全て、
+加藤先生の熱い指導のおかげである。
+
+Thank you for playing!`;
+
+    const msgText = this.add.text(w/2, h*0.45, message, {
+        font:`20px ${GAME_FONT}`, color:'#fff', stroke:'#000', strokeThickness:3, align:'center', lineSpacing: 12
+    }).setOrigin(0.5, 0).setAlpha(0).setDepth(100);
+
     this.tweens.add({ targets: msgText, alpha: 1, y: h*0.4, duration: 2500, delay: 3500 });
-    this.time.delayedCall(7000, () => { const btn = this.createButton(w/2, h*0.9, 'タイトルへ戻る', 0x555555, () => { this.cameras.main.fadeOut(1000, 0,0,0); this.cameras.main.once('camerafadeoutcomplete', () => { location.reload(); }); }, 200, 50).setAlpha(0); this.tweens.add({ targets: btn, alpha: 1, duration: 1000 }); });
+
+    // 戻るボタン
+    this.time.delayedCall(7000, () => {
+        const btn = this.createButton(w/2, h*0.9, 'タイトルへ戻る', 0x555555, () => {
+            this.cameras.main.fadeOut(1000, 0,0,0);
+            this.cameras.main.once('camerafadeoutcomplete', () => { location.reload(); });
+        }, 200, 50).setAlpha(0);
+        this.tweens.add({ targets: btn, alpha: 1, duration: 1000 });
+    });
+
     this.cameras.main.zoomTo(1.05, 15000, 'Linear', true);
   }
 }

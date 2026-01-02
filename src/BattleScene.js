@@ -39,23 +39,19 @@ export class BattleScene extends BaseScene {
     this.es = this.add.sprite(w*0.75, h*0.4, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
 
-    // --- UIグループ化 (上部) ---
+    // --- UIグループ化 ---
     this.topUI = this.add.container(0, 0);
     const topY = 40;
-    
     const eName = this.add.text(w-20, topY, this.ed.name, {font:`20px ${GAME_FONT}`}).setOrigin(1, 0);
     this.ehb = this.createHpBar(w-170, topY+30, 150, 15, this.ed.hp, this.ed.maxHp); 
-    
     const pName = this.add.text(20, topY, GAME_DATA.player.name, {font:`20px ${GAME_FONT}`});
     this.phb = this.createHpBar(20, topY+30, 150, 15, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
-    
     const sLabel = this.add.text(20, topY+55, "ストレス", {font:`14px ${GAME_FONT}`, color:'#fa0'});
     this.sb = this.createStressBar(80, topY+63, 90, 10); 
     this.apBar = this.createApBar(w/2 - 90, topY + 90);
-
     this.topUI.add([eName, this.ehb, pName, this.phb, sLabel, this.sb, this.apBar]);
 
-    // --- チュートリアルスキップボタン ---
+    // --- チュートリアルスキップ ---
     if (this.isTutorial) {
         const skipBtn = this.add.container(w - 60, 90);
         const sBg = this.add.rectangle(0, 0, 100, 40, 0x555555).setStrokeStyle(1, 0xffffff);
@@ -76,27 +72,24 @@ export class BattleScene extends BaseScene {
     this.createMessageBox(w, h); 
     this.mm = this.add.container(0, 0);
     const cmdY = h - 230; 
-    
     this.btnPos = {
         cmd: { x: w/2 - 85, y: cmdY },
         item: { x: w/2 + 85, y: cmdY },
         lb: { x: w/2 - 85, y: cmdY + 75 },
         pass: { x: w/2 + 85, y: cmdY + 75 }
     };
-
-    this.btnCmd = this.createButton(this.btnPos.cmd.x, this.btnPos.cmd.y, 'コマンド', 0xc33, () => this.openSkillMenu(), btnW, btnH);
+    this.btnCmd = this.createButton(this.btnPos.cmd.x, this.btnPos.cmd.y, 'コマンド', 0xc33, () => this.openSkillMenu());
     this.mm.add(this.btnCmd);
-    this.mm.add(this.createButton(this.btnPos.item.x, this.btnPos.item.y, 'アイテム', 0x383, () => this.openItemMenu(), btnW, btnH));
+    this.mm.add(this.createButton(this.btnPos.item.x, this.btnPos.item.y, 'アイテム', 0x383, () => this.openItemMenu()));
     this.lb = this.createButton(this.btnPos.lb.x, this.btnPos.lb.y, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), 160, 60, true);
     this.lb.setVisible(false); this.mm.add(this.lb);
-    this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
+    this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn())); 
 
     // --- QTE UI ---
     this.qt = this.add.graphics().setDepth(100); this.qr = this.add.graphics().setDepth(100);
     this.qtxt = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.gs = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
-    
-    // ★修正: this.px (×印) の生成コードを削除しました
+    // this.px は削除済み
 
     this.createSkillMenu(w, h);
     this.createItemMenu(w, h);
@@ -133,7 +126,6 @@ export class BattleScene extends BaseScene {
       }
   }
 
-  // --- チュートリアル ---
   startTutorialStep1() {
       this.tutorialStep = 1;
       this.updateMessage("まずは攻撃だ！\n「コマンド」をタップ！");
@@ -166,7 +158,6 @@ export class BattleScene extends BaseScene {
       });
   }
 
-  // --- ロジック ---
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
@@ -421,9 +412,9 @@ export class BattleScene extends BaseScene {
         this.cameras.main.zoomTo(1.0, 200);
         this.setCinematicMode(false);
 
+        // ★レベルアップ計算を適用
         let power = 10;
         try { power = getSkillPower(this.selS); } catch(e) { power = this.selS.power; }
-        
         let dmg = power * GAME_DATA.player.atk;
         
         let v = 50; let c = false;
@@ -479,7 +470,6 @@ export class BattleScene extends BaseScene {
     this.isPlayerTurn = false; 
     let h = 10;
     try { h = getSkillPower(s); } catch(e) { h = s.power; }
-    
     GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + h, GAME_DATA.player.maxHp);
     const ht = this.add.text(this.ps.x, this.ps.y-50, `+${h}`, { font:`32px ${GAME_FONT}`, color:'#0f0', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
     this.tweens.add({ targets: ht, y: ht.y-50, alpha: 0, duration: 1000, onComplete:()=>ht.destroy() });
@@ -494,7 +484,9 @@ export class BattleScene extends BaseScene {
 
   triggerGuardPenalty() {
     if (this.guardBroken) return;
-    this.guardBroken = true; this.px.setVisible(true); this.ps.setTint(0x888); 
+    this.guardBroken = true; 
+    // ★ここにあった this.px.setVisible(true) を削除済み
+    this.ps.setTint(0x888); 
     this.cameras.main.shake(100,0.01); this.vibrate(200);
     this.perfectGuardChain = false; 
   }
@@ -503,10 +495,11 @@ export class BattleScene extends BaseScene {
     if (this.ed.status === 'burn') { const dmg = Math.floor(this.ed.maxHp * 0.05); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, false); this.showStatusPopup(this.es.x, this.es.y - 80, "炎上ダメージ"); this.damageFlash(this.es); this.refreshStatus(); if (this.ed.hp <= 0) { this.winBattle(); return; } }
     if (this.ed.status === 'sleep') { this.ed.status = null; this.showStatusPopup(this.es.x, this.es.y - 50, "Zzz..."); this.updateMessage(`${this.ed.name} は眠っている`); this.time.delayedCall(1500, () => this.endEnemyTurn()); return; }
 
-    this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
+    this.qteMode = 'defense_wait'; this.guardBroken = false; 
+    // ★ここにあった this.px.setVisible(false) を削除済み
+    this.ps.clearTint();
     this.perfectGuardChain = true; 
     
-    // 【強化】攻撃前の予備動作（後ろに少し下がる）
     this.tweens.add({ targets: this.es, x: this.ebx + 30, duration: 400, ease: 'Power1' });
 
     if(this.isTutorial) {
@@ -526,7 +519,6 @@ export class BattleScene extends BaseScene {
     }
   }
 
-  // ★攻撃開始：ランダムでアニメーション変化
   launchAttack() {
       if (this.guardBroken) { this.executeDefense(false); return; }
       this.qteMode = 'defense_active'; this.gs.setVisible(true);
@@ -535,7 +527,6 @@ export class BattleScene extends BaseScene {
 
       const rndAnim = Math.random();
       if (rndAnim < 0.33) {
-          // ジャンプ攻撃
           this.tweens.chain({
               targets: this.es,
               tweens: [
@@ -545,13 +536,11 @@ export class BattleScene extends BaseScene {
           });
           this.eat = { stop: () => this.tweens.killTweensOf(this.es) };
       } else if (rndAnim < 0.66) {
-          // 回転アタック
           this.eat = this.tweens.add({
               targets: this.es, x: this.ps.x + 50, angle: 360, duration: 400, ease: 'Linear',
               onComplete: () => { this.es.angle = 0; if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
           });
       } else {
-          // 通常
           this.eat = this.tweens.add({
               targets: this.es, x: this.ps.x + 50, duration: this.isTutorial ? 600 : 300, 
               ease: 'Expo.In',
@@ -623,7 +612,6 @@ export class BattleScene extends BaseScene {
     
     this.qteMode = null; this.es.clearTint(); this.refreshStatus();
     
-    // ★ここにも this.px の削除漏れがあったので修正済み
     if (GAME_DATA.player.hp <= 0) {
         this.updateMessage("敗北... (クリックで戻る)");
         this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); });
