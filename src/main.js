@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 // ================================================================
-//  0. フォント読み込み
+//  0. フォント & スタイル
 // ================================================================
 const fontStyle = document.createElement('style');
 fontStyle.innerHTML = `
@@ -56,162 +56,56 @@ const GAME_DATA = {
 };
 
 // ================================================================
-//  2. サウンドシステム (Web Audio API - ピコピコ音源)
-// ================================================================
-class SoundSystem {
-  constructor() {
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    this.bgmOscs = [];
-    this.bgmTimer = null;
-    this.bgmType = null;
-  }
-
-  // ユーザー操作時にコンテキストを開始する必要がある
-  init() {
-    if (this.ctx.state === 'suspended') this.ctx.resume();
-  }
-
-  playSE(type) {
-    this.init();
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    const now = this.ctx.currentTime;
-
-    if (type === 'select') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.1);
-      osc.start(now);
-      osc.stop(now + 0.1);
-    } 
-    else if (type === 'cancel') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(200, now);
-      osc.frequency.linearRampToValueAtTime(100, now + 0.15);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.15);
-      osc.start(now);
-      osc.stop(now + 0.15);
-    }
-    else if (type === 'attack') {
-      // ノイズっぽい音（のこぎり波で代用）
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(100, now);
-      osc.frequency.exponentialRampToValueAtTime(10, now + 0.2);
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-      osc.start(now);
-      osc.stop(now + 0.2);
-    }
-    else if (type === 'parry') {
-      // 気持ちいい高音（キィィン！）
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(1500, now);
-      osc.frequency.exponentialRampToValueAtTime(2000, now + 0.1);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6); // 余韻長め
-      osc.start(now);
-      osc.stop(now + 0.6);
-    }
-    else if (type === 'damage') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(100, now);
-      osc.frequency.linearRampToValueAtTime(50, now + 0.2);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.2);
-      osc.start(now);
-      osc.stop(now + 0.2);
-    }
-    else if (type === 'limit') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(200, now);
-      osc.frequency.linearRampToValueAtTime(800, now + 1.0);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 1.0);
-      osc.start(now);
-      osc.stop(now + 1.0);
-    }
-    else if (type === 'win') {
-      // 勝利ジングル
-      const notes = [523, 659, 783, 1046]; // C E G C
-      notes.forEach((f, i) => {
-        const o = this.ctx.createOscillator();
-        const g = this.ctx.createGain();
-        o.type = 'square';
-        o.connect(g); g.connect(this.ctx.destination);
-        o.frequency.value = f;
-        g.gain.setValueAtTime(0.1, now + i*0.1);
-        g.gain.linearRampToValueAtTime(0, now + i*0.1 + 0.3);
-        o.start(now + i*0.1);
-        o.stop(now + i*0.1 + 0.3);
-      });
-    }
-  }
-
-  // 簡易シーケンサー
-  playBGM(type) {
-    if (this.bgmType === type) return;
-    this.stopBGM();
-    this.bgmType = type;
-    this.init();
-
-    let sequence = [];
-    let speed = 200;
-
-    if (type === 'world') {
-      // ゆったりCメジャー
-      sequence = [261, 0, 329, 0, 392, 0, 329, 0]; 
-      speed = 300;
-    } else if (type === 'battle') {
-      // 緊迫感のあるベースライン
-      sequence = [110, 110, 130, 110, 146, 110, 123, 110];
-      speed = 150;
-    }
-
-    let step = 0;
-    this.bgmTimer = setInterval(() => {
-      const freq = sequence[step % sequence.length];
-      if (freq > 0) {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.1);
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.1);
-      }
-      step++;
-    }, speed);
-  }
-
-  stopBGM() {
-    if (this.bgmTimer) clearInterval(this.bgmTimer);
-    this.bgmTimer = null;
-    this.bgmType = null;
-  }
-}
-
-// グローバルサウンド管理
-const SOUND = new SoundSystem();
-
-// ================================================================
-//  3. 共通UIシステム
+//  2. 共通UI & システム (音声読み込み対応)
 // ================================================================
 class BaseScene extends Phaser.Scene {
+  // ここで画像と【音声ファイル】を読み込みます
+  preload() {
+    // ドット絵生成
+    Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
+
+    // --- 音声ファイルのロード (public/sounds/フォルダ内) ---
+    // ※ 自分で用意したファイル名に合わせてください
+    this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
+    this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
+    this.load.audio('se_select', '/sounds/se_select.mp3');
+    this.load.audio('se_attack', '/sounds/se_attack.mp3');
+    this.load.audio('se_parry', '/sounds/se_parry.mp3');
+    this.load.audio('se_win', '/sounds/se_win.mp3');
+    // ファイルがない場合のダミーロードを防ぐため、存在しないファイルはコメントアウトするか
+    // 実際にファイルを置いてください。
+  }
+
   createTextureFromText(key, art) {
     if (this.textures.exists(key)) return;
     const cvs = document.createElement('canvas'); cvs.width = art[0].length; cvs.height = art.length;
     const ctx = cvs.getContext('2d');
     for (let y=0; y<art.length; y++) for (let x=0; x<art[0].length; x++) if (P[art[y][x]]) { ctx.fillStyle = P[art[y][x]]; ctx.fillRect(x,y,1,1); }
     this.textures.addCanvas(key, cvs);
+  }
+
+  // 音を鳴らすヘルパー
+  playSound(key, config = {}) {
+      // ファイルがロードできているか確認してから再生
+      if (this.sound.get(key) || this.cache.audio.exists(key)) {
+          this.sound.play(key, config);
+      }
+  }
+
+  // BGMを鳴らす (シーンをまたいでも管理できるように)
+  playBGM(key) {
+      // 既に同じ曲が鳴っていたら何もしない
+      const current = this.sound.getAll('bgm_world').concat(this.sound.getAll('bgm_battle'));
+      let isPlaying = false;
+      
+      current.forEach(sound => {
+          if (sound.key === key && sound.isPlaying) isPlaying = true;
+          else sound.stop(); // 他のBGMは止める
+      });
+
+      if (!isPlaying) {
+          this.playSound(key, { loop: true, volume: 0.5 });
+      }
   }
 
   vibrate(pattern) { if (navigator.vibrate) navigator.vibrate(pattern); }
@@ -234,7 +128,11 @@ class BaseScene extends Phaser.Scene {
     this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3);
   }
 
-  startIdleAnimation(t) { this.tweens.add({ targets: t, y: '+=10', duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }); }
+  startIdleAnimation(target) {
+      this.tweens.add({
+          targets: target, y: '+=10', duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
+      });
+  }
 
   showDamagePopup(x, y, amount, isCrit) {
       let color = isCrit ? '#f00' : '#fff'; let text = isCrit ? `${amount}!!` : `${amount}`;
@@ -271,7 +169,11 @@ class BaseScene extends Phaser.Scene {
     
     const hit = this.add.rectangle(0, 0, w+10, h+20, 0x000, 0).setInteractive();
     hit.on('pointerdown', () => { vc.setScale(0.95); this.vibrate(5); });
-    hit.on('pointerup', () => { vc.setScale(1.0); SOUND.playSE('select'); cb(); }); // ここで音を鳴らす
+    hit.on('pointerup', () => { 
+        vc.setScale(1.0); 
+        this.playSound('se_select'); // 決定音
+        cb(); 
+    });
     hit.on('pointerout', () => vc.setScale(1.0));
     c.add([vc, hit]);
     return c;
@@ -298,9 +200,8 @@ class BaseScene extends Phaser.Scene {
 // ================================================================
 class WorldScene extends BaseScene {
   constructor() { super('WorldScene'); }
-  preload() { Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k])); }
   create() {
-    SOUND.playBGM('world'); // BGM開始
+    this.playBGM('bgm_world'); // ワールドBGM再生
     this.fadeInScene(); this.createPatternBackground(0x444, 0x333);
     const w = this.scale.width; const h = this.scale.height;
     this.createPanel(10, 10, w-20, 80);
@@ -339,8 +240,8 @@ class ShopScene extends BaseScene {
         const hit = this.add.rectangle(w/2, y+35, w-20, 70).setInteractive();
         hit.on('pointerdown', () => {
             if(has) return;
-            if(GAME_DATA.gold >= s.cost) { GAME_DATA.gold -= s.cost; GAME_DATA.player.ownedSkillIds.push(s.id); SOUND.playSE('select'); this.scene.restart(); }
-            else { SOUND.playSE('cancel'); pr.setText("不足!"); this.time.delayedCall(500, ()=>this.scene.restart()); }
+            if(GAME_DATA.gold >= s.cost) { GAME_DATA.gold -= s.cost; GAME_DATA.player.ownedSkillIds.push(s.id); this.playSound('se_select'); this.scene.restart(); }
+            else { this.playSound('se_select'); /*キャンセル音あれば変える*/ pr.setText("不足!"); this.time.delayedCall(500, ()=>this.scene.restart()); }
         });
         c.add([bg, t1, t2, pr, hit]); c.setScale(0);
         this.tweens.add({ targets: c, scale: 1, duration: 300, delay: i*50, ease: 'Back.Out' });
@@ -369,7 +270,7 @@ class SkillScene extends BaseScene {
         h.on('pointerdown', () => {
             if(eq) { if(GAME_DATA.player.equippedSkillIds.length>1) GAME_DATA.player.equippedSkillIds.splice(i,1); }
             else { if(GAME_DATA.player.equippedSkillIds.length<6) GAME_DATA.player.equippedSkillIds.push(s.id); }
-            SOUND.playSE('select'); this.scene.restart();
+            this.playSound('se_select'); this.scene.restart();
         });
         c.add([btn, tx, h]); c.setScale(0);
         this.tweens.add({ targets: c, scale: 1, duration: 300, delay: i*30, ease: 'Back.Out' });
@@ -387,9 +288,8 @@ class SkillScene extends BaseScene {
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
-  preload() { Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k])); }
   create() {
-    SOUND.playBGM('battle'); // BGM変更
+    this.playBGM('bgm_battle'); // バトルBGM
     this.fadeInScene(); this.createPatternBackground(0x522, 0x311);
     const w = this.scale.width; const h = this.scale.height;
     const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
@@ -464,7 +364,9 @@ class BattleScene extends BaseScene {
   selectSkill(s) { this.sm.setVisible(false); this.selS = s; if (s.type === 'heal') this.executeHeal(s); else this.startAttackQTE(s); }
 
   activateLimitBreak() {
-    this.isPlayerTurn = false; GAME_DATA.player.stress = 0; SOUND.playSE('limit');
+    this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
+    // ここで音を鳴らす
+    // this.playSound('se_attack'); // 適当な音
     this.vibrate(1000); this.cameras.main.flash(500, 255, 0, 0); this.cameras.main.shake(500, 0.05);      
     this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
     const dmg = Math.floor(GAME_DATA.player.atk * 150); this.ed.hp -= dmg;
@@ -510,7 +412,8 @@ class BattleScene extends BaseScene {
         if (res==='PERFECT') { dmg = Math.floor(dmg*1.5); v = [50, 50, 300]; this.cameras.main.shake(300, 0.04); this.hitStop(200); c = true; } 
         else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); v = 20; }
         
-        SOUND.playSE('attack'); this.vibrate(v); 
+        this.playSound('se_attack'); // 攻撃音
+        this.vibrate(v); 
         this.ed.hp -= dmg;
         this.showDamagePopup(this.es.x, this.es.y, dmg, c);
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
@@ -523,6 +426,7 @@ class BattleScene extends BaseScene {
     const ht = this.add.text(this.ps.x, this.ps.y-50, `+${h}`, { font:`32px ${GAME_FONT}`, color:'#0f0', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
     this.tweens.add({ targets: ht, y: ht.y-50, alpha:0, duration:1000, onComplete:()=>ht.destroy() });
     this.tweens.add({targets:this.ps, tint:0x0f0, duration:200, yoyo:true, onComplete:()=>this.ps.clearTint()});
+    // 回復音があればここで鳴らす
     this.checkEnd();
   }
   checkEnd() {
@@ -534,7 +438,8 @@ class BattleScene extends BaseScene {
   triggerGuardPenalty() {
     if (this.guardBroken) return;
     this.guardBroken = true; this.px.setVisible(true); this.ps.setTint(0x888); 
-    this.cameras.main.shake(100,0.01); this.vibrate(200); SOUND.playSE('cancel');
+    this.cameras.main.shake(100,0.01); this.vibrate(200);
+    // this.playSound('se_cancel'); 
   }
 
   startEnemyTurn() {
@@ -564,11 +469,13 @@ class BattleScene extends BaseScene {
   executeDefense(suc) {
     let dmg = this.ed.atk;
     if (suc) { 
-        dmg = 0; SOUND.playSE('parry'); this.vibrate([20, 20, 20, 20, 500]); 
+        dmg = 0; 
+        this.playSound('se_parry'); // パリィ音
+        this.vibrate([20, 20, 20, 20, 500]); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 20);
         this.tweens.add({ targets: this.es, x: this.ebx, duration: 300, ease: 'Back.Out' });
     } else { 
-        SOUND.playSE('damage');
+        // this.playSound('se_damage'); // ダメージ音
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
         GAME_DATA.player.hp -= dmg; this.cameras.main.shake(200, 0.02); this.vibrate(300); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
@@ -588,7 +495,8 @@ class BattleScene extends BaseScene {
 
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; GAME_DATA.stageIndex++; 
-    SOUND.playSE('win'); this.vibrate([100, 50, 100, 50, 200]); 
+    this.playSound('se_win'); // 勝利ジングル
+    this.vibrate([100, 50, 100, 50, 200]); 
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) {
         GAME_DATA.player.ownedSkillIds.push(7); msg += "\nレア技【居残り指導】習得！";
