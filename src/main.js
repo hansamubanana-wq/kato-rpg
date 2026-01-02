@@ -99,7 +99,7 @@ class BaseScene extends Phaser.Scene {
     return bg;
   }
 
-  // 【修正】ボタンの当たり判定を最前面に持ってくる修正
+  // 【修正】ボタンの判定を大きく・確実に反応するように改良
   createButton(x, y, text, color, cb) {
     const container = this.add.container(x, y);
     const w = 180, h = 50;
@@ -108,29 +108,27 @@ class BaseScene extends Phaser.Scene {
     const shadow = this.add.graphics().fillStyle(0x000000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xffffff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     
-    // 文字（当たり判定より「後ろ」に追加してしまうと、文字をクリックしたときに反応しなくなることがある）
+    // 文字
     const txt = this.add.text(0, 0, text, { font: `20px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
 
-    // 当たり判定 (最前面に透明な板を置く)
-    const hitArea = this.add.rectangle(0, 0, w, h, 0x000000, 0).setInteractive();
+    // 当たり判定 (ボタン本体より大きくする！ W+20, H+20)
+    const hitArea = this.add.rectangle(0, 0, w + 20, h + 20, 0x000000, 0).setInteractive();
 
-    // イベント設定: pointerup（指を離したとき）で実行することで、誤動作を防ぐ
     hitArea.on('pointerdown', () => {
         container.setScale(0.95);
     });
     
     hitArea.on('pointerup', () => {
         container.setScale(1.0);
-        cb(); // ここで実行！
+        cb();
     });
 
+    // 範囲外に出たときもサイズを戻す
     hitArea.on('pointerout', () => {
         container.setScale(1.0);
     });
 
-    // コンテナに追加する順番が重要：hitAreaを最後（＝最前面）にする
     container.add([shadow, bg, txt, hitArea]);
-    
     return container;
   }
 
@@ -176,8 +174,9 @@ class WorldScene extends BaseScene {
     this.createButton(w/2, h*0.65, '出撃する', 0xcc3333, () => this.scene.start('BattleScene'));
     this.add.text(w/2, h*0.65 + 40, `(${stageName})`, {font:`14px ${GAME_FONT}`, color:'#aaa'}).setOrigin(0.5);
 
-    this.createButton(w/2, h*0.78, '購買部 (Shop)', 0x3333cc, () => this.scene.start('ShopScene'));
-    this.createButton(w/2, h*0.88, 'スキル編成', 0x228822, () => this.scene.start('SkillScene'));
+    // ボタンのY座標を少し離して誤タップ防止
+    this.createButton(w/2, h*0.80, '購買部 (Shop)', 0x3333cc, () => this.scene.start('ShopScene'));
+    this.createButton(w/2, h*0.90, 'スキル編成', 0x228822, () => this.scene.start('SkillScene'));
   }
 }
 
@@ -203,13 +202,12 @@ class ShopScene extends BaseScene {
       const bg = this.add.graphics().fillStyle(isOwned?0x333333:0x000000, 0.8)
                   .lineStyle(2, 0xffffff).fillRoundedRect(20, y, w-40, 70, 8).strokeRoundedRect(20, y, w-40, 70, 8);
       
-      // 文字を先に描画
       this.add.text(40, y+10, skill.name, { font:`22px ${GAME_FONT}`, color: isOwned ? '#888' : '#fff'});
       this.add.text(40, y+40, skill.desc, { font:`16px ${GAME_FONT}`, color:'#aaa'});
       const price = this.add.text(w-40, y+35, isOwned?"済":`${skill.cost}G`, { font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
       
-      // 当たり判定を一番最後に追加
-      const hitArea = this.add.rectangle(w/2, y+35, w-40, 70).setInteractive();
+      // 当たり判定を大きく設定
+      const hitArea = this.add.rectangle(w/2, y+35, w-20, 70).setInteractive();
 
       hitArea.on('pointerdown', () => {
         if (isOwned) return;
@@ -244,8 +242,7 @@ class SkillScene extends BaseScene {
       const s = SKILL_DB.find(x => x.id === sid);
       const btn = this.add.graphics().fillStyle(0x006600, 1).lineStyle(1,0xffffff).fillRoundedRect(30, y, w-60, 45, 5).strokeRoundedRect(30, y, w-60, 45, 5);
       this.add.text(w/2, y+22, s.name, {font:`20px ${GAME_FONT}`}).setOrigin(0.5);
-      // 当たり判定を最後に
-      const hit = this.add.rectangle(w/2, y+22, w-60, 45).setInteractive();
+      const hit = this.add.rectangle(w/2, y+22, w-60, 50).setInteractive(); // 判定大きめ
       hit.on('pointerdown', () => {
         if (GAME_DATA.player.equippedSkillIds.length <= 1) return;
         GAME_DATA.player.equippedSkillIds.splice(idx, 1);
@@ -262,8 +259,7 @@ class SkillScene extends BaseScene {
       const s = SKILL_DB.find(x => x.id === sid);
       const btn = this.add.graphics().fillStyle(0x444444, 1).lineStyle(1,0xffffff).fillRoundedRect(30, y, w-60, 45, 5).strokeRoundedRect(30, y, w-60, 45, 5);
       this.add.text(w/2, y+22, s.name, {font:`20px ${GAME_FONT}`}).setOrigin(0.5);
-      // 当たり判定を最後に
-      const hit = this.add.rectangle(w/2, y+22, w-60, 45).setInteractive();
+      const hit = this.add.rectangle(w/2, y+22, w-60, 50).setInteractive(); // 判定大きめ
       hit.on('pointerdown', () => {
         if (GAME_DATA.player.equippedSkillIds.length >= 6) return;
         GAME_DATA.player.equippedSkillIds.push(sid);
@@ -334,7 +330,7 @@ class BattleScene extends BaseScene {
         const container = this.add.container(x, y);
         const btn = this.add.graphics().fillStyle(s.type==='heal'?0x228822:0x882222, 1).lineStyle(2,0xffffff).fillRoundedRect(-75, -25, 150, 50, 8).strokeRoundedRect(-75, -25, 150, 50, 8);
         const txt = this.add.text(0, 0, s.name, {font:`18px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
-        const hit = this.add.rectangle(0, 0, 150, 50).setInteractive(); // 当たり判定を最後に
+        const hit = this.add.rectangle(0, 0, 160, 60).setInteractive(); // 判定大きめ
         
         hit.on('pointerdown', () => { this.input.stopPropagation(); this.selectSkill(s); });
         container.add([btn, txt, hit]);
@@ -344,7 +340,7 @@ class BattleScene extends BaseScene {
     const backContainer = this.add.container(w/2, 270);
     const bBtn = this.add.graphics().fillStyle(0x555555, 1).fillRoundedRect(-50, -20, 100, 40, 5);
     const bTxt = this.add.text(0, 0, '戻る', {font:`16px ${GAME_FONT}`}).setOrigin(0.5);
-    const bHit = this.add.rectangle(0, 0, 100, 40).setInteractive();
+    const bHit = this.add.rectangle(0, 0, 110, 50).setInteractive(); // 判定大きめ
     bHit.on('pointerdown', () => { this.input.stopPropagation(); this.skillMenu.setVisible(false); this.mainMenu.setVisible(true); });
     backContainer.add([bBtn, bTxt, bHit]);
     this.skillMenu.add(backContainer);
