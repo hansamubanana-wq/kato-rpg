@@ -2,7 +2,7 @@
 //  データ & 定数定義
 // ================================================================
 export const GAME_FONT = 'DotGothic16';
-export const SAVE_KEY = 'kato_rpg_save_v7'; // データ更新
+export const SAVE_KEY = 'kato_rpg_save_v8'; // データ構造変更のため更新
 
 // ドット絵データ
 export const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#f00' };
@@ -23,11 +23,9 @@ export const ARTS = {
   kitazawa: ["......0000......",".....000000.....","....10000001....","....11111111....","....11011011....","....11111111....","....11111111....",".....777777.....","....77777777....","....77777777....","....77777777....","....77....77....","....77....77....","....00....00...."],
   aota: ["......0000......",".....000000.....","....00....00....","....01111110....","....01011010....","....01111110....",".....223322.....","....33333333....","....33333333....","....33333333....","....77777777....","....77....77....","....77....77....","....00....00...."],
   kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."],
-  
   student_m: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","...333333333....","...333333333....","...333333333....","...333333333....","....3333333.....","....77...77.....","....77...77.....","....00...00....."],
   student_f: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","...444444444....","...444444444....","...444444444....","...444444444....","....3333333.....","....77...77.....","....77...77.....","....00...00....."],
   teacher_m: [".....000000.....","....00000000....","...000000000....","...011111110....","...010110110....","...041111140....","...011151110....","...444444444....","..44444444444...","..44444444444...","..44444444444...","...333...333....","...333...333....","...000...000...."],
-
   bg_blackboard: ["BBBBBBBBBBBBBBBB","B00000000000000B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B00000000000000B","BBBBBBBBBBBBBBBB"],
   bg_window: ["DDDDDDDD","D222222D","D222222D","D222222D","DDDDDDDD","D222222D","D222222D","D222222D","DDDDDDDD"],
   bg_shelf: ["BBBBBBBB","B992299B","BBBBBBBB","B292922B","BBBBBBBB","B922992B","BBBBBBBB"],
@@ -35,7 +33,6 @@ export const ARTS = {
   bg_window_sunset: ["EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE"]
 };
 
-// 敵データ
 export const STAGES = [
   { id: 0, name: '土蔵', hp: 150, atk: 12, exp: 20, gold: 100, key: 'dozo' },
   { id: 1, name: '中野', hp: 220, atk: 15, exp: 30, gold: 120, key: 'nakano' },
@@ -52,22 +49,16 @@ export const STAGES = [
   { id: 12, name: '金月', hp: 15000, atk: 99, exp: 2000, gold: 3000, key: 'kingetsu' }
 ];
 
-// スキルデータ (★アニメーションキーを変更しました)
 export const SKILL_DB = [
-  // check: 出席確認
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, anim:'check', status: null, desc: '基本攻撃。確実に出席をとる。' },
   { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, anim:'normal', status: null, desc: '威力は低いが、当てやすい。' },
-  // food: 早弁
   { id: 13, name: '早弁', type: 'heal', power: 40, speed: 0, cost: 200, apCost: 2, anim:'food', status: null, desc: '授業中にパンを食べる。小回復。' },
-  // chalk: チョーク
   { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 4, anim:'chalk', status: 'sleep', desc: '確率で敵を「居眠り」させる。' },
   { id: 8, name: 'コンパス刺し', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, anim:'rapid', status: null, desc: '鋭い一撃。判定が少し速い。' },
   { id: 6, name: '生徒を叱る', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, anim:'magic', status: null, desc: '大声を出しストレス発散して回復。' },
   { id: 14, name: '竹刀', type: 'attack', power: 70, speed: 1.1, cost: 450, apCost: 4, anim:'heavy', status: null, desc: '生活指導の必需品。重い一撃。' },
   { id: 4, name: '風呂キャン', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, anim:'normal', status: null, desc: '入浴拒否による精神ダメージ。' },
-  // run: 校庭10周
   { id: 15, name: '校庭10周', type: 'attack', power: 90, speed: 1.5, cost: 1000, apCost: 6, anim:'run', status: 'burn', desc: '理不尽な運動。「炎上」付与。' },
-  // book: サクシード
   { id: 9, name: 'サクシード提出', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, anim:'book', status: null, desc: '分厚い問題集を叩きつける。' },
   { id: 11, name: '競馬大勝ち', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, anim:'magic', status: null, desc: '臨時収入で心が大幅に回復。' },
   { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, apCost: 6, anim:'heavy', status: 'burn', desc: '脳を焼き、「炎上」状態にする。' },
@@ -91,11 +82,37 @@ export let GAME_DATA = {
     hp: 80, maxHp: 80, atk: 1.0, 
     stress: 0, maxStress: 100,
     ap: 3, maxAp: 9,
-    ownedSkillIds: [1],
+    // ownedSkills: IDをキー、Lvを値とするオブジェクトに変更
+    // 例: { 1: 1 } -> ID:1のスキルがLv.1
+    ownedSkills: { 1: 1 }, 
     equippedSkillIds: [1],
     items: {} 
   }
 };
+
+// ★ヘルパー関数：スキルレベルを取得
+export function getSkillLevel(id) {
+    if (!GAME_DATA.player.ownedSkills) return 0;
+    return GAME_DATA.player.ownedSkills[id] || 0;
+}
+
+// ★ヘルパー関数：現在のレベルに基づいた威力を計算
+// Lv1あがるごとに威力+20% (1.2倍, 1.4倍...)
+export function getSkillPower(skill) {
+    const lv = getSkillLevel(skill.id);
+    if (lv <= 1) return skill.power;
+    return Math.floor(skill.power * (1 + 0.2 * (lv - 1)));
+}
+
+// ★ヘルパー関数：次のレベルへの強化費用を計算
+// 基礎コスト * (現在のレベル * 0.8 + 1)
+export function getUpgradeCost(skill) {
+    const lv = getSkillLevel(skill.id);
+    if (lv === 0) return skill.cost; // 未所持なら定価
+    // 強化費用計算
+    let base = skill.cost > 0 ? skill.cost : 500; // 初期技(0G)は500Gベースで計算
+    return Math.floor(base * (0.8 * lv + 0.2)); 
+}
 
 export function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(GAME_DATA)); } catch(e) {} }
 export function loadGame() {
@@ -104,8 +121,20 @@ export function loadGame() {
         if(d) {
             const parsed = JSON.parse(d);
             Object.assign(GAME_DATA, parsed);
-            if(parsed.player) Object.assign(GAME_DATA.player, parsed.player);
+            if(parsed.player) {
+                // データの互換性チェック（古いデータで ownedSkills がない場合など）
+                if (Array.isArray(parsed.player.ownedSkillIds)) {
+                    // 旧データを新データ形式に変換
+                    GAME_DATA.player.ownedSkills = {};
+                    parsed.player.ownedSkillIds.forEach(id => {
+                        GAME_DATA.player.ownedSkills[id] = 1;
+                    });
+                } else {
+                    Object.assign(GAME_DATA.player, parsed.player);
+                }
+            }
             if(!GAME_DATA.player.items) GAME_DATA.player.items = {};
+            if(!GAME_DATA.player.ownedSkills) GAME_DATA.player.ownedSkills = {1:1};
         }
     } catch(e) {}
 }
