@@ -84,19 +84,19 @@ export class BattleScene extends BaseScene {
         pass: { x: w/2 + 85, y: cmdY + 75 }
     };
 
-    this.btnCmd = this.createButton(this.btnPos.cmd.x, this.btnPos.cmd.y, 'コマンド', 0xc33, () => this.openSkillMenu());
+    this.btnCmd = this.createButton(this.btnPos.cmd.x, this.btnPos.cmd.y, 'コマンド', 0xc33, () => this.openSkillMenu(), btnW, btnH);
     this.mm.add(this.btnCmd);
-    this.mm.add(this.createButton(this.btnPos.item.x, this.btnPos.item.y, 'アイテム', 0x383, () => this.openItemMenu()));
+    this.mm.add(this.createButton(this.btnPos.item.x, this.btnPos.item.y, 'アイテム', 0x383, () => this.openItemMenu(), btnW, btnH));
     this.lb = this.createButton(this.btnPos.lb.x, this.btnPos.lb.y, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), 160, 60, true);
     this.lb.setVisible(false); this.mm.add(this.lb);
-    this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn())); 
+    this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
 
     // --- QTE UI ---
     this.qt = this.add.graphics().setDepth(100); this.qr = this.add.graphics().setDepth(100);
     this.qtxt = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.gs = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
     
-    // this.px (×印) は削除済み
+    // ★修正: this.px (×印) の生成コードを削除しました
 
     this.createSkillMenu(w, h);
     this.createItemMenu(w, h);
@@ -623,6 +623,7 @@ export class BattleScene extends BaseScene {
     
     this.qteMode = null; this.es.clearTint(); this.refreshStatus();
     
+    // ★ここにも this.px の削除漏れがあったので修正済み
     if (GAME_DATA.player.hp <= 0) {
         this.updateMessage("敗北... (クリックで戻る)");
         this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); });
