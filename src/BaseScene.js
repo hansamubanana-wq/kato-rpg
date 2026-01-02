@@ -5,7 +5,11 @@ export class BaseScene extends Phaser.Scene {
   constructor(key) { super(key); }
 
   // --- 基本機能 ---
-  fadeInScene() { this.cameras.main.fadeIn(500, 0, 0, 0); }
+  fadeInScene() { 
+      // 【修正】シーン開始時に必ず全キャラのドット絵を生成する
+      this.generateAllTextures();
+      this.cameras.main.fadeIn(500, 0, 0, 0); 
+  }
   
   transitionTo(sceneKey, data) {
       this.cameras.main.fadeOut(500, 0, 0, 0);
@@ -14,8 +18,8 @@ export class BaseScene extends Phaser.Scene {
       });
   }
 
-  playBGM(key) { /* BGM再生処理（省略可） */ }
-  playSound(key) { /* SE再生処理（省略可） */ }
+  playBGM(key) { /* BGM再生処理 */ }
+  playSound(key) { /* SE再生処理 */ }
   
   vibrate(pattern) {
       if (navigator.vibrate) navigator.vibrate(pattern);
@@ -23,6 +27,13 @@ export class BaseScene extends Phaser.Scene {
 
   // --- グラフィック生成系 ---
   
+  // 【追加】登録されているARTSデータをすべてテクスチャに変換する
+  generateAllTextures() {
+      Object.keys(ARTS).forEach(key => {
+          this.createTextureFromText(key, ARTS[key]);
+      });
+  }
+
   // ドット絵テクスチャ生成
   createTextureFromText(key, data) {
       if(this.textures.exists(key)) return;
@@ -36,21 +47,20 @@ export class BaseScene extends Phaser.Scene {
           }
       });
       this.textures.addCanvas(key, canvas);
-      // ドット感を出すためにフィルタをニアレストネイバーに
       this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
 
   createGameBackground(type) {
       this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x444444).setOrigin(0);
-      const textureKey = `bg_${type}`;
       
-      // 背景生成ロジック（簡易版）
+      // 背景生成ロジック
       if(type === 'world') this.add.grid(0,0,this.scale.width,this.scale.height,32,32,0x000000).setOrigin(0).setAlpha(0.2);
       else if(type === 'battle') {
           this.add.rectangle(0,0,this.scale.width,this.scale.height,0x222222).setOrigin(0);
-          // 黒板っぽいもの
-          this.createTextureFromText('bg_bb', ARTS.bg_blackboard);
-          this.add.sprite(this.scale.width/2, 100, 'bg_bb').setScale(20).setAlpha(0.5);
+          // generateAllTexturesで生成済みなのでそのまま使う
+          if(this.textures.exists('bg_blackboard')) {
+             this.add.sprite(this.scale.width/2, 100, 'bg_blackboard').setScale(20).setAlpha(0.5);
+          }
       }
       else if(type === 'skill') this.add.grid(0,0,this.scale.width,this.scale.height,40,40,0x002200).setOrigin(0).setAlpha(0.5);
       else if(type === 'shop') this.add.grid(0,0,this.scale.width,this.scale.height,40,40,0x000044).setOrigin(0).setAlpha(0.5);
@@ -80,14 +90,12 @@ export class BaseScene extends Phaser.Scene {
       const drawBtn = (isPressed) => {
           bg.clear();
           bg.fillStyle(color, 1);
-          // 影をつける
           if(!isPressed) {
               bg.fillStyle(0x000000, 0.5);
               bg.fillRoundedRect(-w/2 + 4, -h/2 + 4, w, h, 10);
           }
           bg.fillStyle(color, 1);
           bg.lineStyle(2, 0xffffff, 1);
-          // 押したときは少し小さく、位置をずらす
           const off = isPressed ? 2 : 0;
           bg.fillRoundedRect(-w/2 + off, -h/2 + off, w, h, 10);
           bg.strokeRoundedRect(-w/2 + off, -h/2 + off, w, h, 10);
@@ -100,11 +108,10 @@ export class BaseScene extends Phaser.Scene {
 
       const hit = this.add.rectangle(0, 0, w, h).setInteractive();
       
-      // 【追加】押したときのアニメーション
       hit.on('pointerdown', () => {
           drawBtn(true);
           t.setPosition(2, 2);
-          this.tweens.add({ targets: c, scale: 0.95, duration: 50, yoyo: true }); // ぷるんと縮む
+          this.tweens.add({ targets: c, scale: 0.95, duration: 50, yoyo: true });
           this.vibrate(10);
       });
       
@@ -114,7 +121,6 @@ export class BaseScene extends Phaser.Scene {
           onClick();
       });
       
-      // キャンセル用（指が外れた時）
       hit.on('pointerout', () => {
           drawBtn(false);
           t.setPosition(0, 0);
@@ -132,7 +138,6 @@ export class BaseScene extends Phaser.Scene {
       return {
           update: (v, m) => {
               const r = Math.max(0, v / m);
-              // HPバーが減るときにアニメーションさせる
               this.tweens.add({
                   targets: bar, width: w * r, duration: 200, ease: 'Power2'
               });
@@ -163,7 +168,6 @@ export class BaseScene extends Phaser.Scene {
               dots.forEach((d, i) => {
                   d.fillColor = (i < ap) ? 0xffff00 : 0x222222;
                   d.setStrokeStyle(1, (i < ap) ? 0xffffaa : 0x444444);
-                  // AP回復時に光らせる
                   if(i < ap && d.prevActive !== true) {
                       this.tweens.add({ targets: d, scale: 1.5, duration: 100, yoyo: true });
                   }
@@ -173,7 +177,6 @@ export class BaseScene extends Phaser.Scene {
       };
   }
 
-  // 【強化】ダメージポップアップ（跳ねる動き）
   showDamagePopup(x, y, dmg, isCrit) {
       const text = isCrit ? `${dmg}!!` : `${dmg}`;
       const color = isCrit ? '#ff0000' : '#ffffff';
@@ -183,13 +186,12 @@ export class BaseScene extends Phaser.Scene {
           font: `${size} ${GAME_FONT}`, color: color, stroke: '#000', strokeThickness: 4
       }).setOrigin(0.5);
 
-      // 跳ねるアニメーション
       this.tweens.chain({
           targets: t,
           tweens: [
-              { y: y - 60, scale: 1.5, duration: 150, ease: 'Back.Out' }, // 飛び出す
-              { y: y - 40, scale: 1.0, duration: 100, ease: 'Linear' },   // 少し戻る
-              { alpha: 0, y: y - 80, duration: 500, delay: 300 }          // 消える
+              { y: y - 60, scale: 1.5, duration: 150, ease: 'Back.Out' }, 
+              { y: y - 40, scale: 1.0, duration: 100, ease: 'Linear' },
+              { alpha: 0, y: y - 80, duration: 500, delay: 300 }
           ],
           onComplete: () => t.destroy()
       });
@@ -205,13 +207,10 @@ export class BaseScene extends Phaser.Scene {
       this.tweens.add({ targets: t, y: y-50, alpha: 0, duration: 800, onComplete: () => t.destroy() });
   }
 
-  // 【強化】ヒットエフェクト（火花パーティクル）
   createImpactEffect(x, y) {
-      // 衝撃波リング
       const c = this.add.circle(x, y, 10, 0xffffff, 0.8);
       this.tweens.add({ targets: c, scale: 5, alpha: 0, duration: 200, onComplete: () => c.destroy() });
 
-      // 火花を散らす
       for(let i=0; i<8; i++) {
           const p = this.add.rectangle(x, y, 4, 4, 0xffff00);
           const angle = Phaser.Math.Between(0, 360);
@@ -233,7 +232,6 @@ export class BaseScene extends Phaser.Scene {
 
   createExplosion(x, y) {
       this.cameras.main.shake(300, 0.02);
-      // 連続で爆発
       for(let i=0; i<5; i++) {
           this.time.delayedCall(i*100, () => {
               const ox = (Math.random()-0.5)*100;
@@ -243,16 +241,14 @@ export class BaseScene extends Phaser.Scene {
       }
   }
 
-  // リストUI用 (スクロール機能付き)
   initScrollView(contentHeight, x, y, width=340, height=400) {
       const container = this.add.container(x, y);
       const maskShape = this.make.graphics();
       maskShape.fillStyle(0xffffff);
-      maskShape.fillRect(0, y, this.scale.width, height); // 画面幅全体をマスク対象に
+      maskShape.fillRect(0, y, this.scale.width, height); 
       const mask = maskShape.createGeometryMask();
       container.setMask(mask);
 
-      // スクロール処理
       let dragY = 0;
       let startY = 0;
       const zone = this.add.zone(0, 0, this.scale.width, height).setOrigin(0).setInteractive();
@@ -261,19 +257,15 @@ export class BaseScene extends Phaser.Scene {
       zone.on('pointermove', (p) => {
           if (p.isDown) {
               dragY = p.y - startY;
-              // 範囲制限
               const minY = -contentHeight + height;
               if (dragY > y) dragY = y;
               if (dragY < y + minY) dragY = y + minY;
               container.y = dragY;
           }
       });
-      // コンテナに追加せず、シーンに直接置くことでコンテナごと動かすためのハンドルにする
-      // しかしBaseSceneの構造上、リストの親コンテナ自体を動かす設計にする
       return container;
   }
   
-  // スクロール可能なボタン（リスト用）
   createScrollableButton(x, y, text, color, onClick, w, h, desc="", rightText="") {
       const c = this.add.container(x, y);
       const bg = this.add.graphics();
@@ -291,7 +283,7 @@ export class BaseScene extends Phaser.Scene {
       });
       
       c.add([bg, t, d, r, hit]);
-      c.rightTextObj = r; // 外部から色変更用
+      c.rightTextObj = r; 
       return c;
   }
   
