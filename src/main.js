@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 // ----------------------------------------------------------------
-// 0. ドット絵リソース（前回と同じ）
+// 0. ドット絵リソース
 // ----------------------------------------------------------------
 const PALETTE = {
   '.': null, '0': '#000000', '1': '#ffe0c0', '2': '#ffffff',
@@ -61,55 +61,51 @@ class BattleScene extends Phaser.Scene {
     const height = this.scale.height;
 
     // --- UIエリア ---
-    // プレイヤー
     this.playerSprite = this.add.sprite(width * 0.25, height * 0.6, 'kato').setScale(5);
     this.playerNameText = this.add.text(width * 0.25, height * 0.6 - 50, '', { font: '20px Arial', color: '#ffffff' }).setOrigin(0.5);
     this.playerHpText = this.add.text(width * 0.25, height * 0.6 + 60, '', { font: '24px Arial', color: '#00ff00' }).setOrigin(0.5);
     this.playerLvText = this.add.text(width * 0.25, height * 0.6 + 90, '', { font: '16px Arial', color: '#ffff00' }).setOrigin(0.5);
 
-    // 敵
     this.enemySprite = this.add.sprite(width * 0.75, height * 0.4, 'slime').setScale(5).setVisible(false);
     this.enemyNameText = this.add.text(width * 0.75, height * 0.4 - 50, '', { font: '20px Arial', color: '#ffaaaa' }).setOrigin(0.5);
     this.enemyHpText = this.add.text(width * 0.75, height * 0.4 + 50, '', { font: '24px Arial', color: '#ffaaaa' }).setOrigin(0.5);
 
-    // QTE用パーツ（最初は非表示）
-    // 攻撃用リング
-    this.qteRing = this.add.graphics();
-    this.qteTarget = this.add.graphics();
-    this.qteText = this.add.text(width/2, height/2 - 100, '', { font: '40px Arial', color: '#ffcc00', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(10);
+    // QTE用パーツ（Depthを大きくして最前面へ）
+    this.qteTarget = this.add.graphics().setDepth(100);
+    this.qteRing = this.add.graphics().setDepth(100);
+    this.qteText = this.add.text(width/2, height/2 - 100, '', { font: '40px Arial', color: '#ffcc00', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(101);
     
     // 防御用シグナル
-    this.guardSignal = this.add.text(width/2, height/2, '！', { font: '80px Arial', color: '#ff0000', stroke: '#fff', strokeThickness: 6 }).setOrigin(0.5).setVisible(false).setDepth(10);
+    this.guardSignal = this.add.text(width/2, height/2, '！', { font: '80px Arial', color: '#ff0000', stroke: '#fff', strokeThickness: 6 }).setOrigin(0.5).setVisible(false).setDepth(101);
 
     // メッセージウィンドウ
     this.createMessageBox(width, height);
 
     // ボタン
     this.btnGroup = this.add.group();
-    const attackBtn = this.createButton(width - 100, height - 280, 'たたかう', 0xcc3333, () => this.startAttackQTE()); // 直接攻撃せずQTEへ
+    const attackBtn = this.createButton(width - 100, height - 280, 'たたかう', 0xcc3333, () => this.startAttackQTE());
     const healBtn = this.createButton(width - 240, height - 280, '回復', 0x33cc33, () => this.playerTurn('heal'));
     const itemBtn = this.createButton(width - 100, height - 210, 'アイテム', 0x3333cc, () => this.openItemMenu());
     this.btnGroup.add(attackBtn);
     this.btnGroup.add(healBtn);
     this.btnGroup.add(itemBtn);
 
-    // グローバル入力リスナー（QTE判定用）
+    // 入力リスナー
     this.input.on('pointerdown', () => this.handleInput());
 
     // 次へボタン
-    this.nextBtn = this.add.rectangle(width / 2, height / 2, 200, 80, 0xffaa00).setInteractive().setVisible(false);
-    this.nextBtnText = this.add.text(width / 2, height / 2, '次の戦いへ', { font: '28px Arial', color: '#000000' }).setOrigin(0.5).setVisible(false);
+    this.nextBtn = this.add.rectangle(width / 2, height / 2, 200, 80, 0xffaa00).setInteractive().setVisible(false).setDepth(200);
+    this.nextBtnText = this.add.text(width / 2, height / 2, '次の戦いへ', { font: '28px Arial', color: '#000000' }).setOrigin(0.5).setVisible(false).setDepth(201);
     this.nextBtn.on('pointerdown', () => this.startBattle());
 
     // 初期化
     this.isPlayerTurn = true;
-    this.qteMode = null; // 'attack' or 'defense' or null
+    this.qteMode = null;
     this.qteActive = false;
     this.refreshStatus();
     this.startBattle();
   }
 
-  // --- 入力判定（QTE用） ---
   handleInput() {
     if (!this.qteActive) return;
 
@@ -120,56 +116,61 @@ class BattleScene extends Phaser.Scene {
     }
   }
 
-  // --- 攻撃QTE（タイミングリング） ---
+  // --- 修正箇所：開始時に少し待つ ---
   startAttackQTE() {
     if (!this.isPlayerTurn) return;
-    this.isPlayerTurn = false; // 操作ロック
-    this.qteMode = 'attack';
-    this.qteActive = true;
+    this.isPlayerTurn = false;
     this.btnGroup.setVisible(false);
     
     this.updateMessage("タイミングよくタップせよ！");
 
-    // ターゲット円（固定）を描画
+    // ターゲット位置
     const targetX = this.enemySprite.x;
     const targetY = this.enemySprite.y;
+    
+    // ターゲット円描画
     this.qteTarget.clear();
     this.qteTarget.lineStyle(4, 0xffffff);
-    this.qteTarget.strokeCircle(targetX, targetY, 50); // 目標サイズ
+    this.qteTarget.strokeCircle(targetX, targetY, 50);
     this.qteTarget.setVisible(true);
 
-    // 収縮するリング
+    // リング初期化
     this.qteRing.clear();
-    this.qteRingScale = 2.5; // 初期サイズ倍率
+    this.qteRingScale = 2.5; 
+    this.qteMode = 'attack';
     
-    // アニメーションループ開始
-    this.qteEvent = this.time.addEvent({
-      delay: 16, // 約60fps
-      loop: true,
-      callback: () => {
-        if (!this.qteActive) return;
+    // 【重要】ボタンを押した指が離れるのを待つため、200ms後に判定開始
+    this.time.delayedCall(200, () => {
+        this.qteActive = true;
         
-        this.qteRingScale -= 0.04; // 縮小スピード
-        
-        this.qteRing.clear();
-        this.qteRing.lineStyle(4, 0xffff00);
-        this.qteRing.strokeCircle(targetX, targetY, 50 * this.qteRingScale);
+        // アニメーションループ開始
+        this.qteEvent = this.time.addEvent({
+          delay: 16,
+          loop: true,
+          callback: () => {
+            if (!this.qteActive) return;
+            
+            this.qteRingScale -= 0.04;
+            
+            this.qteRing.clear();
+            this.qteRing.lineStyle(4, 0xffff00);
+            this.qteRing.strokeCircle(targetX, targetY, 50 * this.qteRingScale);
 
-        // 小さくなりすぎたら失敗
-        if (this.qteRingScale <= 0.5) {
-            this.finishQTE('MISS');
-        }
-      }
+            if (this.qteRingScale <= 0.5) {
+                this.finishQTE('MISS');
+            }
+          }
+        });
     });
   }
 
   resolveAttackQTE() {
+    // 判定処理などは同じ
     this.qteActive = false;
-    this.qteEvent.remove();
+    if (this.qteEvent) this.qteEvent.remove();
     this.qteRing.clear();
     this.qteTarget.clear();
 
-    // 判定：1.0に近いほど良い (0.8 ~ 1.2 を成功とする)
     const diff = Math.abs(this.qteRingScale - 1.0);
     
     if (diff < 0.15) {
@@ -186,7 +187,6 @@ class BattleScene extends Phaser.Scene {
     this.qteText.setVisible(true);
     this.qteText.setScale(0);
     
-    // テキストがボヨヨンと出る演出
     this.tweens.add({
         targets: this.qteText,
         scale: 1.5,
@@ -206,20 +206,19 @@ class BattleScene extends Phaser.Scene {
     let msg = "";
 
     if (rank === 'PERFECT') {
-        damage = Math.floor(damage * 1.5); // 1.5倍
+        damage = Math.floor(damage * 1.5);
         msg = "会心の一撃！！";
         this.cameras.main.shake(200, 0.03);
     } else if (rank === 'GOOD') {
-        msg = "ナイスタイミング！"; // 通常ダメージ
+        msg = "ナイスタイミング！";
     } else if (rank === 'BAD' || rank === 'MISS') {
-        damage = Math.floor(damage * 0.5); // 半減
+        damage = Math.floor(damage * 0.5);
         msg = "タイミングが悪い...";
     }
 
     this.currentEnemy.hp -= damage;
     this.updateMessage(`${msg}\n${damage} のダメージ！`);
     
-    // 攻撃アニメ
     this.tweens.add({
         targets: this.playerSprite,
         x: this.playerSprite.x + 50,
@@ -230,27 +229,21 @@ class BattleScene extends Phaser.Scene {
     this.checkBattleEnd();
   }
 
-  // --- 防御QTE（ジャストガード） ---
   startEnemyTurn() {
     if (this.currentEnemy.hp <= 0) return;
     
     this.updateMessage(`${this.currentEnemy.name} が攻撃を構えた...`);
     
-    // ランダムなタイミングで「！」を出す
     const delay = Phaser.Math.Between(1000, 2000);
     
     this.time.delayedCall(delay, () => {
-        // 「！」表示
         this.guardSignal.setVisible(true);
         this.guardSignal.setScale(1);
         this.qteMode = 'defense';
         this.qteActive = true;
-        this.guardSuccess = false;
 
-        // 一瞬だけ受付時間を作る（0.4秒）
         this.time.delayedCall(400, () => {
             if (this.qteActive) {
-                // 時間切れ＝被弾
                 this.qteActive = false;
                 this.guardSignal.setVisible(false);
                 this.executeDefense(false);
@@ -263,7 +256,6 @@ class BattleScene extends Phaser.Scene {
     this.qteActive = false;
     this.guardSignal.setVisible(false);
     
-    // 成功演出
     this.qteText.setText("BLOCK!");
     this.qteText.setVisible(true);
     this.qteText.setScale(1);
@@ -285,7 +277,6 @@ class BattleScene extends Phaser.Scene {
   executeDefense(success) {
     let damage = this.currentEnemy.atk;
     
-    // 敵のアニメーション
     this.tweens.add({
         targets: this.enemySprite,
         x: this.enemySprite.x - 50,
@@ -294,7 +285,7 @@ class BattleScene extends Phaser.Scene {
     });
 
     if (success) {
-        damage = 0; // 完全ガード（またはダメージ軽減）
+        damage = 0;
         this.updateMessage(`見事に見切った！\nダメージ 0！`);
     } else {
         GAME_DATA.player.hp -= damage;
@@ -308,7 +299,6 @@ class BattleScene extends Phaser.Scene {
         GAME_DATA.player.hp = 0;
         this.updateMessage(`目の前が真っ暗になった... (リロード)`);
     } else {
-        // プレイヤーのターンへ戻る
         this.time.delayedCall(1500, () => {
             this.isPlayerTurn = true;
             this.btnGroup.setVisible(true);
@@ -317,9 +307,7 @@ class BattleScene extends Phaser.Scene {
     }
   }
 
-  // --- 共通処理 ---
   playerTurn(action, item = null) {
-    // 回復とアイテムはQTEなし（即時発動）
     if (!this.isPlayerTurn) return;
     this.isPlayerTurn = false;
 
@@ -329,7 +317,6 @@ class BattleScene extends Phaser.Scene {
         this.updateMessage(`計算式を整理した。\nHPが ${heal} 回復！`);
         this.checkBattleEnd();
     } else if (action === 'item') {
-        // ...アイテム処理（省略せず実装）...
         if (item.type === 'heal') {
             GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + item.value, GAME_DATA.player.maxHp);
             this.updateMessage(`${item.name} を使った！\nHPが ${item.value} 回復！`);
@@ -350,7 +337,6 @@ class BattleScene extends Phaser.Scene {
         this.currentEnemy.hp = 0;
         this.time.delayedCall(1000, () => this.winBattle());
     } else {
-        // 敵のターンへ（ここで防御QTEが始まる）
         this.time.delayedCall(1200, () => this.startEnemyTurn());
     }
   }
@@ -396,7 +382,6 @@ class BattleScene extends Phaser.Scene {
     this.nextBtnText.setVisible(true);
   }
 
-  // --- ツール ---
   createTextureFromText(key, art) {
     const canvas = document.createElement('canvas');
     canvas.width = art[0].length; canvas.height = art.length;
