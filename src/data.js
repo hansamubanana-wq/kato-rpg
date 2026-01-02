@@ -2,7 +2,7 @@
 //  データ & 定数定義
 // ================================================================
 export const GAME_FONT = 'DotGothic16';
-export const SAVE_KEY = 'kato_rpg_save_v4'; // バージョンアップ
+export const SAVE_KEY = 'kato_rpg_save_v4';
 
 // ドット絵データ
 export const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#f00' };
@@ -34,11 +34,14 @@ export const STAGES = [
   { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
-// スキルデータ（名称変更）
+// スキルデータ
 export const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, anim:'normal', status: null, desc: '基本攻撃。確実に出席をとる。' },
   { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, anim:'normal', status: null, desc: '威力は低いが、当てやすい。' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 2, anim:'rapid', status: 'sleep', desc: '確率で敵を「居眠り」させる。' },
+  
+  // 【修正】チョーク投げ: APを 2 -> 4 に変更
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 4, anim:'rapid', status: 'sleep', desc: '確率で敵を「居眠り」させる。' },
+  
   { id: 8, name: 'コンパス刺し', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, anim:'rapid', status: null, desc: '鋭い一撃。判定が少し速い。' },
   { id: 6, name: '生徒を叱る', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, anim:'magic', status: null, desc: '大声を出しストレス発散して回復。' },
   { id: 4, name: '風呂キャン', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, anim:'normal', status: null, desc: '入浴拒否による精神ダメージ。' },
@@ -50,7 +53,7 @@ export const SKILL_DB = [
   { id: 7, name: '居残り', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, anim:'heavy', status: 'sleep', desc: '長時間拘束。「居眠り」付与。' }
 ];
 
-// アイテムデータ（名称変更）
+// アイテムデータ
 export const ITEM_DB = [
     { id: 101, name: '酒', cost: 100, desc: 'APを全回復する。', type: 'ap_full' },
     { id: 102, name: '没収したスマホ', cost: 200, desc: '敵の注意を引く（100%居眠り）。', type: 'enemy_sleep' },
