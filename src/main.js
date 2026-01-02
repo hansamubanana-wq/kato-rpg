@@ -10,14 +10,17 @@ fontStyle.innerHTML = `
 `;
 document.head.appendChild(fontStyle);
 const GAME_FONT = 'DotGothic16';
-const SAVE_KEY = 'kato_rpg_save_v1'; // セーブデータのキー
+const SAVE_KEY = 'kato_rpg_save_v2'; // バージョンアップ
 
 // ================================================================
 //  1. データ定義
 // ================================================================
-const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0' };
+const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#f00' };
 const ARTS = {
   kato: ["......0000......",".....000000.....","....00000000....","....00000000....","....01111110....","....03111130....","....01111110....",".....222222.....","....22233222....","....22222222....","....22222222....",".....33..33.....",".....33..33.....",".....00..00....."],
+  // カットイン用デカキャラ
+  kato_cutin: [".......0000.......","......000000......",".....00000000.....",".....00000000.....",".....01111110.....","....01A1111A10....","....0111111110....","....0111111110....",".....01111110.....","......222222......",".....22222222....."],
+  
   dozo: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","...333333333....","...333333333....","...333333333....","...333333333....","....3333333.....","....77...77.....","....77...77.....","....00...00....."],
   maeda: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....",".....888888.....","....88888888....","....88888888....","....88888888....","....77777777....","....77....77....","....77....77....","....00....00...."],
   matsuda: [".....000000.....","....00000000....","...000000000....","...011111110....","...010110110....","...041111140....","...011151110....","...444444444....","..44444444444...","..44444444444...","..44444444444...","...333...333....","...333...333....","...000...000...."],
@@ -42,19 +45,27 @@ const STAGES = [
   { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
+// 【新規】状態異常を追加 (status: 'burn' | 'sleep' | null)
 const SKILL_DB = [
-  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, anim:'normal', desc: '基本攻撃。確実に出席をとる。' },
-  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, anim:'normal', desc: '威力は低いが、当てやすい。' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 2, anim:'rapid', desc: 'スナップを効かせた投擲。' },
-  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, anim:'rapid', desc: '鋭い一撃。判定が少し速い。' },
-  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, anim:'magic', desc: '基本となる回復魔法。' },
-  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, anim:'normal', desc: '長い定規で切り裂く。威力大。' },
-  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, anim:'heavy', desc: '鈍器のような重み。' },
-  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, anim:'magic', desc: '体力を大幅に回復する。' },
-  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, apCost: 6, anim:'heavy', desc: '超威力だが、判定が激ムズ。' },
-  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, apCost: 7, anim:'rapid', desc: '高速採点による連続攻撃。' },
-  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, apCost: 9, anim:'heavy', desc: '絶望的な威力。判定は一瞬。' },
-  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, anim:'heavy', desc: 'ドロップ限定奥義。' }
+  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, anim:'normal', status: null, desc: '基本攻撃。確実に出席をとる。' },
+  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, anim:'normal', status: null, desc: '威力は低いが、当てやすい。' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 2, anim:'rapid', status: 'sleep', desc: '確率で敵を「居眠り」させる。' },
+  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, anim:'rapid', status: null, desc: '鋭い一撃。判定が少し速い。' },
+  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, anim:'magic', status: null, desc: '基本となる回復魔法。' },
+  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, anim:'normal', status: null, desc: '長い定規で切り裂く。威力大。' },
+  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, anim:'heavy', status: null, desc: '鈍器のような重み。' },
+  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, anim:'magic', status: null, desc: '体力を大幅に回復する。' },
+  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, apCost: 6, anim:'heavy', status: 'burn', desc: '脳を焼き、「炎上」状態にする。' },
+  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, apCost: 7, anim:'rapid', status: 'burn', desc: '高速採点。「炎上」付与。' },
+  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, apCost: 9, anim:'heavy', status: null, desc: '絶望的な威力。判定は一瞬。' },
+  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, anim:'heavy', status: 'sleep', desc: '長時間拘束。「居眠り」付与。' }
+];
+
+// 【新規】消費アイテムDB
+const ITEM_DB = [
+    { id: 101, name: 'ブラックコーヒー', cost: 100, desc: 'APを全回復する。', type: 'ap_full' },
+    { id: 102, name: '没収したマンガ', cost: 200, desc: '敵の注意を引く（100%居眠り）。', type: 'enemy_sleep' },
+    { id: 103, name: '赤点答案', cost: 150, desc: '相手を精神的に燃やす（100%炎上）。', type: 'enemy_burn' }
 ];
 
 let GAME_DATA = {
@@ -66,34 +77,23 @@ let GAME_DATA = {
     stress: 0, maxStress: 100,
     ap: 3, maxAp: 9,
     ownedSkillIds: [1],
-    equippedSkillIds: [1]
+    equippedSkillIds: [1],
+    items: {} // {itemId: count}
   }
 };
 
-// 【新規】セーブ＆ロード機能
-function saveGame() {
-    try {
-        localStorage.setItem(SAVE_KEY, JSON.stringify(GAME_DATA));
-    } catch(e) { console.error("Save failed", e); }
-}
-
+function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(GAME_DATA)); } catch(e) {} }
 function loadGame() {
     try {
         const d = localStorage.getItem(SAVE_KEY);
         if(d) {
             const parsed = JSON.parse(d);
-            // 互換性チェックのため、キーをマージ
             GAME_DATA = { ...GAME_DATA, ...parsed, player: { ...GAME_DATA.player, ...parsed.player } };
+            if(!GAME_DATA.player.items) GAME_DATA.player.items = {}; // 互換性
         }
-    } catch(e) { console.error("Load failed", e); }
+    } catch(e) {}
 }
-
-function resetGame() {
-    localStorage.removeItem(SAVE_KEY);
-    location.reload();
-}
-
-// 起動時にロード
+function resetGame() { localStorage.removeItem(SAVE_KEY); location.reload(); }
 loadGame();
 
 // ================================================================
@@ -196,6 +196,12 @@ class BaseScene extends Phaser.Scene {
       this.tweens.add({ targets: t, y: y-60, alpha: 0, duration: 800, ease: 'Sine.Out', onComplete: ()=>t.destroy() });
   }
 
+  // 【新規】状態異常ポップアップ
+  showStatusPopup(x, y, text) {
+      const t = this.add.text(x, y, text, { font: `28px ${GAME_FONT}`, color: '#f0f', stroke: '#fff', strokeThickness: 4 }).setOrigin(0.5).setDepth(200);
+      this.tweens.add({ targets: t, y: y-60, alpha: 0, duration: 1500, ease: 'Sine.Out', onComplete: ()=>t.destroy() });
+  }
+
   openWindowAnimation(c) { c.setScale(0); c.setVisible(true); this.tweens.add({ targets: c, scale: 1, duration: 400, ease: 'Back.Out' }); }
 
   createImpactEffect(x, y) {
@@ -204,27 +210,6 @@ class BaseScene extends Phaser.Scene {
       g.strokePath();
       const c = this.add.circle(x, y, 10, 0xffffff);
       this.tweens.add({ targets: [g, c], scale: 1.5, alpha: 0, duration: 200, onComplete: () => { g.destroy(); c.destroy(); } });
-  }
-
-  // 【新規】爆発エフェクト
-  createExplosion(x, y) {
-      for(let i=0; i<20; i++) {
-          const p = this.add.rectangle(x, y, 8, 8, Phaser.Utils.Array.GetRandom([0xff0000, 0xffaa00, 0xffff00, 0xffffff]));
-          const angle = Phaser.Math.Between(0, 360) * (Math.PI/180);
-          const speed = Phaser.Math.Between(50, 150);
-          this.tweens.add({
-              targets: p,
-              x: x + Math.cos(angle) * speed,
-              y: y + Math.sin(angle) * speed,
-              alpha: 0,
-              scale: 0.1,
-              angle: 360,
-              duration: 800,
-              ease: 'Power2',
-              onComplete: () => p.destroy()
-          });
-      }
-      this.cameras.main.shake(300, 0.05);
   }
 
   createPanel(x, y, w, h) {
@@ -250,6 +235,7 @@ class BaseScene extends Phaser.Scene {
     return c;
   }
 
+  // スクロール用ボタン (hitZoneなし版)
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
@@ -257,6 +243,7 @@ class BaseScene extends Phaser.Scene {
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
     vc.add([sh, bg, tx]);
+    
     if(subText) {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
@@ -339,13 +326,12 @@ class BaseScene extends Phaser.Scene {
               this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY);
           }
       });
-      
       return this.scrollContainer;
   }
 }
 
 // ================================================================
-//  3. オープニング（ストーリー）シーン
+//  3. オープニング
 // ================================================================
 class OpeningScene extends BaseScene {
   constructor() { super('OpeningScene'); }
@@ -421,8 +407,7 @@ class TutorialScene extends BaseScene {
     const w = this.scale.width; const h = this.scale.height;
     this.add.text(w/2, 50, "【チュートリアル 2/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     this.add.text(w/2, 150, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    this.add.text(w/2, 220, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技を購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
-    this.add.text(w/2, 350, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
+    this.add.text(w/2, 220, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技や\nアイテムを購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
   }
 
@@ -468,13 +453,12 @@ class WorldScene extends BaseScene {
     this.createButton(w/2, h*0.80, '編成', 0x282, () => this.transitionTo('SkillScene'));
     this.createButton(w/2, h*0.90, '補習 (Gold稼ぎ)', 0x886600, () => this.transitionTo('BattleScene', {isTraining: true}));
     
-    // オートセーブ
     saveGame();
   }
 }
 
 // ================================================================
-//  6. 購買部
+//  6. 購買部 (アイテム対応)
 // ================================================================
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
@@ -486,36 +470,80 @@ class ShopScene extends BaseScene {
     this.add.text(w/2, 70, `${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' }).setOrigin(0.5).setDepth(20);
     this.createButton(w/2, h-60, '戻る', 0x555, () => this.transitionTo('WorldScene')).setDepth(20);
 
-    const skillList = SKILL_DB.filter(s => s.cost > 0);
-    const itemHeight = 90;
-    const contentHeight = skillList.length * itemHeight + 50;
-    const container = this.initScrollView(contentHeight, 100, h - 180);
+    // タブ切り替え用変数
+    this.mode = 'skill'; // 'skill' or 'item'
+    this.createTabs(w, h);
+    this.refreshList(w, h);
+  }
 
-    let y = 50; 
-    skillList.forEach((s) => {
-        const has = GAME_DATA.player.ownedSkillIds.includes(s.id);
-        const spec = (s.type === 'heal') ? `回復:${s.power}/AP:${s.apCost}` : `威力:${s.power}/AP:${s.apCost}`;
-        const rightText = has ? "済" : `${s.cost}G`;
-        
-        const btn = this.createScrollableButton(w/2, y, s.name, has?0x333333:0x000000, () => {
-            if(has) return;
-            if(GAME_DATA.gold >= s.cost) { 
-                GAME_DATA.gold -= s.cost; 
-                GAME_DATA.player.ownedSkillIds.push(s.id); 
-                saveGame(); // セーブ
-                this.scene.restart(); 
-            }
-            else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
-        }, w-40, 75, `${s.desc}\n[${spec}]`, rightText);
-        
-        if(has) {
-            btn.list[0].list[2].setColor('#888'); 
-            if(btn.rightTextObj) btn.rightTextObj.setColor('#888');
-        }
-        
-        container.add(btn);
-        y += itemHeight;
-    });
+  createTabs(w, h) {
+      this.tabContainer = this.add.container(0, 100);
+      const btnSkill = this.add.text(w*0.3, 0, "技", {font:`24px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5).setInteractive();
+      const btnItem = this.add.text(w*0.7, 0, "道具", {font:`24px ${GAME_FONT}`, color:'#888'}).setOrigin(0.5).setInteractive();
+      
+      btnSkill.on('pointerdown', () => { this.mode='skill'; btnSkill.setColor('#fff'); btnItem.setColor('#888'); this.refreshList(w, h); });
+      btnItem.on('pointerdown', () => { this.mode='item'; btnSkill.setColor('#888'); btnItem.setColor('#fff'); this.refreshList(w, h); });
+      this.tabContainer.add([btnSkill, btnItem]);
+  }
+
+  refreshList(w, h) {
+      if(this.listContainer) this.listContainer.destroy();
+      
+      let items = [];
+      if(this.mode === 'skill') {
+          items = SKILL_DB.filter(s => s.cost > 0);
+      } else {
+          items = ITEM_DB;
+      }
+
+      const itemHeight = 90;
+      const contentHeight = items.length * itemHeight + 50;
+      this.listContainer = this.initScrollView(contentHeight, 140, h - 220);
+
+      let y = 50; 
+      items.forEach((item) => {
+          let has = false;
+          let spec = "";
+          let rightText = "";
+          
+          if(this.mode === 'skill') {
+              has = GAME_DATA.player.ownedSkillIds.includes(item.id);
+              spec = (item.type === 'heal') ? `回復:${item.power}/AP:${item.apCost}` : `威力:${item.power}/AP:${item.apCost}`;
+              rightText = has ? "済" : `${item.cost}G`;
+          } else {
+              // アイテムの場合
+              const count = GAME_DATA.player.items[item.id] || 0;
+              spec = item.desc;
+              rightText = `${item.cost}G\n(所持:${count})`;
+          }
+          
+          const btn = this.createScrollableButton(w/2, y, item.name, has?0x333333:0x000000, () => {
+              if(this.mode === 'skill') {
+                  if(has) return;
+                  if(GAME_DATA.gold >= item.cost) { 
+                      GAME_DATA.gold -= item.cost; 
+                      GAME_DATA.player.ownedSkillIds.push(item.id); 
+                      saveGame(); this.scene.restart(); 
+                  } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
+              } else {
+                  // アイテム購入
+                  if(GAME_DATA.gold >= item.cost) {
+                      GAME_DATA.gold -= item.cost;
+                      if(!GAME_DATA.player.items[item.id]) GAME_DATA.player.items[item.id] = 0;
+                      GAME_DATA.player.items[item.id]++;
+                      saveGame(); this.scene.restart();
+                  } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
+              }
+          }, w-40, 75, spec, rightText);
+          
+          if(this.mode === 'skill' && has) {
+              btn.list[0].list[2].setColor('#888'); 
+              if(btn.rightTextObj) btn.rightTextObj.setColor('#888');
+          }
+          
+          this.listContainer.add(btn);
+          y += itemHeight;
+      });
   }
 }
 
@@ -550,14 +578,12 @@ class SkillScene extends BaseScene {
                     if(GAME_DATA.player.equippedSkillIds.length > 1) {
                         const index = GAME_DATA.player.equippedSkillIds.indexOf(item.id);
                         GAME_DATA.player.equippedSkillIds.splice(index, 1);
-                        saveGame();
-                        this.scene.restart();
+                        saveGame(); this.scene.restart();
                     }
                 } else {
                     if(GAME_DATA.player.equippedSkillIds.length < 6) {
                         GAME_DATA.player.equippedSkillIds.push(item.id);
-                        saveGame();
-                        this.scene.restart();
+                        saveGame(); this.scene.restart();
                     }
                 }
             }, w-60, 55, spec);
@@ -612,7 +638,7 @@ class TrueClearScene extends BaseScene {
 }
 
 // ================================================================
-//  9. バトルシーン
+//  9. バトルシーン (状態異常・アイテム・カットイン対応)
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
@@ -624,8 +650,23 @@ class BattleScene extends BaseScene {
     this.createGameBackground(isSecret ? 'secret' : 'battle'); 
     
     const w = this.scale.width; const h = this.scale.height;
-    const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
-    this.ed = { ...STAGES[idx], maxHp: STAGES[idx].hp };
+    
+    let enemy = null;
+    if (this.isTraining) {
+        const maxIdx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
+        const rndIdx = Phaser.Math.Between(0, maxIdx);
+        enemy = { ...STAGES[rndIdx] };
+        enemy.name = "練習用" + enemy.name; 
+        enemy.hp = Math.floor(enemy.hp * 0.8); 
+    } else {
+        const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
+        enemy = { ...STAGES[idx], maxHp: STAGES[idx].hp };
+    }
+    this.ed = enemy;
+    this.ed.maxHp = this.ed.hp; 
+    
+    // 状態異常フラグ
+    this.ed.status = null; 
 
     this.ps = this.add.sprite(w*0.2, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
     this.es = this.add.sprite(w*0.8, h*0.35, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
@@ -643,7 +684,8 @@ class BattleScene extends BaseScene {
     this.createMessageBox(w, h);
     this.mm = this.add.container(0, 0);
     this.mm.add(this.createButton(w*0.75, h-220, 'コマンド', 0xc33, () => this.openSkillMenu()));
-    this.mm.add(this.createButton(w*0.75, h-150, 'パス(AP回復)', 0x555, () => this.skipTurn())); 
+    this.mm.add(this.createButton(w*0.75, h-150, 'アイテム', 0x383, () => this.openItemMenu()));
+    this.mm.add(this.createButton(w*0.25, h-150, 'パス(AP回復)', 0x555, () => this.skipTurn())); 
     this.lb = this.createButton(w*0.25, h-220, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), true);
     this.lb.setVisible(false); this.mm.add(this.lb);
 
@@ -653,6 +695,7 @@ class BattleScene extends BaseScene {
     this.px = this.add.text(w*0.2, h*0.6, '×', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setVisible(false).setDepth(200);
 
     this.createSkillMenu(w, h);
+    this.createItemMenu(w, h); // 新規
     this.input.on('pointerdown', () => this.handleInput());
     this.updateMessage(`${this.ed.name} があらわれた！`);
     
@@ -674,10 +717,8 @@ class BattleScene extends BaseScene {
     this.sm = this.add.container(0, h-320).setVisible(false).setDepth(50);
     const bg = this.add.graphics().fillStyle(0x000, 0.9).lineStyle(2, 0xfff).fillRoundedRect(10, 0, w-20, 310, 10).strokeRoundedRect(10, 0, w-20, 310, 10);
     this.sm.add(bg);
-    
     this.skillButtons = [];
     const eq = GAME_DATA.player.equippedSkillIds.map(id => SKILL_DB.find(s => s.id === id));
-    
     eq.forEach((s, i) => {
         const x = w*0.25+(i%2)*(w*0.5); const y = 50 + Math.floor(i/2)*80;
         const c = this.add.container(x, y);
@@ -685,28 +726,30 @@ class BattleScene extends BaseScene {
         const t = this.add.text(0, -10, s.name, {font:`18px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
         const ap = this.add.text(0, 15, `AP: ${s.apCost}`, {font:`14px ${GAME_FONT}`, color:'#ff0'}).setOrigin(0.5);
         const hRect = this.add.rectangle(0,0,160,60).setInteractive();
-        
-        hRect.on('pointerdown', () => { 
-            if (GAME_DATA.player.ap >= s.apCost) {
-                this.input.stopPropagation(); 
-                this.vibrate(10); 
-                this.selectSkill(s); 
-            } else {
-                this.vibrate(50); 
-            }
-        });
-        
-        c.add([b, t, ap, hRect]); 
-        this.sm.add(c);
+        hRect.on('pointerdown', () => { if (GAME_DATA.player.ap >= s.apCost) { this.input.stopPropagation(); this.vibrate(10); this.selectSkill(s); } else { this.vibrate(50); } });
+        c.add([b, t, ap, hRect]); this.sm.add(c);
         this.skillButtons.push({ container: c, bg: b, skill: s });
     });
-    
-    const bc = this.add.container(w/2, 270);
-    const bb = this.add.graphics().fillStyle(0x555, 1).fillRoundedRect(-50,-20,100,40,5);
-    const bt = this.add.text(0,0,'戻る',{font:`16px ${GAME_FONT}`}).setOrigin(0.5);
-    const bh = this.add.rectangle(0,0,110,50).setInteractive();
-    bh.on('pointerdown', () => { this.input.stopPropagation(); this.vibrate(10); this.sm.setVisible(false); this.mm.setVisible(true); });
-    bc.add([bb, bt, bh]); this.sm.add(bc);
+    const bc = this.createBackButton(w, () => { this.sm.setVisible(false); this.mm.setVisible(true); });
+    this.sm.add(bc);
+  }
+
+  createItemMenu(w, h) {
+      this.im = this.add.container(0, h-320).setVisible(false).setDepth(50);
+      const bg = this.add.graphics().fillStyle(0x000, 0.9).lineStyle(2, 0xfff).fillRoundedRect(10, 0, w-20, 310, 10).strokeRoundedRect(10, 0, w-20, 310, 10);
+      this.im.add(bg);
+      // アイテムリスト描画は開くたびに更新
+      const bc = this.createBackButton(w, () => { this.im.setVisible(false); this.mm.setVisible(true); });
+      this.im.add(bc);
+  }
+
+  createBackButton(w, cb) {
+      const c = this.add.container(w/2, 270);
+      const b = this.add.graphics().fillStyle(0x555, 1).fillRoundedRect(-50,-20,100,40,5);
+      const t = this.add.text(0,0,'戻る',{font:`16px ${GAME_FONT}`}).setOrigin(0.5);
+      const h = this.add.rectangle(0,0,110,50).setInteractive();
+      h.on('pointerdown', () => { this.input.stopPropagation(); this.vibrate(10); cb(); });
+      c.add([b, t, h]); return c;
   }
 
   updateSkillMenu() {
@@ -718,29 +761,65 @@ class BattleScene extends BaseScene {
       });
   }
 
+  openItemMenu() {
+      if(!this.isPlayerTurn) return;
+      this.mm.setVisible(false);
+      this.im.setVisible(true);
+      // リスト更新
+      this.im.each(c => { if(c.list) c.destroy(); }); // 古いボタン削除
+      
+      const items = Object.keys(GAME_DATA.player.items).map(id => {
+          const count = GAME_DATA.player.items[id];
+          if(count > 0) return { ...ITEM_DB.find(i=>i.id==id), count: count };
+          return null;
+      }).filter(i=>i);
+
+      items.forEach((it, i) => {
+          const y = 50 + i * 60;
+          const c = this.add.container(this.scale.width/2, y);
+          const b = this.add.graphics().fillStyle(0x333388, 1).lineStyle(1,0xfff).fillRoundedRect(-150,-25,300,50,5).strokeRoundedRect(-150,-25,300,50,5);
+          const t = this.add.text(0, 0, `${it.name} (x${it.count})`, {font:`18px ${GAME_FONT}`}).setOrigin(0.5);
+          const h = this.add.rectangle(0,0,300,50).setInteractive();
+          h.on('pointerdown', () => {
+              this.input.stopPropagation();
+              this.useItem(it);
+          });
+          c.add([b, t, h]);
+          this.im.add(c);
+      });
+  }
+
+  useItem(it) {
+      this.im.setVisible(false);
+      GAME_DATA.player.items[it.id]--;
+      this.updateMessage(`${it.name} を使った！`);
+      
+      if(it.type === 'ap_full') {
+          GAME_DATA.player.ap = GAME_DATA.player.maxAp;
+          this.refreshStatus();
+          this.showApPopup(this.ps.x, this.ps.y - 50);
+          this.time.delayedCall(1000, () => { this.mm.setVisible(true); this.updateMessage("コマンド選択"); });
+      } else if (it.type === 'enemy_sleep') {
+          this.ed.status = 'sleep';
+          this.showStatusPopup(this.es.x, this.es.y - 50, "居眠り付与！");
+          this.time.delayedCall(1000, () => this.endEnemyTurn()); // ターン消費して終わり？いや、アイテム使ったら相手のターンへ
+      } else if (it.type === 'enemy_burn') {
+          this.ed.status = 'burn';
+          this.showStatusPopup(this.es.x, this.es.y - 50, "炎上付与！");
+          this.time.delayedCall(1000, () => this.endEnemyTurn());
+      }
+      
+      if(it.type !== 'ap_full') this.time.delayedCall(1000, () => this.startEnemyTurn());
+  }
+
   handleInput() {
     if (this.qteMode === 'attack' && this.qteActive) this.resolveAttackQTE();
     else if (this.qteMode === 'defense_wait') this.triggerGuardPenalty();
     else if (this.qteMode === 'defense_active') this.resolveDefenseQTE();
   }
 
-  openSkillMenu() { 
-      if(this.isPlayerTurn) { 
-          this.vibrate(10); 
-          this.updateSkillMenu(); 
-          this.mm.setVisible(false); 
-          this.openWindowAnimation(this.sm); 
-          this.updateMessage("行動を選択"); 
-      } 
-  }
-
-  selectSkill(s) { 
-      GAME_DATA.player.ap -= s.apCost;
-      this.refreshStatus();
-      this.sm.setVisible(false); 
-      this.selS = s; 
-      if (s.type === 'heal') this.executeHeal(s); else this.startAttackQTE(s); 
-  }
+  openSkillMenu() { if(this.isPlayerTurn) { this.vibrate(10); this.updateSkillMenu(); this.mm.setVisible(false); this.openWindowAnimation(this.sm); this.updateMessage("行動を選択"); } }
+  selectSkill(s) { GAME_DATA.player.ap -= s.apCost; this.refreshStatus(); this.sm.setVisible(false); this.selS = s; if (s.type === 'heal') this.executeHeal(s); else this.startAttackQTE(s); }
 
   skipTurn() {
       if(this.isPlayerTurn) {
@@ -833,6 +912,8 @@ class BattleScene extends BaseScene {
         else if (res==='MISS') { dmg = 0; }
         
         if ((this.ed.hp - dmg) <= 0) {
+            // ... (勝利演出)
+            this.createExplosion(this.es.x, this.es.y); // 爆発
             this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1;
             this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
             const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
@@ -841,27 +922,54 @@ class BattleScene extends BaseScene {
             this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
         } else {
             this.playSound('se_attack'); this.vibrate(v); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, c);
+            // 状態異常付与チェック
+            if (this.selS.status) {
+                this.ed.status = this.selS.status;
+                const txt = this.selS.status==='sleep'?"居眠り": "炎上";
+                this.showStatusPopup(this.es.x, this.es.y - 50, txt+"付与!");
+            }
             GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5); this.checkEnd();
         }
     });
   }
 
-  // 【修正】Limit Break
+  // 【新規】カットイン演出
   activateLimitBreak() {
     this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
     this.refreshStatus();
     this.vibrate(1000); 
-    this.cameras.main.flash(500, 255, 0, 0); 
-    this.cameras.main.shake(500, 0.05);      
-    this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
     
-    // 遅延して実行
-    this.time.delayedCall(1500, () => {
+    // 暗転
+    const bg = this.add.rectangle(this.scale.width/2, this.scale.height/2, this.scale.width, this.scale.height, 0x000000).setDepth(290).setAlpha(0);
+    this.tweens.add({ targets: bg, alpha: 0.8, duration: 200 });
+
+    // カットイン画像（テキスト生成から流用）
+    if(!this.textures.exists('kato_cutin')) this.createTextureFromText('kato_cutin', ARTS.kato_cutin);
+    const cutin = this.add.sprite(-200, this.scale.height/2, 'kato_cutin').setScale(15).setDepth(300);
+    
+    // スライドイン演出
+    this.tweens.chain({
+        targets: cutin,
+        tweens: [
+            { x: this.scale.width/2, duration: 300, ease: 'Back.Out' },
+            { scale: 18, duration: 1000 }, // ちょっとズーム
+            { x: this.scale.width + 300, duration: 200, ease: 'Quad.In', onComplete: () => { bg.destroy(); cutin.destroy(); } }
+        ]
+    });
+
+    this.time.delayedCall(500, () => {
+        this.cameras.main.flash(500, 255, 0, 0); 
+        this.cameras.main.shake(500, 0.05);      
+        this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
+    });
+    
+    this.time.delayedCall(2000, () => { 
         const dmg = Math.floor(GAME_DATA.player.atk * 150); 
-        this.selS = { anim: 'heavy' }; // アニメーション用ダミー
+        this.selS = { anim: 'heavy' };
         
         this.playSwordAnimation(() => {
             if ((this.ed.hp - dmg) <= 0) {
+                 this.createExplosion(this.es.x, this.es.y);
                  this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1;
                  this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
                  this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
@@ -895,6 +1003,24 @@ class BattleScene extends BaseScene {
   }
 
   startEnemyTurn() {
+    // 状態異常チェック
+    if (this.ed.status === 'burn') {
+        const dmg = Math.floor(this.ed.maxHp * 0.05);
+        this.ed.hp -= dmg;
+        this.showDamagePopup(this.es.x, this.es.y, dmg, false);
+        this.showStatusPopup(this.es.x, this.es.y - 80, "炎上ダメージ");
+        this.refreshStatus();
+        if (this.ed.hp <= 0) { this.winBattle(); return; }
+    }
+    
+    if (this.ed.status === 'sleep') {
+        this.ed.status = null; // 1回休みで解除
+        this.showStatusPopup(this.es.x, this.es.y - 50, "Zzz...");
+        this.updateMessage(`${this.ed.name} は眠っている`);
+        this.time.delayedCall(1500, () => this.endEnemyTurn());
+        return;
+    }
+
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
     this.perfectGuardChain = true; 
 
@@ -1044,17 +1170,12 @@ class BattleScene extends BaseScene {
 
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; 
-    
-    // 補習モードでなければステージを進める
     if(!this.isTraining) GAME_DATA.stageIndex++; 
-    
     this.sound.stopAll(); this.playSound('se_win'); this.vibrate([100, 50, 100, 50, 200]); 
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
-    
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) {
         GAME_DATA.player.ownedSkillIds.push(7); msg += "\nレア技【居残り指導】習得！";
     }
-    
     if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) {
         GAME_DATA.player.level++; GAME_DATA.player.maxHp+=20; GAME_DATA.player.hp = GAME_DATA.player.maxHp; GAME_DATA.player.atk += 0.2;
         GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5);
@@ -1062,6 +1183,9 @@ class BattleScene extends BaseScene {
     }
     this.updateMessage(msg + "\n(クリックで次へ)");
     this.mm.setVisible(false);
+    
+    saveGame(); // セーブ
+
     this.input.once('pointerdown', () => {
         if(!this.isTraining && GAME_DATA.stageIndex === 6) this.transitionTo('NormalClearScene');
         else if(!this.isTraining && GAME_DATA.stageIndex === 7) this.transitionTo('TrueClearScene');
