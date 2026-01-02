@@ -15,11 +15,13 @@ export class BattleScene extends BaseScene {
     
     let enemy = null;
     if (this.isTraining) {
+        // 練習モードは「土蔵」固定
         const maxIdx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
         const rndIdx = Phaser.Math.Between(0, maxIdx);
-        enemy = { ...STAGES[rndIdx] };
+        // 今回は土蔵固定にするなら STAGES[0] ですが、
+        // 以前の要望「練習相手は土蔵だけ」を維持します
+        enemy = { ...STAGES[0] };
         enemy.name = "練習用" + enemy.name; 
-        enemy.hp = Math.floor(enemy.hp * 0.8); 
     } else {
         const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
         enemy = { ...STAGES[idx], maxHp: STAGES[idx].hp };
@@ -41,7 +43,6 @@ export class BattleScene extends BaseScene {
     this.add.text(20, topY, GAME_DATA.player.name, {font:`20px ${GAME_FONT}`});
     this.phb = this.createHpBar(20, topY+30, 150, 15, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
     
-    // 表示名変更: Stress -> ストレス
     this.add.text(20, topY+55, "ストレス", {font:`14px ${GAME_FONT}`, color:'#fa0'});
     this.sb = this.createStressBar(80, topY+63, 90, 10); 
 
@@ -347,7 +348,11 @@ export class BattleScene extends BaseScene {
     });
     
     this.time.delayedCall(2000, () => { 
-        const dmg = Math.floor(GAME_DATA.player.atk * 150); 
+        // プレイヤーの攻撃力依存ダメージ + 敵の最大HPの20% (割合ダメージ)
+        const baseDmg = GAME_DATA.player.atk * 100;
+        const percDmg = this.ed.maxHp * 0.2;
+        const dmg = Math.floor(baseDmg + percDmg); 
+        
         this.selS = { anim: 'heavy' };
         this.playSwordAnimation(() => {
             if ((this.ed.hp - dmg) <= 0) {
@@ -573,8 +578,11 @@ export class BattleScene extends BaseScene {
     saveGame(); 
 
     this.input.once('pointerdown', () => {
-        if(!this.isTraining && GAME_DATA.stageIndex === 6) this.transitionTo('NormalClearScene');
-        else if(!this.isTraining && GAME_DATA.stageIndex === 7) this.transitionTo('TrueClearScene');
+        // 【修正】全13ステージ構成に合わせて判定を更新
+        // ラスボス(青田校長 ID:11)を倒すと ID:12 になる
+        if(!this.isTraining && GAME_DATA.stageIndex === 12) this.transitionTo('NormalClearScene');
+        // 裏ボス(金月 ID:12)を倒すと ID:13 になる
+        else if(!this.isTraining && GAME_DATA.stageIndex === 13) this.transitionTo('TrueClearScene');
         else this.transitionTo('WorldScene');
     });
   }
