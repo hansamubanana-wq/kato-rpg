@@ -36,14 +36,36 @@ export class OpeningScene extends BaseScene {
 
     this.createButton(w/2, h - 140, 'START', 0xcc3333, () => this.transitionTo('TutorialScene'), 200, 60);
 
+    // ★ここを修正しました！
     const installBtn = this.add.text(w/2, h - 50, "【アプリとして保存する方法】", { font: `16px ${GAME_FONT}`, color: '#0ff', underline: true }).setOrigin(0.5).setInteractive();
     installBtn.on('pointerdown', () => {
         const modal = this.add.container(0, 0).setDepth(100);
-        modal.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.9).setInteractive());
-        const helpText = `\n【iPhone (Safari)】\n下の「共有」ボタン\n→「ホーム画面に追加」\n\n【Android (Chrome)】\n右上のメニュー「︙」\n→「アプリをインストール」\n\nこれで全画面で遊べます！`;
-        modal.add(this.add.text(w/2, h/2, helpText, { font: `18px ${GAME_FONT}`, color: '#fff', align: 'center', wordWrap:{width:w-40} }).setOrigin(0.5));
-        const closeBtn = this.add.rectangle(w/2, h - 100, 150, 50, 0x555555).setInteractive();
-        const closeTxt = this.add.text(w/2, h - 100, "閉じる", { font: `20px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+        modal.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.95).setInteractive());
+        
+        // LINE対策を入れた説明文
+        const helpText = `
+⚠ LINEから開いている人へ ⚠
+今のままだと保存できません！
+まずは「ブラウザ」で開き直してね。
+(iPhoneは右下の🧭 / Androidは右上の︙)
+
+【ホーム画面に追加する方法】
+🍎 iPhone (Safari)
+下の「共有」ボタン(四角から↑)
+→「ホーム画面に追加」
+
+🤖 Android (Chrome)
+右上のメニュー「︙」
+→「アプリをインストール」
+または「ホーム画面に追加」
+
+これで全画面で遊べます！
+        `;
+        
+        modal.add(this.add.text(w/2, h/2, helpText, { font: `18px ${GAME_FONT}`, color: '#fff', align: 'center', wordWrap:{width:w-40}, lineSpacing: 8 }).setOrigin(0.5));
+        
+        const closeBtn = this.add.rectangle(w/2, h - 80, 150, 50, 0x555555).setInteractive();
+        const closeTxt = this.add.text(w/2, h - 80, "閉じる", { font: `20px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
         closeBtn.on('pointerdown', () => modal.destroy());
         modal.add([closeBtn, closeTxt]);
     });
@@ -141,7 +163,6 @@ export class ShopScene extends BaseScene {
 
       const itemHeight = 90;
       const contentHeight = items.length * itemHeight + 50;
-      // BaseSceneの新しいinitScrollViewを使用
       this.listContainer = this.initScrollView(contentHeight, 150, h - 230);
       let y = 50; 
       items.forEach((item) => {
@@ -242,7 +263,6 @@ export class SecretBossIntroScene extends BaseScene {
   }
 }
 
-// 【豪華版】エンディング
 export class TrueClearScene extends BaseScene {
   constructor() { super('TrueClearScene'); }
 
