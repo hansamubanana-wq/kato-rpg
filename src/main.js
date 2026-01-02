@@ -43,12 +43,14 @@ const SKILL_DB = [
   { id: 6, name: '公式の確認', type: 'heal', power: 50, speed: 0, cost: 200, desc: 'HP回復魔法' },
   { id: 7, name: '居残り指導', type: 'attack', power: 100, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義' }
 ];
+
 const GAME_DATA = {
   gold: 0,
   stageIndex: 0,
   player: {
     name: '加藤先生', level: 1, exp: 0, nextExp: 50,
     hp: 100, maxHp: 100, atk: 1.0,
+    stress: 0, maxStress: 100, // 新規：ストレスゲージ
     ownedSkillIds: [1],
     equippedSkillIds: [1]
   }
@@ -99,40 +101,21 @@ class BaseScene extends Phaser.Scene {
     return bg;
   }
 
-  // 【修正版】鉄壁のボタン作成メソッド
   createButton(x, y, text, color, cb) {
     const container = this.add.container(x, y);
-    // 横幅を220に拡張（文字数が多い場合に対応）
     const w = 220, h = 50;
     
-    // 1. 中身（見た目）のコンテナを作る
     const visualContainer = this.add.container(0, 0);
-    
     const shadow = this.add.graphics().fillStyle(0x000000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xffffff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     const txt = this.add.text(0, 0, text, { font: `20px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    
     visualContainer.add([shadow, bg, txt]);
     
-    // 2. 当たり判定（透明な板）を親コンテナに直接置く
-    // 見た目は変えずに、判定だけ動かさないようにするため
     const hitArea = this.add.rectangle(0, 0, w + 10, h + 20, 0x000000, 0).setInteractive();
+    hitArea.on('pointerdown', () => visualContainer.setScale(0.95));
+    hitArea.on('pointerup', () => { visualContainer.setScale(1.0); cb(); });
+    hitArea.on('pointerout', () => visualContainer.setScale(1.0));
 
-    hitArea.on('pointerdown', () => {
-        // 中身だけ縮小させる（当たり判定は縮まない！）
-        visualContainer.setScale(0.95);
-    });
-    
-    hitArea.on('pointerup', () => {
-        visualContainer.setScale(1.0);
-        cb();
-    });
-
-    hitArea.on('pointerout', () => {
-        visualContainer.setScale(1.0);
-    });
-
-    // 追加順序：中身 → 当たり判定（最前面）
     container.add([visualContainer, hitArea]);
     return container;
   }
@@ -149,6 +132,23 @@ class BaseScene extends Phaser.Scene {
         else bar.fillColor = 0x00ff00;
     };
     container.update(current, max);
+    container.add([bg, bar]);
+    return container;
+  }
+
+  // 【新規】ストレスゲージ（オレンジ色）
+  createStressBar(x, y, w, h) {
+    const container = this.add.container(x, y);
+    const bg = this.add.rectangle(0, 0, w, h, 0x000000).setOrigin(0, 0.5).setStrokeStyle(1, 0xffffff);
+    const bar = this.add.rectangle(0, 0, 0, h-2, 0xffaa00).setOrigin(0, 0.5); // 初期0
+    
+    container.update = (val, max) => {
+        const ratio = Math.min(1, val / max);
+        bar.width = (w-2) * ratio;
+        // 満タンの時は光らせるなどの演出ができるように
+        if(ratio >= 1) bar.fillColor = 0xffffff; 
+        else bar.fillColor = 0xffaa00;
+    };
     container.add([bg, bar]);
     return container;
   }
@@ -170,7 +170,6 @@ class WorldScene extends BaseScene {
 
     const kato = this.add.sprite(w/2, h*0.35, 'kato').setScale(6);
     this.startIdleAnimation(kato);
-
     this.add.text(w/2, h*0.5, "「次はどうしますか？」", { font:`20px ${GAME_FONT}` }).setOrigin(0.5);
 
     let nextEnemy = STAGES[Math.min(GAME_DATA.stageIndex, STAGES.length-1)];
@@ -179,9 +178,8 @@ class WorldScene extends BaseScene {
     this.createButton(w/2, h*0.65, '出撃する', 0xcc3333, () => this.scene.start('BattleScene'));
     this.add.text(w/2, h*0.65 + 40, `(${stageName})`, {font:`14px ${GAME_FONT}`, color:'#aaa'}).setOrigin(0.5);
 
-    // ボタン間隔を調整
-    this.createButton(w/2, h*0.78, '購買部 (Shop)', 0x3333cc, () => this.scene.start('ShopScene'));
-    this.createButton(w/2, h*0.88, 'スキル編成', 0x228822, () => this.scene.start('SkillScene'));
+    this.createButton(w/2, h*0.80, '購買部 (Shop)', 0x3333cc, () => this.scene.start('ShopScene'));
+    this.createButton(w/2, h*0.90, 'スキル編成', 0x228822, () => this.scene.start('SkillScene'));
   }
 }
 
@@ -192,28 +190,21 @@ class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
   create() {
     this.createPatternBackground(0x222255, 0x111133);
-    const w = this.scale.width;
-    const h = this.scale.height;
+    const w = this.scale.width; const h = this.scale.height;
     
     this.add.text(w/2, 40, `購買部`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5);
     this.add.text(w/2, 70, `所持金: ${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' }).setOrigin(0.5);
     this.createButton(w/2, h-60, '戻る', 0x555555, () => this.scene.start('WorldScene'));
 
     let y = 120;
-
     SKILL_DB.filter(s => s.cost > 0).forEach(skill => {
       const isOwned = GAME_DATA.player.ownedSkillIds.includes(skill.id);
-      
       const bg = this.add.graphics().fillStyle(isOwned?0x333333:0x000000, 0.8)
                   .lineStyle(2, 0xffffff).fillRoundedRect(20, y, w-40, 70, 8).strokeRoundedRect(20, y, w-40, 70, 8);
-      
       this.add.text(40, y+10, skill.name, { font:`22px ${GAME_FONT}`, color: isOwned ? '#888' : '#fff'});
       this.add.text(40, y+40, skill.desc, { font:`16px ${GAME_FONT}`, color:'#aaa'});
       const price = this.add.text(w-40, y+35, isOwned?"済":`${skill.cost}G`, { font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
-      
-      // 当たり判定を大きく
       const hitArea = this.add.rectangle(w/2, y+35, w-20, 70).setInteractive();
-
       hitArea.on('pointerdown', () => {
         if (isOwned) return;
         if (GAME_DATA.gold >= skill.cost) {
@@ -293,18 +284,29 @@ class BattleScene extends BaseScene {
     this.enemySprite = this.add.sprite(w*0.8, h*0.4, this.enemyData.key).setScale(5);
     this.startIdleAnimation(this.enemySprite);
 
+    // HPゲージ
     this.playerHpBar = this.createHpBar(w*0.1, h*0.6 + 60, 100, 10, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
     this.add.text(w*0.1, h*0.6 + 40, GAME_DATA.player.name, {font:`16px ${GAME_FONT}`});
     this.enemyHpBar = this.createHpBar(w*0.7, h*0.4 - 70, 100, 10, this.enemyData.hp, this.enemyData.maxHp);
     this.add.text(w*0.7, h*0.4 - 90, this.enemyData.name, {font:`16px ${GAME_FONT}`});
 
+    // 【新規】ストレスゲージ（HPバーの下）
+    this.stressBar = this.createStressBar(w*0.1, h*0.6 + 80, 100, 8);
+    this.add.text(w*0.1 + 60, h*0.6 + 80, "Stress", {font:`12px ${GAME_FONT}`, color:'#fa0'}).setOrigin(0, 0.5);
+
     this.createMessageBox(w, h);
     
-    // コマンドボタン
+    // コマンド
     this.mainMenu = this.add.container(0, 0);
     this.mainMenu.add(this.createButton(w*0.75, h-220, 'コマンド', 0xcc3333, () => this.openSkillMenu()));
     this.mainMenu.add(this.createButton(w*0.75, h-150, '逃げる', 0x555555, () => this.scene.start('WorldScene')));
 
+    // 【新規】ブチギレボタン（最初は非表示）
+    this.limitBreakBtn = this.createButton(w*0.25, h-220, 'ブチギレ', 0xff0000, () => this.activateLimitBreak());
+    this.limitBreakBtn.setVisible(false);
+    this.mainMenu.add(this.limitBreakBtn);
+
+    // QTEパーツ
     this.qteTarget = this.add.graphics().setDepth(100);
     this.qteRing = this.add.graphics().setDepth(100);
     this.qteText = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
@@ -312,16 +314,25 @@ class BattleScene extends BaseScene {
     this.penaltyX = this.add.text(w*0.2, h*0.6, '×', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setVisible(false).setDepth(200);
 
     this.createSkillMenu(w, h);
-
     this.input.on('pointerdown', () => this.handleInput());
-    
     this.updateMessage(`${this.enemyData.name} があらわれた！`);
     this.isPlayerTurn = true; this.qteMode = null; this.qteActive = false;
+    
+    // 開幕時ゲージ更新
+    this.refreshStatus();
   }
 
   refreshStatus() {
       this.playerHpBar.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.enemyHpBar.update(this.enemyData.hp, this.enemyData.maxHp);
+      this.stressBar.update(GAME_DATA.player.stress, GAME_DATA.player.maxStress);
+
+      // ストレスMAXならブチギレボタンを表示
+      if (GAME_DATA.player.stress >= GAME_DATA.player.maxStress) {
+          this.limitBreakBtn.setVisible(true);
+      } else {
+          this.limitBreakBtn.setVisible(false);
+      }
   }
 
   createSkillMenu(w, h) {
@@ -332,14 +343,10 @@ class BattleScene extends BaseScene {
     const equipped = GAME_DATA.player.equippedSkillIds.map(id => SKILL_DB.find(s => s.id === id));
     equipped.forEach((s, i) => {
         const x = w * 0.25 + (i%2) * (w*0.5); const y = 50 + Math.floor(i/2) * 80;
-        
         const container = this.add.container(x, y);
         const btn = this.add.graphics().fillStyle(s.type==='heal'?0x228822:0x882222, 1).lineStyle(2,0xffffff).fillRoundedRect(-75, -25, 150, 50, 8).strokeRoundedRect(-75, -25, 150, 50, 8);
         const txt = this.add.text(0, 0, s.name, {font:`18px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
-        
-        // ここも同様に判定を最後に重ねる
         const hit = this.add.rectangle(0, 0, 160, 60).setInteractive();
-        
         hit.on('pointerdown', () => { this.input.stopPropagation(); this.selectSkill(s); });
         container.add([btn, txt, hit]);
         this.skillMenu.add(container);
@@ -354,7 +361,6 @@ class BattleScene extends BaseScene {
     this.skillMenu.add(backContainer);
   }
 
-  // --- ゲームロジック ---
   handleInput() {
     if (this.qteMode === 'attack' && this.qteActive) this.resolveAttackQTE();
     else if (this.qteMode === 'defense_wait') this.triggerGuardPenalty();
@@ -363,6 +369,26 @@ class BattleScene extends BaseScene {
 
   openSkillMenu() { if(this.isPlayerTurn) { this.mainMenu.setVisible(false); this.skillMenu.setVisible(true); this.updateMessage("行動を選択してください"); } }
   selectSkill(s) { this.skillMenu.setVisible(false); this.selectedSkill = s; if (s.type === 'heal') this.executeHeal(s); else this.startAttackQTE(s); }
+
+  // 【新規】ブチギレ発動
+  activateLimitBreak() {
+    this.isPlayerTurn = false;
+    GAME_DATA.player.stress = 0; // ストレス消費
+    
+    // 演出
+    this.cameras.main.flash(500, 255, 0, 0); // 赤いフラッシュ
+    this.cameras.main.shake(500, 0.05);      // 激しい揺れ
+    this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
+
+    // 超ダメージ
+    const dmg = Math.floor(GAME_DATA.player.atk * 150); // 通常の15倍程度の威力
+    this.enemyData.hp -= dmg;
+    
+    this.time.delayedCall(1000, () => {
+        this.updateMessage(`${dmg} の超ダメージ！`);
+        this.checkEnd();
+    });
+  }
 
   startAttackQTE(s) {
     this.isPlayerTurn = false; this.updateMessage(`${s.name}！\nタイミングよくタップせよ！`);
@@ -393,6 +419,10 @@ class BattleScene extends BaseScene {
     if (res==='PERFECT') dmg = Math.floor(dmg*1.5); else if (res!=='GOOD') dmg = Math.floor(dmg*0.5);
     this.enemyData.hp -= dmg;
     this.updateMessage(`${dmg} ダメージ！`);
+    
+    // 攻撃時も少しストレス溜まる
+    GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
+
     this.tweens.add({targets:this.playerSprite, x:this.playerSprite.x+50, duration:100, yoyo:true});
     this.checkEnd();
   }
@@ -430,15 +460,39 @@ class BattleScene extends BaseScene {
   }
   executeDefense(suc) {
     let dmg = this.enemyData.atk;
-    if (suc) { dmg = 0; this.updateMessage("ガード成功！"); }
-    else { this.updateMessage(`${dmg} のダメージ！`); GAME_DATA.player.hp -= dmg; this.cameras.main.shake(200, 0.02); }
+    if (suc) { 
+        dmg = 0; 
+        this.updateMessage("ガード成功！ (+ストレス)"); 
+        // ガード成功でストレス大きく増加
+        GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 20);
+    } else { 
+        this.updateMessage(`${dmg} のダメージ！ (+ストレス)`); 
+        GAME_DATA.player.hp -= dmg; 
+        this.cameras.main.shake(200, 0.02);
+        // 被弾でもストレス少し増加
+        GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
+    }
+    
     this.qteMode = null;
     this.refreshStatus();
+    
     if (GAME_DATA.player.hp <= 0) {
         this.updateMessage("敗北... (クリックで戻る)");
-        this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; this.scene.start('WorldScene'); });
+        this.input.once('pointerdown', () => { 
+            GAME_DATA.player.hp=GAME_DATA.player.maxHp; 
+            GAME_DATA.player.stress = 0; // リセット
+            this.scene.start('WorldScene'); 
+        });
     } else {
-        this.time.delayedCall(1000, () => { this.isPlayerTurn = true; this.mainMenu.setVisible(true); this.penaltyX.setVisible(false); this.playerSprite.clearTint(); this.updateMessage("ターン開始"); });
+        this.time.delayedCall(1000, () => { 
+            this.isPlayerTurn = true; 
+            this.mainMenu.setVisible(true); 
+            this.penaltyX.setVisible(false); 
+            this.playerSprite.clearTint(); 
+            this.updateMessage("ターン開始");
+            // ボタン表示更新（ストレスMAXならブチギレボタンが出る）
+            this.refreshStatus();
+        });
     }
   }
 
