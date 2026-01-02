@@ -19,7 +19,7 @@ export class BattleScene extends BaseScene {
         const rndIdx = Phaser.Math.Between(0, maxIdx);
         enemy = { ...STAGES[rndIdx] };
         enemy.name = "練習用" + enemy.name; 
-        // HP補正なし
+        enemy.hp = Math.floor(enemy.hp * 0.8); 
     } else {
         const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
         enemy = { ...STAGES[idx], maxHp: STAGES[idx].hp };
@@ -88,13 +88,12 @@ export class BattleScene extends BaseScene {
       this.lb.setVisible(GAME_DATA.player.stress >= GAME_DATA.player.maxStress);
   }
 
-  // 【修正】スキルメニューでも性能を表示
+  // 【修正】スキルボタンに状態異常を表示
   createSkillMenu(w, h) {
     this.sm = this.add.container(0, h-320).setVisible(false).setDepth(50);
     const bg = this.add.graphics().fillStyle(0x000, 0.9).lineStyle(2, 0xfff).fillRoundedRect(10, 0, w-20, 310, 10).strokeRoundedRect(10, 0, w-20, 310, 10);
     this.sm.add(bg);
     
-    // 説明用テキストエリア
     this.skillDescText = this.add.text(w/2, 25, "技を選択してください", {font:`16px ${GAME_FONT}`, color:'#ccc'}).setOrigin(0.5);
     this.sm.add(this.skillDescText);
 
@@ -105,10 +104,15 @@ export class BattleScene extends BaseScene {
         const c = this.add.container(x, y);
         const b = this.add.graphics();
         
-        // ボタン内テキストを詳細化
         const t = this.add.text(0, -8, s.name, {font:`16px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
-        const val = s.type === 'heal' ? `回復:${s.power}` : `威力:${s.power}`;
-        const sub = this.add.text(0, 12, `AP:${s.apCost} / ${val}`, {font:`12px ${GAME_FONT}`, color:'#ff0'}).setOrigin(0.5);
+        
+        let val = s.type === 'heal' ? `回復:${s.power}` : `威力:${s.power}`;
+        // 状態異常がある場合は追記
+        if (s.status === 'burn') val += ' [炎上]';
+        if (s.status === 'sleep') val += ' [眠り]';
+
+        // フォントサイズを11pxにして情報を詰め込む
+        const sub = this.add.text(0, 12, `AP:${s.apCost}/${val}`, {font:`11px ${GAME_FONT}`, color:'#ff0'}).setOrigin(0.5);
         
         const hRect = this.add.rectangle(0,0,160,60).setInteractive();
         hRect.on('pointerdown', () => { if (GAME_DATA.player.ap >= s.apCost) { this.input.stopPropagation(); this.vibrate(10); this.selectSkill(s); } else { this.vibrate(50); } });
@@ -318,7 +322,6 @@ export class BattleScene extends BaseScene {
     });
   }
 
-  // 【修正】ブチギレダメージ計算の強化
   activateLimitBreak() {
     this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
     this.refreshStatus();
