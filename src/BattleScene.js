@@ -23,8 +23,7 @@ export class BattleScene extends BaseScene {
         enemy = { ...STAGES[0], maxHp: 50, hp: 50, atk: 5, name: "練習用土蔵" }; 
     } else if (this.isTraining) {
         const maxIdx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
-        const rndIdx = Phaser.Math.Between(0, maxIdx);
-        enemy = { ...STAGES[0] }; 
+        enemy = { ...STAGES[Phaser.Math.Between(0, maxIdx)] }; 
         enemy.name = "練習用" + enemy.name; 
     } else {
         const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
@@ -55,7 +54,7 @@ export class BattleScene extends BaseScene {
 
     this.topUI.add([eName, this.ehb, pName, this.phb, sLabel, this.sb, this.apBar]);
 
-    // --- チュートリアルスキップボタン ---
+    // --- チュートリアルスキップ ---
     if (this.isTutorial) {
         const skipBtn = this.add.container(w - 60, 90);
         const sBg = this.add.rectangle(0, 0, 100, 40, 0x555555).setStrokeStyle(1, 0xffffff);
@@ -76,21 +75,20 @@ export class BattleScene extends BaseScene {
     this.createMessageBox(w, h); 
     this.mm = this.add.container(0, 0);
     const cmdY = h - 230; 
-    const btnW = 160; const btnH = 60; const gapX = 10;
     
     this.btnPos = {
-        cmd: { x: w/2 - btnW/2 - gapX, y: cmdY },
-        item: { x: w/2 + btnW/2 + gapX, y: cmdY },
-        lb: { x: w/2 - btnW/2 - gapX, y: cmdY + btnH + 15 },
-        pass: { x: w/2 + btnW/2 + gapX, y: cmdY + btnH + 15 }
+        cmd: { x: w/2 - 85, y: cmdY },
+        item: { x: w/2 + 85, y: cmdY },
+        lb: { x: w/2 - 85, y: cmdY + 75 },
+        pass: { x: w/2 + 85, y: cmdY + 75 }
     };
 
-    this.btnCmd = this.createButton(this.btnPos.cmd.x, this.btnPos.cmd.y, 'コマンド', 0xc33, () => this.openSkillMenu(), btnW, btnH);
+    this.btnCmd = this.createButton(this.btnPos.cmd.x, this.btnPos.cmd.y, 'コマンド', 0xc33, () => this.openSkillMenu());
     this.mm.add(this.btnCmd);
-    this.mm.add(this.createButton(this.btnPos.item.x, this.btnPos.item.y, 'アイテム', 0x383, () => this.openItemMenu(), btnW, btnH));
-    this.lb = this.createButton(this.btnPos.lb.x, this.btnPos.lb.y, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), btnW, btnH, true);
+    this.mm.add(this.createButton(this.btnPos.item.x, this.btnPos.item.y, 'アイテム', 0x383, () => this.openItemMenu()));
+    this.lb = this.createButton(this.btnPos.lb.x, this.btnPos.lb.y, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), 160, 60, true);
     this.lb.setVisible(false); this.mm.add(this.lb);
-    this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
+    this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn())); 
 
     // --- QTE UI ---
     this.qt = this.add.graphics().setDepth(100); this.qr = this.add.graphics().setDepth(100);
@@ -300,73 +298,90 @@ export class BattleScene extends BaseScene {
       }
   }
 
-  // ★フリーズ対策：アニメーション関数を安全に整理
+  // ★安全対策版：複雑なアニメーション処理
   playSwordAnimation(cb) {
       const animType = this.selS ? this.selS.anim : 'normal';
       const s = this.add.graphics(); 
       s.setDepth(200);
 
+      // 安全策：完了処理を関数化し、二重呼び出し防止とクリーンアップを徹底
+      let isFinished = false;
       const finish = () => {
+          if(isFinished) return;
+          isFinished = true;
           if(s && s.scene) s.destroy();
           if(cb) cb();
       };
 
-      if (animType === 'check') {
-          s.lineStyle(8, 0x00ff00); s.beginPath(); 
-          const startX = this.es.x - 40; const startY = this.es.y; 
-          s.moveTo(startX, startY);
-          this.tweens.addCounter({ 
-              from: 0, to: 100, duration: 300, 
-              onUpdate: (tw) => { 
-                  s.clear(); s.lineStyle(8, 0x00ff00); s.beginPath(); s.moveTo(startX, startY); 
-                  const p = tw.getValue(); 
-                  if(p < 40) s.lineTo(startX + p, startY + p); 
-                  else { s.lineTo(startX + 40, startY + 40); s.lineTo(startX + 40 + (p-40)*1.5, startY + 40 - (p-40)*2.5); } 
-                  s.strokePath(); 
-              }, 
-              onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); finish(); } 
-          });
-      } else if (animType === 'chalk') {
-          const chalk = this.add.rectangle(this.ps.x, this.ps.y, 40, 10, 0xffffff).setDepth(200);
-          this.tweens.add({ targets: chalk, x: this.es.x, y: this.es.y, angle: 360, duration: 300, ease: 'Linear', onComplete: () => { chalk.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
-      } else if (animType === 'book') {
-          const book = this.add.rectangle(this.es.x, this.es.y - 300, 80, 100, 0x3366cc).setStrokeStyle(4, 0xffffff).setDepth(200);
-          this.tweens.add({ targets: book, y: this.es.y, angle: 20, duration: 400, ease: 'Bounce.Out', onComplete: () => { this.cameras.main.shake(100, 0.05); book.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
-      } else if (animType === 'food') {
-          const h1 = this.add.text(this.ps.x, this.ps.y, "🍞", {fontSize:'40px'}).setDepth(200); 
-          const h2 = this.add.text(this.ps.x, this.ps.y, "🥛", {fontSize:'40px'}).setDepth(200);
-          this.tweens.add({ targets: h1, y: this.ps.y-100, x: this.ps.x-30, alpha: 0, duration: 800 }); 
-          this.tweens.add({ targets: h2, y: this.ps.y-100, x: this.ps.x+30, alpha: 0, duration: 800, delay: 200, onComplete: () => { finish(); } });
-      } else if (animType === 'run') {
-          // ダストエフェクトをループで出す
-          let completeCount = 0;
-          for(let i=0; i<5; i++) { 
-              const d = this.add.circle(this.es.x + (Math.random()-0.5)*100, this.es.y+50, 15, 0xaaaaaa, 0.8).setDepth(200); 
-              this.tweens.add({ 
-                  targets: d, scale: 2, alpha: 0, y: d.y-50, duration: 600, delay: i*100, 
-                  onComplete: () => { 
-                      d.destroy(); 
-                      completeCount++;
-                      if(completeCount === 5) finish(); 
-                  } 
-              }); 
+      try {
+          if (animType === 'check') {
+              s.lineStyle(8, 0x00ff00); s.beginPath(); const startX = this.es.x - 40; const startY = this.es.y; s.moveTo(startX, startY);
+              this.tweens.addCounter({ 
+                  from: 0, to: 100, duration: 300, 
+                  onUpdate: (tw) => { 
+                      if(!s.scene) return;
+                      s.clear(); s.lineStyle(8, 0x00ff00); s.beginPath(); s.moveTo(startX, startY); 
+                      const p = tw.getValue(); 
+                      if(p < 40) s.lineTo(startX + p, startY + p); 
+                      else { s.lineTo(startX + 40, startY + 40); s.lineTo(startX + 40 + (p-40)*1.5, startY + 40 - (p-40)*2.5); } 
+                      s.strokePath(); 
+                  }, 
+                  onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); finish(); } 
+              });
+          } else if (animType === 'chalk') {
+              const chalk = this.add.rectangle(this.ps.x, this.ps.y, 40, 10, 0xffffff).setDepth(200);
+              this.tweens.add({ targets: chalk, x: this.es.x, y: this.es.y, angle: 360, duration: 300, ease: 'Linear', onComplete: () => { chalk.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
+          } else if (animType === 'book') {
+              const book = this.add.rectangle(this.es.x, this.es.y - 300, 80, 100, 0x3366cc).setStrokeStyle(4, 0xffffff).setDepth(200);
+              this.tweens.add({ targets: book, y: this.es.y, angle: 20, duration: 400, ease: 'Bounce.Out', onComplete: () => { this.cameras.main.shake(100, 0.05); book.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
+          } else if (animType === 'food') {
+              const h1 = this.add.text(this.ps.x, this.ps.y, "🍞", {fontSize:'40px'}).setDepth(200); 
+              const h2 = this.add.text(this.ps.x, this.ps.y, "🥛", {fontSize:'40px'}).setDepth(200);
+              this.tweens.add({ targets: h1, y: this.ps.y-100, x: this.ps.x-30, alpha: 0, duration: 800, onComplete:()=>h1.destroy() }); 
+              this.tweens.add({ targets: h2, y: this.ps.y-100, x: this.ps.x+30, alpha: 0, duration: 800, delay: 200, onComplete: () => { h2.destroy(); finish(); } });
+          } else if (animType === 'run') {
+              let completeCount = 0;
+              for(let i=0; i<5; i++) { 
+                  const d = this.add.circle(this.es.x + (Math.random()-0.5)*100, this.es.y+50, 15, 0xaaaaaa, 0.8).setDepth(200); 
+                  this.tweens.add({ 
+                      targets: d, scale: 2, alpha: 0, y: d.y-50, duration: 600, delay: i*100, 
+                      onComplete: () => { 
+                          d.destroy(); completeCount++;
+                          if(completeCount === 5) finish(); 
+                      } 
+                  }); 
+              }
+          } else if (animType === 'rapid') {
+              s.clear(); 
+              this.tweens.addCounter({ from: 0, to: 5, duration: 400, 
+                  onUpdate: (tw) => { 
+                      if(!s.scene) return;
+                      const val = tw.getValue(); 
+                      const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100; 
+                      s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath(); 
+                  }, 
+                  onComplete: () => { s.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } 
+              });
+          } else if (animType === 'heavy') {
+              s.fillStyle(0xffaa00, 1).fillCircle(0,0,50); s.y -= 200; s.x = this.ps.x; 
+              this.tweens.add({ targets: s, x: this.es.x, y: this.es.y, duration: 300, ease: 'Bounce.Out', onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
+          } else if (animType === 'magic') {
+              s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10); s.x = this.ps.x; s.y = this.ps.y; 
+              this.tweens.add({ targets: s, scale: 5, alpha: 0, duration: 500, onComplete: () => { s.destroy(); finish(); } });
+          } else {
+              s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1); s.x = this.ps.x; s.y = this.ps.y; 
+              s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.angle = -30; 
+              this.tweens.chain({ 
+                  targets: s, 
+                  tweens: [ 
+                      { angle: -60, duration: 200, ease: 'Back.Out' }, 
+                      { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); finish(); } } 
+                  ] 
+              });
           }
-      } else if (animType === 'rapid') {
-          s.clear(); 
-          this.tweens.addCounter({ from: 0, to: 5, duration: 400, 
-              onUpdate: (tw) => { const val = tw.getValue(); const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100; s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath(); }, 
-              onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); finish(); } 
-          });
-      } else if (animType === 'heavy') {
-          s.fillStyle(0xffaa00, 1).fillCircle(0,0,50); s.y -= 200; s.x = this.ps.x; 
-          this.tweens.add({ targets: s, x: this.es.x, y: this.es.y, duration: 300, ease: 'Bounce.Out', onComplete: () => { this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
-      } else if (animType === 'magic') {
-          s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10); s.x = this.ps.x; s.y = this.ps.y; 
-          this.tweens.add({ targets: s, scale: 5, alpha: 0, duration: 500, onComplete: () => { finish(); } });
-      } else {
-          // デフォルト
-          s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1); s.x = this.ps.x; s.y = this.ps.y; s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.angle = -30; 
-          this.tweens.chain({ targets: s, tweens: [ { angle: -60, duration: 200, ease: 'Back.Out' }, { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); finish(); } } ] });
+      } catch(e) {
+          console.error("Anim error", e);
+          finish(); // エラーでも必ず次へ進む
       }
   }
 
@@ -405,7 +420,11 @@ export class BattleScene extends BaseScene {
         this.cameras.main.zoomTo(1.0, 200);
         this.setCinematicMode(false);
 
-        let dmg = getSkillPower(this.selS) * GAME_DATA.player.atk;
+        // ★getSkillPowerが失敗してもデフォルト値を使う安全設計
+        let power = 10;
+        try { power = getSkillPower(this.selS); } catch(e) { power = this.selS.power; }
+        
+        let dmg = power * GAME_DATA.player.atk;
         
         let v = 50; let c = false;
         if (res==='PERFECT') { dmg = Math.floor(dmg*1.5); v = [50, 50, 300]; this.cameras.main.shake(300, 0.04); this.hitStop(200); this.damageFlash(this.es); c = true; } 
@@ -457,7 +476,10 @@ export class BattleScene extends BaseScene {
   }
 
   executeHeal(s) {
-    this.isPlayerTurn = false; const h = getSkillPower(s);
+    this.isPlayerTurn = false; 
+    let h = 10;
+    try { h = getSkillPower(s); } catch(e) { h = s.power; }
+    
     GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + h, GAME_DATA.player.maxHp);
     const ht = this.add.text(this.ps.x, this.ps.y-50, `+${h}`, { font:`32px ${GAME_FONT}`, color:'#0f0', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
     this.tweens.add({ targets: ht, y: ht.y-50, alpha: 0, duration: 1000, onComplete:()=>ht.destroy() });

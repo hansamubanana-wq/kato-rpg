@@ -2,7 +2,7 @@
 //  データ & 定数定義
 // ================================================================
 export const GAME_FONT = 'DotGothic16';
-export const SAVE_KEY = 'kato_rpg_save_v8'; // データ構造変更のため更新
+export const SAVE_KEY = 'kato_rpg_save_v9'; // バージョン更新
 
 // ドット絵データ
 export const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#f00' };
@@ -82,35 +82,27 @@ export let GAME_DATA = {
     hp: 80, maxHp: 80, atk: 1.0, 
     stress: 0, maxStress: 100,
     ap: 3, maxAp: 9,
-    // ownedSkills: IDをキー、Lvを値とするオブジェクトに変更
-    // 例: { 1: 1 } -> ID:1のスキルがLv.1
     ownedSkills: { 1: 1 }, 
     equippedSkillIds: [1],
     items: {} 
   }
 };
 
-// ★ヘルパー関数：スキルレベルを取得
 export function getSkillLevel(id) {
     if (!GAME_DATA.player.ownedSkills) return 0;
     return GAME_DATA.player.ownedSkills[id] || 0;
 }
 
-// ★ヘルパー関数：現在のレベルに基づいた威力を計算
-// Lv1あがるごとに威力+20% (1.2倍, 1.4倍...)
 export function getSkillPower(skill) {
     const lv = getSkillLevel(skill.id);
     if (lv <= 1) return skill.power;
     return Math.floor(skill.power * (1 + 0.2 * (lv - 1)));
 }
 
-// ★ヘルパー関数：次のレベルへの強化費用を計算
-// 基礎コスト * (現在のレベル * 0.8 + 1)
 export function getUpgradeCost(skill) {
     const lv = getSkillLevel(skill.id);
-    if (lv === 0) return skill.cost; // 未所持なら定価
-    // 強化費用計算
-    let base = skill.cost > 0 ? skill.cost : 500; // 初期技(0G)は500Gベースで計算
+    if (lv === 0) return skill.cost;
+    let base = skill.cost > 0 ? skill.cost : 500;
     return Math.floor(base * (0.8 * lv + 0.2)); 
 }
 
@@ -122,9 +114,7 @@ export function loadGame() {
             const parsed = JSON.parse(d);
             Object.assign(GAME_DATA, parsed);
             if(parsed.player) {
-                // データの互換性チェック（古いデータで ownedSkills がない場合など）
                 if (Array.isArray(parsed.player.ownedSkillIds)) {
-                    // 旧データを新データ形式に変換
                     GAME_DATA.player.ownedSkills = {};
                     parsed.player.ownedSkillIds.forEach(id => {
                         GAME_DATA.player.ownedSkills[id] = 1;
