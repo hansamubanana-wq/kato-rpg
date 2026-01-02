@@ -38,8 +38,8 @@ export class OpeningScene extends BaseScene {
         onComplete: () => this.transitionTo('TutorialScene')
     });
 
-    this.createButton(w/2, h - 120, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
-    this.createButton(w/2, h - 50, 'データ消去して最初から', 0x880000, () => resetGame());
+    // データ消去ボタンを削除し、SKIPボタンのみ配置
+    this.createButton(w/2, h - 80, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
   }
 }
 
@@ -73,7 +73,6 @@ export class TutorialScene extends BaseScene {
     const w = this.scale.width; const h = this.scale.height;
     this.add.text(w/2, 50, "【チュートリアル 2/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     
-    // 【修正1】Y座標を調整して重なりを解消
     this.add.text(w/2, 130, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     this.add.text(w/2, 240, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技や\nアイテムを購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
     this.add.text(w/2, 380, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
@@ -93,7 +92,6 @@ export class TutorialScene extends BaseScene {
     this.add.text(w/2, 300, "＜APの回復方法＞", { font: `20px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     this.add.text(w/2, 360, "・自分のターンが来る (+1)\n・敵の攻撃をパリィする (+1)\n・「パス」コマンドを使う (+1)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'left' }).setOrigin(0.5);
     
-    // 【修正2】ボタンの幅(w)を220に指定して広げる
     this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), 220, 50, true);
   }
 }
@@ -141,7 +139,6 @@ export class ShopScene extends BaseScene {
     this.refreshList(w, h);
   }
 
-  // 【修正3】タブのデザインをボタン形式に変更して目立たせる
   createTabs(w, h) {
       this.tabContainer = this.add.container(0, 110);
       
