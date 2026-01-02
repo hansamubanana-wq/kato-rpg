@@ -203,7 +203,7 @@ class BaseScene extends Phaser.Scene {
   }
 
   // 【完全修正版】スクロールリスト用ボタン
-  // シーンの isDragging フラグを参照することで確実なクリック判定を行う
+  // シーン全体のフラグに頼らず、個別のタッチ位置で判定する最強の方式
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
@@ -217,20 +217,25 @@ class BaseScene extends Phaser.Scene {
         vc.add(sub);
     }
     if(rightText) {
-        // 右端に配置
+        // 右端テキストの配置修正
         const rt = this.add.text((w/2) - 20, 0, rightText, { font: `22px ${GAME_FONT}`, color: '#ff0' }).setOrigin(1, 0.5);
         vc.add(rt);
-        c.rightTextObj = rt; // 後で色変更するために参照保持
+        c.rightTextObj = rt; 
     }
     
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
+    let startY = 0;
     
-    hit.on('pointerdown', () => { vc.setScale(0.95); });
+    // タップ開始時のY座標を記録
+    hit.on('pointerdown', (pointer) => { 
+        startY = pointer.y;
+        vc.setScale(0.95); 
+    });
     
-    hit.on('pointerup', () => { 
+    // タップ終了時、移動距離が10px未満なら「クリック」とみなす
+    hit.on('pointerup', (pointer) => { 
         vc.setScale(1.0); 
-        // シーンがスクロール中（ドラッグ中）でなければクリックとみなす
-        if (!this.isDragging) {
+        if (Math.abs(pointer.y - startY) < 10) {
             this.playSound('se_select'); 
             cb(); 
         }
@@ -255,7 +260,6 @@ class BaseScene extends Phaser.Scene {
     c.update = (v, m) => { const r = Math.min(1, v/m); bar.width = (w-2)*r; bar.fillColor = r>=1?0xfff:0xfa0; };
     c.add([bg, bar]); return c;
   }
-
   createApBar(x, y) {
       const container = this.add.container(x, y);
       const boxes = [];
@@ -270,44 +274,15 @@ class BaseScene extends Phaser.Scene {
       return container;
   }
 
-  // スクロールコンテナ初期化
   initScrollView(contentHeight, maskY, maskH) {
       this.scrollContainer = this.add.container(0, maskY);
       const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
       const mask = shape.createGeometryMask(); this.scrollContainer.setMask(mask);
-      
-      // 全画面タッチ判定用
       const hitZone = this.add.rectangle(this.scale.width/2, maskY + maskH/2, this.scale.width, maskH, 0x000000, 0).setInteractive();
-      
-      const minScroll = Math.min(0, maskH - contentHeight - 50); 
-      const maxScroll = 0;
-      this.isDragging = false; 
-      let dragStartY = 0; 
-      let containerStartY = 0;
-
-      this.input.on('pointerdown', (pointer) => {
-          if (pointer.y >= maskY && pointer.y <= maskY + maskH) {
-              this.isDragging = false;
-              dragStartY = pointer.y;
-              containerStartY = this.scrollContainer.y;
-          }
-      });
-
-      this.input.on('pointermove', (pointer) => {
-          if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) {
-              const diff = pointer.y - dragStartY;
-              if (Math.abs(diff) > 10) this.isDragging = true;
-              if (this.isDragging) {
-                  this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY);
-              }
-          }
-      });
-      
-      this.input.on('pointerup', () => {
-          // ドラッグ終了後、少し待ってからフラグを下ろす（誤タップ防止）
-          this.time.delayedCall(50, () => { this.isDragging = false; });
-      });
-
+      const minScroll = Math.min(0, maskH - contentHeight - 50); const maxScroll = 0;
+      let dragStartY = 0; let containerStartY = 0;
+      this.input.on('pointerdown', (pointer) => { if (pointer.y >= maskY && pointer.y <= maskY + maskH) { dragStartY = pointer.y; containerStartY = this.scrollContainer.y; } });
+      this.input.on('pointermove', (pointer) => { if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) { const diff = pointer.y - dragStartY; this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY); } });
       return this.scrollContainer;
   }
 }
@@ -764,10 +739,10 @@ class BattleScene extends BaseScene {
     });
   }
 
-  // 【修正】ブチギレ演出と処理の確実な実行
+  // 【修正】Limit Break
   activateLimitBreak() {
     this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
-    this.refreshStatus(); // ゲージを空にする
+    this.refreshStatus();
     
     this.vibrate(1000); 
     this.cameras.main.flash(500, 255, 0, 0); 
