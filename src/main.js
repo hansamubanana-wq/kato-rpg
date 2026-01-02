@@ -42,13 +42,18 @@ const STAGES = [
 ];
 
 const SKILL_DB = [
-  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 35, speed: 1.2, cost: 150, desc: '威力中・速度中' },
-  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, desc: '威力小・当てやすい' },
-  { id: 4, name: '定規ソード', type: 'attack', power: 70, speed: 1.5, cost: 500, desc: '威力大・難しい' },
-  { id: 5, name: '難問の出題', type: 'attack', power: 120, speed: 2.2, cost: 1200, desc: '超威力・激ムズ' },
-  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 300, desc: 'HP回復魔法' },
-  { id: 7, name: '居残り指導', type: 'attack', power: 200, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義' }
+  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃。確実に出席をとる。' },
+  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, desc: '威力は低いが、当てやすい。' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, desc: 'スナップを効かせた投擲。' },
+  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, desc: '鋭い一撃。判定が少し速い。' },
+  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, desc: '基本となる回復魔法。' },
+  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, desc: '長い定規で切り裂く。威力大。' },
+  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, desc: '鈍器のような重み。当てやすい。' },
+  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, desc: '体力を大幅に回復する。' },
+  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, desc: '超威力だが、判定が激ムズ。' },
+  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, desc: '高速採点による連続攻撃。' },
+  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, desc: '絶望的な威力。判定は一瞬。' },
+  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義。' }
 ];
 
 const GAME_DATA = {
@@ -64,7 +69,7 @@ const GAME_DATA = {
 };
 
 // ================================================================
-//  2. 共通UI & システム
+//  2. 共通UI & システム (スクロール対応)
 // ================================================================
 class BaseScene extends Phaser.Scene {
   preload() {
@@ -130,7 +135,17 @@ class BaseScene extends Phaser.Scene {
     const noise = this.add.graphics(); noise.fillStyle(0x000000, 0.05);
     for(let y=0; y<h; y+=4) for(let x=0; x<w; x+=4) if(Math.random()>0.5) noise.fillRect(x,y,4,4);
     bgContainer.add([wall, floor, noise]);
-    if (type === 'battle') bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x440000, 0.3));
+    
+    if (type === 'world') {
+        bgContainer.add(this.add.sprite(w/2, h*0.3, 'bg_blackboard').setScale(10).setAlpha(0.7));
+    } else if (type === 'shop') {
+        for(let i=0; i<3; i++) bgContainer.add(this.add.sprite(60+i*140, h*0.4, 'bg_shelf').setScale(6));
+    } else if (type === 'skill') {
+        for(let i=0; i<4; i++) bgContainer.add(this.add.sprite(50+i*100, h*0.4, 'bg_locker').setScale(6));
+    } else if (type === 'battle') {
+        for(let i=0; i<2; i++) bgContainer.add(this.add.sprite(100+i*200, h*0.3, 'bg_window_sunset').setScale(8).setAlpha(0.8));
+        bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x440000, 0.3));
+    }
     bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3));
   }
 
@@ -162,6 +177,7 @@ class BaseScene extends Phaser.Scene {
     return bg;
   }
 
+  // 静的ボタン（戻るボタンなど）
   createButton(x, y, text, color, cb, isPulse=false) {
     const c = this.add.container(x, y); const w = 220, h = 50;
     const vc = this.add.container(0, 0);
@@ -174,6 +190,34 @@ class BaseScene extends Phaser.Scene {
     const hit = this.add.rectangle(0, 0, w+10, h+20, 0x000, 0).setInteractive();
     hit.on('pointerdown', () => { vc.setScale(0.95); this.vibrate(5); });
     hit.on('pointerup', () => { vc.setScale(1.0); this.playSound('se_select'); cb(); });
+    hit.on('pointerout', () => vc.setScale(1.0));
+    c.add([vc, hit]);
+    return c;
+  }
+
+  // 【新規】スクロール可能なリスト用のボタン（ドラッグ中は反応しない）
+  createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="") {
+    const c = this.add.container(x, y);
+    const vc = this.add.container(0, 0);
+    const sh = this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
+    const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
+    const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
+    vc.add([sh, bg, tx]);
+    if(subText) {
+        const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
+        vc.add(sub);
+    }
+    
+    const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
+    hit.on('pointerdown', () => { vc.setScale(0.95); });
+    hit.on('pointerup', () => { 
+        vc.setScale(1.0); 
+        // シーン側のフラグを見て、ドラッグ中なら実行しない
+        if (!this.scene.isDragging) {
+            this.playSound('se_select'); 
+            cb(); 
+        }
+    });
     hit.on('pointerout', () => vc.setScale(1.0));
     c.add([vc, hit]);
     return c;
@@ -193,10 +237,55 @@ class BaseScene extends Phaser.Scene {
     c.update = (v, m) => { const r = Math.min(1, v/m); bar.width = (w-2)*r; bar.fillColor = r>=1?0xfff:0xfa0; };
     c.add([bg, bar]); return c;
   }
+
+  // 【新規】スクロールビューの初期化
+  initScrollView(contentHeight, maskY, maskH) {
+      this.isDragging = false;
+      this.dragStartY = 0;
+      this.containerStartY = 0;
+      this.scrollContainer = this.add.container(0, maskY);
+      
+      // マスク作成
+      const shape = this.make.graphics();
+      shape.fillStyle(0xffffff);
+      shape.fillRect(0, maskY, this.scale.width, maskH);
+      const mask = shape.createGeometryMask();
+      this.scrollContainer.setMask(mask);
+
+      // 入力エリア（透明な板を後ろに置く）
+      const hitZone = this.add.rectangle(this.scale.width/2, maskY + maskH/2, this.scale.width, maskH, 0x000000, 0).setInteractive();
+      
+      // スクロール上限下限
+      const minScroll = Math.min(0, maskH - contentHeight - 50); // 下に余白
+      const maxScroll = 0;
+
+      this.input.on('pointerdown', (pointer) => {
+          this.isDragging = false;
+          this.dragStartY = pointer.y;
+          this.containerStartY = this.scrollContainer.y;
+      });
+
+      this.input.on('pointermove', (pointer) => {
+          if (pointer.isDown) {
+              const diff = pointer.y - this.dragStartY;
+              if (Math.abs(diff) > 10) this.isDragging = true; // 10px以上動いたらドラッグとみなす
+              if (this.isDragging) {
+                  this.scrollContainer.y = Phaser.Math.Clamp(this.containerStartY + diff, minScroll + maskY, maxScroll + maskY);
+              }
+          }
+      });
+
+      this.input.on('pointerup', () => {
+          // ドラッグ終了処理（慣性はなし）
+          this.time.delayedCall(100, () => { this.isDragging = false; });
+      });
+      
+      return this.scrollContainer;
+  }
 }
 
 // ================================================================
-//  3. オープニング
+//  3. オープニング（ストーリー）シーン
 // ================================================================
 class OpeningScene extends BaseScene {
   constructor() { super('OpeningScene'); }
@@ -239,7 +328,7 @@ class OpeningScene extends BaseScene {
 }
 
 // ================================================================
-//  4. チュートリアル
+//  4. チュートリアルシーン (2ページ構成)
 // ================================================================
 class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
@@ -279,7 +368,7 @@ class TutorialScene extends BaseScene {
 }
 
 // ================================================================
-//  5. 職員室
+//  5. 職員室 (World)
 // ================================================================
 class WorldScene extends BaseScene {
   constructor() { super('WorldScene'); }
@@ -303,77 +392,120 @@ class WorldScene extends BaseScene {
 }
 
 // ================================================================
-//  6. 購買部
+//  6. 購買部 (スクロール対応)
 // ================================================================
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
   create() {
     this.fadeInScene(); 
     this.createGameBackground('shop'); 
-    const w = this.scale.width; 
-    this.add.text(w/2, 40, `購買部`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5);
-    this.add.text(w/2, 70, `${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' }).setOrigin(0.5);
-    this.createButton(w/2, this.scale.height-60, '戻る', 0x555, () => this.transitionTo('WorldScene'));
-    let y = 120;
-    SKILL_DB.filter(s => s.cost > 0).forEach((s, i) => {
-        const c = this.add.container(0, 0);
+    const w = this.scale.width; const h = this.scale.height;
+    
+    // ヘッダー (固定)
+    this.add.text(w/2, 40, `購買部`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5).setDepth(20);
+    this.add.text(w/2, 70, `${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' }).setOrigin(0.5).setDepth(20);
+    
+    // フッター (固定)
+    this.createButton(w/2, h-60, '戻る', 0x555, () => this.transitionTo('WorldScene')).setDepth(20);
+
+    // リスト作成
+    const skillList = SKILL_DB.filter(s => s.cost > 0);
+    const itemHeight = 90;
+    const contentHeight = skillList.length * itemHeight + 50;
+    
+    // スクロールコンテナ初期化 (ヘッダー下～フッター上)
+    const container = this.initScrollView(contentHeight, 100, h - 180);
+
+    let y = 50; // コンテナ内でのY座標
+    skillList.forEach((s) => {
         const has = GAME_DATA.player.ownedSkillIds.includes(s.id);
-        const bg = this.add.graphics().fillStyle(has?0x333:0x000, 0.8).lineStyle(2, 0xfff).fillRoundedRect(20, y, w-40, 75, 8).strokeRoundedRect(20, y, w-40, 75, 8);
-        const t1 = this.add.text(40, y+8, s.name, { font:`22px ${GAME_FONT}`, color: has?'#888':'#fff'});
         const spec = (s.type === 'heal') ? `回復力:${s.power}` : `威力:${s.power} / 速度:${s.speed}`;
-        const t2 = this.add.text(40, y+35, `${s.desc}\n[${spec}]`, { font:`14px ${GAME_FONT}`, color:'#aaa'});
-        const pr = this.add.text(w-40, y+37, has?"済":`${s.cost}G`, { font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
-        const hit = this.add.rectangle(w/2, y+37, w-20, 75).setInteractive();
-        hit.on('pointerdown', () => {
+        
+        // スクロール対応ボタンを作成
+        const btn = this.createScrollableButton(w/2, y, s.name, has?0x333333:0x000000, () => {
             if(has) return;
-            if(GAME_DATA.gold >= s.cost) { GAME_DATA.gold -= s.cost; GAME_DATA.player.ownedSkillIds.push(s.id); this.playSound('se_select'); this.scene.restart(); }
-            else { this.playSound('se_select'); pr.setText("不足!"); this.time.delayedCall(500, ()=>this.scene.restart()); }
-        });
-        c.add([bg, t1, t2, pr, hit]); c.setScale(0);
-        this.tweens.add({ targets: c, scale: 1, duration: 300, delay: i*50, ease: 'Back.Out' });
-        y += 90;
+            if(GAME_DATA.gold >= s.cost) { 
+                GAME_DATA.gold -= s.cost; 
+                GAME_DATA.player.ownedSkillIds.push(s.id); 
+                this.scene.restart(); 
+            } else { 
+                this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); // 簡易アラート
+            }
+        }, w-40, 75, `${s.desc}\n[${spec}]`);
+        
+        // 値段テキストを追加
+        const priceTxt = this.add.text(w/2 + (w-40)/2 - 10, y, has?"済":`${s.cost}G`, {font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
+        btn.add(priceTxt);
+
+        if(has) {
+            btn.list[0].list[2].setColor('#888'); // 文字色グレーに
+        }
+
+        container.add(btn);
+        y += itemHeight;
     });
   }
 }
 
 // ================================================================
-//  7. 編成
+//  7. 編成 (スクロール対応)
 // ================================================================
 class SkillScene extends BaseScene {
   constructor() { super('SkillScene'); }
   create() {
     this.fadeInScene(); 
     this.createGameBackground('skill'); 
-    const w = this.scale.width;
-    this.add.text(w/2, 40, "スキル編成", {font:`28px ${GAME_FONT}`}).setOrigin(0.5);
-    this.createButton(w/2, this.scale.height-60, '完了', 0x555, () => this.transitionTo('WorldScene'));
-    this.add.text(30, 90, "装備中", {font:`18px ${GAME_FONT}`, color:'#8f8'});
-    let y = 120;
-    const makeItem = (s, i, eq) => {
-        const c = this.add.container(0, 0);
-        const btn = this.add.graphics().fillStyle(eq?0x060:0x444, 1).lineStyle(1,0xfff).fillRoundedRect(30, y, w-60, 50, 5).strokeRoundedRect(30, y, w-60, 50, 5);
-        const tx = this.add.text(w/2, y+15, s.name, {font:`20px ${GAME_FONT}`}).setOrigin(0.5);
-        const spec = (s.type === 'heal') ? `[回復:${s.power}]` : `[攻:${s.power}/速:${s.speed}]`;
-        const sub = this.add.text(w/2, y+35, spec, {font:`12px ${GAME_FONT}`, color:'#ccc'}).setOrigin(0.5);
-        const h = this.add.rectangle(w/2, y+25, w-60, 50).setInteractive();
-        h.on('pointerdown', () => {
-            if(eq) { if(GAME_DATA.player.equippedSkillIds.length>1) GAME_DATA.player.equippedSkillIds.splice(i,1); }
-            else { if(GAME_DATA.player.equippedSkillIds.length<6) GAME_DATA.player.equippedSkillIds.push(s.id); }
-            this.playSound('se_select'); this.scene.restart();
-        });
-        c.add([btn, tx, sub, h]); c.setScale(0);
-        this.tweens.add({ targets: c, scale: 1, duration: 300, delay: i*30, ease: 'Back.Out' });
-        return c;
-    };
-    GAME_DATA.player.equippedSkillIds.forEach((sid, i) => { makeItem(SKILL_DB.find(x=>x.id===sid), i, true); y+=60; });
-    y += 20; this.add.text(30, y, "所持リスト", {font:`18px ${GAME_FONT}`, color:'#ff8'}); y+=30;
-    let li = 0;
-    GAME_DATA.player.ownedSkillIds.forEach(sid => { if(!GAME_DATA.player.equippedSkillIds.includes(sid)) { makeItem(SKILL_DB.find(x=>x.id===sid), li, false); y+=60; li++; }});
+    const w = this.scale.width; const h = this.scale.height;
+    
+    this.add.text(w/2, 40, "スキル編成", {font:`28px ${GAME_FONT}`}).setOrigin(0.5).setDepth(20);
+    this.createButton(w/2, h-60, '完了', 0x555, () => this.transitionTo('WorldScene')).setDepth(20);
+
+    // 表示アイテムのリストアップ
+    const equipped = GAME_DATA.player.equippedSkillIds.map(id => ({...SKILL_DB.find(x=>x.id===id), isEquip:true}));
+    const owned = GAME_DATA.player.ownedSkillIds
+                    .filter(id => !GAME_DATA.player.equippedSkillIds.includes(id))
+                    .map(id => ({...SKILL_DB.find(x=>x.id===id), isEquip:false}));
+    
+    const allItems = [...equipped, {isSeparator:true, text:"▼ 所持リスト"}, ...owned];
+    const itemHeight = 70;
+    const contentHeight = allItems.length * itemHeight + 50;
+
+    const container = this.initScrollView(contentHeight, 90, h - 170);
+    
+    let y = 40;
+    allItems.forEach((item, idx) => {
+        if(item.isSeparator) {
+            const sep = this.add.text(30, y, item.text, {font:`18px ${GAME_FONT}`, color:'#ff8'});
+            container.add(sep);
+            y += 40;
+        } else {
+            const spec = (item.type === 'heal') ? `[回復:${item.power}]` : `[攻:${item.power}/速:${item.speed}]`;
+            const color = item.isEquip ? 0x006600 : 0x444444;
+            
+            const btn = this.createScrollableButton(w/2, y, item.name, color, () => {
+                if(item.isEquip) {
+                    if(GAME_DATA.player.equippedSkillIds.length > 1) {
+                        const index = GAME_DATA.player.equippedSkillIds.indexOf(item.id);
+                        GAME_DATA.player.equippedSkillIds.splice(index, 1);
+                        this.scene.restart();
+                    }
+                } else {
+                    if(GAME_DATA.player.equippedSkillIds.length < 6) {
+                        GAME_DATA.player.equippedSkillIds.push(item.id);
+                        this.scene.restart();
+                    }
+                }
+            }, w-60, 55, spec);
+            
+            container.add(btn);
+            y += itemHeight;
+        }
+    });
   }
 }
 
 // ================================================================
-//  8. バトルシーン (WIN演出修正版)
+//  8. バトルシーン
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
@@ -487,7 +619,6 @@ class BattleScene extends BaseScene {
     this.tweens.add({ targets: this.qtxt, scale:1.5, duration:300, yoyo:true, onComplete:()=>{ this.qtxt.setVisible(false); this.executeAttack(res); }});
   }
 
-  // --- 攻撃実行（WIN演出付き） ---
   executeAttack(res) {
     this.playSwordAnimation(() => {
         let dmg = this.selS.power * GAME_DATA.player.atk;
@@ -658,16 +789,13 @@ class BattleScene extends BaseScene {
     }
   }
 
-  // 【修正】カウンターのトドメ演出追加
   triggerCounterAttack() {
       this.time.delayedCall(200, () => {
           this.updateMessage("見切った！ カウンター！");
           this.playSwordAnimation(() => {
-              // 威力: プレイヤーATK + 敵HPの10% (強い敵ほど大ダメージ)
               let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
               
               if ((this.ed.hp - dmg) <= 0) {
-                  // --- WIN演出 ---
                   this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1;
                   this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
                   const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
@@ -676,7 +804,6 @@ class BattleScene extends BaseScene {
                   this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
                   this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
               } else {
-                  // 通常カウンター
                   this.ed.hp -= dmg;
                   this.showDamagePopup(this.es.x, this.es.y, dmg, true);
                   this.playSound('se_attack');
