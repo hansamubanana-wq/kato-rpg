@@ -36,13 +36,11 @@ export class OpeningScene extends BaseScene {
 
     this.createButton(w/2, h - 140, 'START', 0xcc3333, () => this.transitionTo('TutorialScene'), 200, 60);
 
-    // ★ここを修正しました！
     const installBtn = this.add.text(w/2, h - 50, "【アプリとして保存する方法】", { font: `16px ${GAME_FONT}`, color: '#0ff', underline: true }).setOrigin(0.5).setInteractive();
     installBtn.on('pointerdown', () => {
         const modal = this.add.container(0, 0).setDepth(100);
         modal.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.95).setInteractive());
         
-        // LINE対策を入れた説明文
         const helpText = `
 ⚠ LINEから開いている人へ ⚠
 今のままだと保存できません！
@@ -72,10 +70,87 @@ export class OpeningScene extends BaseScene {
   }
 }
 
+// ★ここを元の紙芝居形式に戻しました！
 export class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
   create() {
-    this.transitionTo('BattleScene', { isTutorial: true });
+    this.fadeInScene(); 
+    this.createGameBackground('skill');
+    this.page = 1;
+    this.showPage1();
+  }
+
+  showPage1() {
+    this.children.removeAll(); 
+    this.createGameBackground('skill');
+    const w = this.scale.width; const h = this.scale.height;
+    
+    this.add.text(w/2, 50, "【チュートリアル 1/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    this.add.text(w/2, 120, "1. 攻 撃", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    
+    // リングの図解
+    const ring = this.add.graphics();
+    ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 190, 40);
+    ring.lineStyle(4, 0xffffff); ring.strokeCircle(w/2, 190, 40); // 重なってる感じ
+    this.add.text(w/2, 250, "黄色い輪が重なる瞬間に\n画面をタップ！", { font: `20px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
+    
+    this.add.text(w/2, 320, "2. 防 御 (パリィ)", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    this.add.text(w/2, 370, "！", { font: `60px ${GAME_FONT}`, color: '#f00', stroke:'#fff', strokeThickness:4 }).setOrigin(0.5);
+    this.add.text(w/2, 430, "敵の頭上に「！」が出たら\n画面を即タップ！\n成功するとAP回復＆反撃チャンス！", { font: `20px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
+    
+    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage2());
+  }
+
+  showPage2() {
+    this.children.removeAll();
+    this.createGameBackground('shop');
+    const w = this.scale.width; const h = this.scale.height;
+    this.add.text(w/2, 50, "【チュートリアル 2/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    
+    this.add.text(w/2, 130, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    
+    const info = `
+① 敵を倒してGoldを獲得
+
+②「プチレーブ」で
+強力な技やアイテムを購入
+
+③「編成」で技を装備！
+(最大6つまで)
+    `;
+    this.add.text(w/2, 260, info, { font: `22px ${GAME_FONT}`, color: '#fff', align:'center', lineSpacing:10 }).setOrigin(0.5);
+    
+    this.add.text(w/2, 400, "※ 買った技はセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
+    
+    this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
+  }
+
+  showPage3() {
+    this.children.removeAll();
+    this.createGameBackground('battle');
+    const w = this.scale.width; const h = this.scale.height;
+    this.add.text(w/2, 50, "【チュートリアル 3/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    
+    this.add.text(w/2, 120, "AP (行動力) について", { font: `24px ${GAME_FONT}`, color: '#ff0' }).setOrigin(0.5);
+    
+    // APバーの図解
+    const c = this.add.container(w/2 - 60, 160);
+    for(let i=0; i<5; i++) {
+        c.add(this.add.rectangle(i*25, 0, 20, 20, 0xffff00).setStrokeStyle(1,0x888));
+    }
+    
+    this.add.text(w/2, 220, "技を使うにはAPが必要です。\n強い技ほど多くのAPを消費します。", { font: `20px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
+    
+    this.add.text(w/2, 300, "＜APの回復方法＞", { font: `20px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    const rec = `
+・自分のターンが来る (+1)
+・敵の攻撃をパリィする (+1)
+・「パス」コマンドを使う (+1)
+・アイテム「酒」を使う (全回復)
+    `;
+    this.add.text(w/2, 380, rec, { font: `20px ${GAME_FONT}`, color: '#fff', align:'left' }).setOrigin(0.5);
+    
+    this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), 220, 50, true);
   }
 }
 
@@ -277,14 +352,14 @@ export class TrueClearScene extends BaseScene {
     const w = this.scale.width;
     const h = this.scale.height;
 
-    // 1. 背景：平和な青空と校舎
+    // 背景
     this.createGameBackground('world');
     const sky = this.add.graphics();
     sky.fillGradientStyle(0x88ccff, 0x88ccff, 0xffffff, 0xffffff, 1);
     sky.fillRect(0, 0, w, h * 0.6);
     sky.setDepth(-50);
 
-    // 2. エフェクト：紙吹雪
+    // 紙吹雪
     if (!this.textures.exists('particle_confetti')) {
         const cvs = document.createElement('canvas'); cvs.width=4; cvs.height=4;
         const ctx = cvs.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,4,4);
@@ -302,11 +377,11 @@ export class TrueClearScene extends BaseScene {
     });
     emitter.setDepth(-10);
 
-    // 3. キャラクター集合
+    // キャラクター集合
     const charaY = h * 0.65;
     const chars = [];
 
-    // ステージの敵キャラを並べる（一部除く）
+    // ステージの敵キャラ（一部除く）
     let bossCount = 0;
     STAGES.forEach((stage, i) => {
         if (stage.key !== 'dozo' && stage.key !== 'kingetsu') { 
@@ -316,7 +391,7 @@ export class TrueClearScene extends BaseScene {
         }
     });
 
-    // 主人公（中央）
+    // 主人公
     const kato = this.add.sprite(w/2, charaY - 40, 'kato').setScale(8);
     this.startIdleAnimation(kato);
     chars.push(kato);
@@ -329,7 +404,7 @@ export class TrueClearScene extends BaseScene {
         });
     });
 
-    // 4. テキスト
+    // テキスト
     const titleText = this.add.text(w/2, h*0.15, "祝・完全制覇！", {
         font:`48px ${GAME_FONT}`, color:'#ffcc00', stroke:'#000', strokeThickness:6
     }).setOrigin(0.5).setScale(0).setDepth(100);
@@ -353,7 +428,7 @@ Thank you for playing!`;
 
     this.tweens.add({ targets: msgText, alpha: 1, y: h*0.4, duration: 2500, delay: 3500 });
 
-    // 5. 戻るボタン
+    // 戻るボタン
     this.time.delayedCall(7000, () => {
         const btn = this.createButton(w/2, h*0.9, 'タイトルへ戻る', 0x555555, () => {
             this.cameras.main.fadeOut(1000, 0,0,0);
