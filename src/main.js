@@ -12,9 +12,9 @@ document.head.appendChild(fontStyle);
 const GAME_FONT = 'DotGothic16';
 
 // ================================================================
-//  1. データ定義 (背景パーツ追加版)
+//  1. データ定義
 // ================================================================
-const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#060', 'B':'#630', 'C':'#888', 'D':'#ccf', 'E':'#f80' };
+const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0' };
 const ARTS = {
   kato: ["......0000......",".....000000.....","....00000000....","....00000000....","....01111110....","....03111130....","....01111110....",".....222222.....","....22233222....","....22222222....","....22222222....",".....33..33.....",".....33..33.....",".....00..00....."],
   dozo: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","...333333333....","...333333333....","...333333333....","...333333333....","....3333333.....","....77...77.....","....77...77.....","....00...00....."],
@@ -23,15 +23,10 @@ const ARTS = {
   kitai: [".....666666.....","....66666666....","...666666666....","...661111166....","...661010166....","...661111166....","...661111166....","....2222222.....","...222222222....","...222222222....","....7777777.....","....77...77.....","....77...77.....","....00...00....."],
   fukumorita: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","....7777777.....","...777777777....","...777222777....","...777777777....","...777777777....","....77...77.....","....77...77.....","....22...22....."],
   aota: ["......0000......",".....000000.....","....00....00....","....01111110....","....01011010....","....01111110....",".....223322.....","....33333333....","....33333333....","....33333333....","....77777777....","....77....77....","....77....77....","....00....00...."],
-  kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."],
-  // 背景パーツ定義
-  bg_blackboard: ["BBBBBBBBBBBBBBBB","B00000000000000B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B00000000000000B","BBBBBBBBBBBBBBBB"],
-  bg_window: ["DDDDDDDD","D222222D","D222222D","D222222D","DDDDDDDD","D222222D","D222222D","D222222D","DDDDDDDD"],
-  bg_shelf: ["BBBBBBBB","B992299B","BBBBBBBB","B292922B","BBBBBBBB","B922992B","BBBBBBBB"],
-  bg_locker: ["CCCCCCCC","C888888C","C878888C","C888888C","C888888C","C888888C","C888888C","CCCCCCCC"],
-  bg_window_sunset: ["EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE"]
+  kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."]
 };
 
+// 敵データ
 const STAGES = [
   { id: 0, name: '土蔵', hp: 120, atk: 12, exp: 20, gold: 100, key: 'dozo' },
   { id: 1, name: '前田', hp: 200, atk: 18, exp: 40, gold: 150, key: 'maeda' },
@@ -42,6 +37,7 @@ const STAGES = [
   { id: 6, name: '金月', hp: 3000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
+// スキルデータ
 const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃' },
   { id: 2, name: 'チョーク投げ', type: 'attack', power: 35, speed: 1.2, cost: 150, desc: '威力中・速度中' },
@@ -70,6 +66,7 @@ const GAME_DATA = {
 class BaseScene extends Phaser.Scene {
   preload() {
     Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
+    // サウンドロード（自分のファイル名に合わせてね）
     this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
     this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
     this.load.audio('se_select', '/sounds/se_select.mp3');
@@ -111,51 +108,32 @@ class BaseScene extends Phaser.Scene {
   }
   fadeInScene() { this.cameras.main.fadeIn(500, 0, 0, 0); }
 
-  // 【新規】リッチなドット絵背景を生成するメソッド
+  createPatternBackground(c1, c2) {
+    const w = this.scale.width; const h = this.scale.height;
+    const bg = this.add.graphics(); bg.fillStyle(c1, 1); bg.fillRect(0,0,w,h); bg.fillStyle(c2, 1);
+    for(let y=0; y<h; y+=16) for(let x=0; x<w; x+=16) { bg.fillRect(x,y,8,8); bg.fillRect(x+8,y+8,8,8); }
+    this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3);
+  }
+
   createGameBackground(type) {
     const w = this.scale.width; const h = this.scale.height;
     const bgContainer = this.add.container(0, 0).setDepth(-100);
     const wall = this.add.graphics(); const floor = this.add.graphics();
-    
-    // 壁と床のベース色
     let wallColor = 0xffeebb; let floorColor = 0x885522;
     if(type==='shop') { wallColor = 0xaaccff; floorColor = 0xcccccc; }
     if(type==='skill') { wallColor = 0xaaaaaa; floorColor = 0x666666; }
-    if(type==='battle') { wallColor = 0x552255; floorColor = 0x221122; } // 夕暮れ
-
+    if(type==='battle') { wallColor = 0x552255; floorColor = 0x221122; }
     wall.fillStyle(wallColor, 1).fillRect(0, 0, w, h*0.6);
     floor.fillStyle(floorColor, 1).fillRect(0, h*0.6, w, h*0.4);
-    
-    // ドットノイズ追加
     const noise = this.add.graphics(); noise.fillStyle(0x000000, 0.05);
     for(let y=0; y<h; y+=4) for(let x=0; x<w; x+=4) if(Math.random()>0.5) noise.fillRect(x,y,4,4);
-
     bgContainer.add([wall, floor, noise]);
-
-    // シーン別のパーツ配置
-    if (type === 'world') {
-        const bb = this.add.sprite(w/2, h*0.3, 'bg_blackboard').setScale(10).setAlpha(0.7);
-        bgContainer.add(bb);
-    } else if (type === 'shop') {
-        for(let i=0; i<3; i++) bgContainer.add(this.add.sprite(60+i*140, h*0.4, 'bg_shelf').setScale(6));
-    } else if (type === 'skill') {
-        for(let i=0; i<4; i++) bgContainer.add(this.add.sprite(50+i*100, h*0.4, 'bg_locker').setScale(6));
-    } else if (type === 'battle') {
-        // 夕暮れの窓
-        for(let i=0; i<2; i++) bgContainer.add(this.add.sprite(100+i*200, h*0.3, 'bg_window_sunset').setScale(8).setAlpha(0.8));
-        // 全体を少し暗く、赤く
-        const overlay = this.add.rectangle(w/2, h/2, w, h, 0x440000, 0.3);
-        bgContainer.add(overlay);
-    }
-
-    // UIを見やすくするための暗幕
+    if (type === 'battle') bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x440000, 0.3));
     bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3));
   }
 
   startIdleAnimation(target) {
-      this.tweens.add({
-          targets: target, y: '+=10', duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut'
-      });
+      this.tweens.add({ targets: target, y: '+=10', duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
 
   showDamagePopup(x, y, amount, isCrit) {
@@ -216,14 +194,96 @@ class BaseScene extends Phaser.Scene {
 }
 
 // ================================================================
-//  3. 職員室
+//  3. オープニング（ストーリー）シーン 【新規】
+// ================================================================
+class OpeningScene extends BaseScene {
+  constructor() { super('OpeningScene'); }
+  create() {
+    this.fadeInScene(); 
+    this.playBGM('bgm_world'); // イントロBGM
+    const w = this.scale.width; const h = this.scale.height;
+
+    // 黒背景
+    this.add.rectangle(w/2, h/2, w, h, 0x000000);
+
+    // スターウォーズ風スクロールテキスト
+    const storyText = `
+私立レトロ高校。
+かつては進学校だったこの場所も
+今は『赤点ドラゴン』の呪いにより
+無法地帯と化していた……。
+
+生徒は宿題を忘れ、
+教師は授業を放棄。
+校内には魔物が跋扈する始末。
+
+しかし、一人の男が立ち上がる。
+数学教師・加藤。
+
+「私が全員、補習にしてやる！！」
+
+愛のムチ（物理）で
+学園の平和を取り戻せ！
+    `;
+
+    const textObj = this.add.text(w/2, h + 100, storyText, { 
+        font: `24px ${GAME_FONT}`, 
+        color: '#ffff00', 
+        align: 'center',
+        wordWrap: { width: w - 40 }
+    }).setOrigin(0.5, 0);
+
+    // スクロールアニメーション
+    this.tweens.add({
+        targets: textObj,
+        y: -600,
+        duration: 15000, // 15秒かけて流れる
+        ease: 'Linear',
+        onComplete: () => this.transitionTo('TutorialScene')
+    });
+
+    // スキップボタン
+    this.createButton(w/2, h - 50, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
+  }
+}
+
+// ================================================================
+//  4. チュートリアルシーン 【新規】
+// ================================================================
+class TutorialScene extends BaseScene {
+  constructor() { super('TutorialScene'); }
+  create() {
+    this.fadeInScene(); 
+    this.createGameBackground('skill');
+    const w = this.scale.width; const h = this.scale.height;
+
+    this.add.text(w/2, 50, "【戦い方のおさらい】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+
+    // 攻撃の説明
+    this.add.text(w/2, 120, "1. 攻 撃", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    const ring = this.add.graphics();
+    ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 180, 40); // 黄色リング
+    ring.lineStyle(4, 0xffffff); ring.strokeCircle(w/2, 180, 40); // 白ターゲット
+    this.add.text(w/2, 240, "リングが重なる瞬間にタップ！", { font: `20px ${GAME_FONT}`, color: '#ccc' }).setOrigin(0.5);
+
+    // 防御の説明
+    this.add.text(w/2, 300, "2. 防 御", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    this.add.text(w/2, 350, "！", { font: `60px ${GAME_FONT}`, color: '#f00' }).setOrigin(0.5);
+    this.add.text(w/2, 400, "敵の攻撃前「！」が出たらタップ！\nパリィ成功で大チャンス！", { font: `20px ${GAME_FONT}`, color: '#ccc', align: 'center' }).setOrigin(0.5);
+
+    this.createButton(w/2, h - 80, '理解した！', 0xcc3333, () => this.transitionTo('WorldScene'), true);
+  }
+}
+
+// ================================================================
+//  5. 職員室 (World)
 // ================================================================
 class WorldScene extends BaseScene {
   constructor() { super('WorldScene'); }
   create() {
     this.playBGM('bgm_world');
     this.fadeInScene(); 
-    this.createGameBackground('world'); // 背景変更
+    this.createGameBackground('world'); 
     const w = this.scale.width; const h = this.scale.height;
     this.createPanel(10, 10, w-20, 80);
     this.add.text(30, 30, `Lv:${GAME_DATA.player.level} ${GAME_DATA.player.name}`, { font:`24px ${GAME_FONT}` });
@@ -240,13 +300,13 @@ class WorldScene extends BaseScene {
 }
 
 // ================================================================
-//  4. 購買部 & 5. 編成
+//  6. 購買部 & 7. 編成
 // ================================================================
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
   create() {
     this.fadeInScene(); 
-    this.createGameBackground('shop'); // 背景変更
+    this.createGameBackground('shop'); 
     const w = this.scale.width; 
     this.add.text(w/2, 40, `購買部`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5);
     this.add.text(w/2, 70, `${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' }).setOrigin(0.5);
@@ -276,7 +336,7 @@ class SkillScene extends BaseScene {
   constructor() { super('SkillScene'); }
   create() {
     this.fadeInScene(); 
-    this.createGameBackground('skill'); // 背景変更
+    this.createGameBackground('skill'); 
     const w = this.scale.width;
     this.add.text(w/2, 40, "スキル編成", {font:`28px ${GAME_FONT}`}).setOrigin(0.5);
     this.createButton(w/2, this.scale.height-60, '完了', 0x555, () => this.transitionTo('WorldScene'));
@@ -304,14 +364,14 @@ class SkillScene extends BaseScene {
 }
 
 // ================================================================
-//  6. バトルシーン
+//  8. バトルシーン
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
   create() {
     this.playBGM('bgm_battle');
     this.fadeInScene(); 
-    this.createGameBackground('battle'); // 背景変更
+    this.createGameBackground('battle'); 
     const w = this.scale.width; const h = this.scale.height;
     const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
     this.ed = { ...STAGES[idx], maxHp: STAGES[idx].hp };
@@ -553,6 +613,6 @@ const config = {
   type: Phaser.AUTO, width: 400, height: 800, backgroundColor: '#000000',
   parent: 'game-container', pixelArt: true,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [WorldScene, ShopScene, SkillScene, BattleScene]
+  scene: [OpeningScene, TutorialScene, WorldScene, ShopScene, SkillScene, BattleScene]
 };
 new Phaser.Game(config);
