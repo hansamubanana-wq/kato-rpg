@@ -72,9 +72,12 @@ export class TutorialScene extends BaseScene {
     this.createGameBackground('shop');
     const w = this.scale.width; const h = this.scale.height;
     this.add.text(w/2, 50, "【チュートリアル 2/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
-    this.add.text(w/2, 150, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    this.add.text(w/2, 220, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技や\nアイテムを購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
-    this.add.text(w/2, 350, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
+    
+    // 【修正1】Y座標を調整して重なりを解消
+    this.add.text(w/2, 130, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
+    this.add.text(w/2, 240, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技や\nアイテムを購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
+    this.add.text(w/2, 380, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
+    
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
   }
 
@@ -89,7 +92,9 @@ export class TutorialScene extends BaseScene {
     this.add.text(w/2, 220, "技を使うにはAPが必要です。\n強い技ほど多くのAPを消費します。", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
     this.add.text(w/2, 300, "＜APの回復方法＞", { font: `20px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     this.add.text(w/2, 360, "・自分のターンが来る (+1)\n・敵の攻撃をパリィする (+1)\n・「パス」コマンドを使う (+1)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'left' }).setOrigin(0.5);
-    this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), true);
+    
+    // 【修正2】ボタンの幅(w)を220に指定して広げる
+    this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), 220, 50, true);
   }
 }
 
@@ -136,14 +141,43 @@ export class ShopScene extends BaseScene {
     this.refreshList(w, h);
   }
 
+  // 【修正3】タブのデザインをボタン形式に変更して目立たせる
   createTabs(w, h) {
-      this.tabContainer = this.add.container(0, 100);
-      const btnSkill = this.add.text(w*0.3, 0, "技", {font:`24px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5).setInteractive();
-      const btnItem = this.add.text(w*0.7, 0, "道具", {font:`24px ${GAME_FONT}`, color:'#888'}).setOrigin(0.5).setInteractive();
+      this.tabContainer = this.add.container(0, 110);
       
-      btnSkill.on('pointerdown', () => { this.mode='skill'; btnSkill.setColor('#fff'); btnItem.setColor('#888'); this.refreshList(w, h); });
-      btnItem.on('pointerdown', () => { this.mode='item'; btnSkill.setColor('#888'); btnItem.setColor('#fff'); this.refreshList(w, h); });
-      this.tabContainer.add([btnSkill, btnItem]);
+      const tabW = w / 2 - 20;
+      const tabH = 50;
+
+      // 技タブボタン
+      this.btnSkill = this.add.container(w/4 + 5, 0);
+      this.bgSkill = this.add.graphics().fillRoundedRect(-tabW/2, -tabH/2, tabW, tabH, 10);
+      this.textSkill = this.add.text(0, 0, "技", {font:`24px ${GAME_FONT}`}).setOrigin(0.5);
+      const hitSkill = this.add.rectangle(0,0,tabW,tabH).setInteractive();
+      this.btnSkill.add([this.bgSkill, this.textSkill, hitSkill]);
+
+      // 道具タブボタン
+      this.btnItem = this.add.container(w*3/4 - 5, 0);
+      this.bgItem = this.add.graphics().fillRoundedRect(-tabW/2, -tabH/2, tabW, tabH, 10);
+      this.textItem = this.add.text(0, 0, "道具", {font:`24px ${GAME_FONT}`}).setOrigin(0.5);
+      const hitItem = this.add.rectangle(0,0,tabW,tabH).setInteractive();
+      this.btnItem.add([this.bgItem, this.textItem, hitItem]);
+
+      hitSkill.on('pointerdown', () => { this.mode='skill'; this.updateTabStyle(); this.refreshList(w, h); this.playSound('se_select'); });
+      hitItem.on('pointerdown', () => { this.mode='item'; this.updateTabStyle(); this.refreshList(w, h); this.playSound('se_select'); });
+
+      this.tabContainer.add([this.btnSkill, this.btnItem]);
+      this.updateTabStyle();
+  }
+
+  updateTabStyle() {
+      const activeColor = 0x3333cc;
+      const inactiveColor = 0x222222;
+      
+      this.bgSkill.clear().fillStyle(this.mode==='skill' ? activeColor : inactiveColor, 1).lineStyle(2, 0xffffff).fillRoundedRect(-this.btnSkill.list[2].width/2, -this.btnSkill.list[2].height/2, this.btnSkill.list[2].width, this.btnSkill.list[2].height, 10).strokeRoundedRect(-this.btnSkill.list[2].width/2, -this.btnSkill.list[2].height/2, this.btnSkill.list[2].width, this.btnSkill.list[2].height, 10);
+      this.textSkill.setColor(this.mode==='skill' ? '#ffffff' : '#aaaaaa');
+
+      this.bgItem.clear().fillStyle(this.mode==='item' ? activeColor : inactiveColor, 1).lineStyle(2, 0xffffff).fillRoundedRect(-this.btnItem.list[2].width/2, -this.btnItem.list[2].height/2, this.btnItem.list[2].width, this.btnItem.list[2].height, 10).strokeRoundedRect(-this.btnItem.list[2].width/2, -this.btnItem.list[2].height/2, this.btnItem.list[2].width, this.btnItem.list[2].height, 10);
+      this.textItem.setColor(this.mode==='item' ? '#ffffff' : '#aaaaaa');
   }
 
   refreshList(w, h) {
@@ -158,7 +192,7 @@ export class ShopScene extends BaseScene {
 
       const itemHeight = 90;
       const contentHeight = items.length * itemHeight + 50;
-      this.listContainer = this.initScrollView(contentHeight, 140, h - 220);
+      this.listContainer = this.initScrollView(contentHeight, 150, h - 230);
 
       let y = 50; 
       items.forEach((item) => {

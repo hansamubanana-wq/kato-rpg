@@ -15,11 +15,10 @@ export class BattleScene extends BaseScene {
     
     let enemy = null;
     if (this.isTraining) {
-        const maxIdx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
-        const rndIdx = Phaser.Math.Between(0, maxIdx);
-        enemy = { ...STAGES[rndIdx] };
+        // 【修正4】練習モードは常に「土蔵」(STAGES[0])にする
+        enemy = { ...STAGES[0] };
         enemy.name = "練習用" + enemy.name; 
-        enemy.hp = Math.floor(enemy.hp * 0.8); 
+        // HP補正はなしで、そのままの強さで練習
     } else {
         const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
         enemy = { ...STAGES[idx], maxHp: STAGES[idx].hp };
