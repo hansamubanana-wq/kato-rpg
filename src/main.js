@@ -71,11 +71,10 @@ class BaseScene extends Phaser.Scene {
     if (navigator.vibrate) navigator.vibrate(pattern);
   }
 
-  // 【新規】ヒットストップ演出（一瞬ゲームを止める）
   hitStop(duration) {
-      this.tweens.timeScale = 0.1; // 全体の動きをスローに
+      this.tweens.timeScale = 0.1; 
       this.time.delayedCall(duration, () => {
-          this.tweens.timeScale = 1.0; // 戻す
+          this.tweens.timeScale = 1.0; 
       });
   }
 
@@ -429,12 +428,19 @@ class BattleScene extends BaseScene {
             if (!this.qteActive) return;
             this.qteRingScale -= (0.03 * s.speed);
             this.qteRing.clear().lineStyle(4, 0xffff00).strokeCircle(tx, ty, 50 * this.qteRingScale);
-            if (this.qteRingScale <= 0.5) this.finishQTE('MISS');
+            // 【修正完了】縮みきったら強制ミスにしてループ終了
+            if (this.qteRingScale <= 0.5) {
+                this.qteActive = false;
+                this.qteEvent.remove();
+                this.finishQTE('MISS');
+            }
         }});
     });
   }
   resolveAttackQTE() {
     this.qteActive = false; this.qteEvent.remove(); this.qteRing.clear(); this.qteTarget.clear();
+    // 振動追加
+    this.vibrate(20);
     const d = Math.abs(this.qteRingScale - 1.0);
     if (d < 0.15) this.finishQTE('PERFECT'); else if (d < 0.4) this.finishQTE('GOOD'); else this.finishQTE('BAD');
   }
@@ -447,9 +453,9 @@ class BattleScene extends BaseScene {
     let vibe = 50;
     if (res==='PERFECT') { 
         dmg = Math.floor(dmg*1.5); 
-        vibe = [50, 50, 300]; // ズドン！
+        vibe = [50, 50, 300]; 
         this.cameras.main.shake(300, 0.04);
-        this.hitStop(200); // 演出：時を止める
+        this.hitStop(200); 
     } 
     else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); vibe = 20; }
     
@@ -516,10 +522,9 @@ class BattleScene extends BaseScene {
     this.qteMode = null;
     if (this.enemyAttackTween) this.enemyAttackTween.stop();
     
-    // パリィ成功時の強烈な演出
     this.createImpactEffect(this.enemySprite.x - 30, this.enemySprite.y);
-    this.cameras.main.flash(300, 255, 255, 255); // 白フラッシュ
-    this.hitStop(300); // 演出：時を長く止める
+    this.cameras.main.flash(300, 255, 255, 255); 
+    this.hitStop(300); 
     
     this.qteText.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qteText, y:this.qteText.y-50, alpha:0, duration:500, onComplete:()=>{this.qteText.setVisible(false); this.qteText.setAlpha(1); this.qteText.y+=50;}});
@@ -532,7 +537,7 @@ class BattleScene extends BaseScene {
     if (suc) { 
         dmg = 0; 
         this.updateMessage("パリィ成功！弾き返した！"); 
-        this.vibrate([20, 20, 20, 20, 500]); // ガガガガ…ギン！！
+        this.vibrate([20, 20, 20, 20, 500]); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 20);
         this.tweens.add({
             targets: this.enemySprite,
