@@ -28,20 +28,33 @@ const DRAGON_ART = [
 ];
 
 // ----------------------------------------------------------------
-// 1. ゲームデータ
+// 1. スキルデータ（6つの技）
+// ----------------------------------------------------------------
+const SKILLS = [
+  { id: 1, name: '出席確認', type: 'attack', power: 10, speed: 1.0, desc: '基本の攻撃' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 15, speed: 1.2, desc: '少し強い攻撃' },
+  { id: 3, name: '定規スラッシュ', type: 'attack', power: 25, speed: 1.5, desc: '強力だが難しい' },
+  { id: 4, name: '小テスト', type: 'attack', power: 8, speed: 0.8, desc: '当てやすい' },
+  { id: 5, name: '難問の出題', type: 'attack', power: 40, speed: 2.0, desc: '超強力・超難度' },
+  { id: 6, name: '公式の確認', type: 'heal', power: 40, speed: 0, desc: 'HPを回復する' }
+];
+
+// ----------------------------------------------------------------
+// 2. ゲームデータ
 // ----------------------------------------------------------------
 const GAME_DATA = {
   player: {
     name: '加藤先生',
     level: 1, exp: 0, nextExp: 50,
-    hp: 100, maxHp: 100, atk: 15, healPower: 30,
-    items: []
+    hp: 100, maxHp: 100, atk: 1.0, // 攻撃倍率
+    items: [],
+    equippedSkills: SKILLS // 現在セットしている6つの技
   }
 };
 
 const ENEMY_LIST = [
-  { name: '数式スライム', hp: 40, atk: 8, exp: 10, key: 'slime', drop: { name: '消しゴム', type: 'heal', value: 30 } },
-  { name: '赤点ドラゴン', hp: 150, atk: 20, exp: 100, key: 'dragon', drop: { name: '魔法のチョーク', type: 'super_atk', value: 50 } }
+  { name: '数式スライム', hp: 50, atk: 8, exp: 10, key: 'slime', drop: { name: '消しゴム', type: 'heal', value: 30 } },
+  { name: '赤点ドラゴン', hp: 200, atk: 20, exp: 100, key: 'dragon', drop: { name: '魔法のチョーク', type: 'super_atk', value: 50 } }
 ];
 
 class BattleScene extends Phaser.Scene {
@@ -77,21 +90,60 @@ class BattleScene extends Phaser.Scene {
     
     // 防御用シグナル
     this.guardSignal = this.add.text(width/2, height/2, '！', { font: '80px Arial', color: '#ff0000', stroke: '#fff', strokeThickness: 6 }).setOrigin(0.5).setVisible(false).setDepth(101);
-
-    // ペナルティ表示用（バツ印）
     this.penaltyX = this.add.text(width * 0.25, height * 0.6, '×', { font: '80px Arial', color: '#ff0000', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(200);
 
     // メッセージウィンドウ
     this.createMessageBox(width, height);
 
-    // ボタン
-    this.btnGroup = this.add.group();
-    const attackBtn = this.createButton(width - 100, height - 280, 'たたかう', 0xcc3333, () => this.startAttackQTE());
-    const healBtn = this.createButton(width - 240, height - 280, '回復', 0x33cc33, () => this.playerTurn('heal'));
-    const itemBtn = this.createButton(width - 100, height - 210, 'アイテム', 0x3333cc, () => this.openItemMenu());
-    this.btnGroup.add(attackBtn);
-    this.btnGroup.add(healBtn);
-    this.btnGroup.add(itemBtn);
+    // --- メインコマンドボタン ---
+    this.mainMenu = this.add.group();
+    const cmdBtn = this.createButton(width - 100, height - 260, 'コマンド', 0xcc3333, () => this.openSkillMenu());
+    const itemBtn = this.createButton(width - 100, height - 190, 'アイテム', 0x3333cc, () => this.openItemMenu());
+    this.mainMenu.add(cmdBtn);
+    this.mainMenu.add(itemBtn);
+
+    // --- スキル選択メニュー（最初は非表示） ---
+    this.skillMenu = this.add.container(0, height - 300).setVisible(false).setDepth(50);
+    // 背景
+    const menuBg = this.add.rectangle(width/2, 150, width, 300, 0x000000, 0.9).setOrigin(0.5);
+    this.skillMenu.add(menuBg);
+    
+    // 6つのスキルボタン生成
+    GAME_DATA.player.equippedSkills.forEach((skill, index) => {
+        const col = index % 2; // 0 or 1
+        const row = Math.floor(index / 2); // 0, 1, 2
+        const x = width * 0.25 + col * (width * 0.5);
+        const y = 60 + row * 80;
+        
+        // 色分け（攻撃=赤系、回復=緑系）
+        const color = skill.type === 'heal' ? 0x228822 : 0x882222;
+        
+        const btn = this.add.rectangle(x, y, 160, 60, color).setInteractive();
+        const text = this.add.text(x, y, skill.name, { font: '18px Arial', color: '#ffffff' }).setOrigin(0.5);
+        
+        // ボタンクリックイベント
+        btn.on('pointerdown', () => {
+             // イベントの伝播を止める（後ろのタップ判定を防ぐ）
+             this.input.stopPropagation();
+             this.selectSkill(skill);
+        });
+
+        this.skillMenu.add(btn);
+        this.skillMenu.add(text);
+    });
+
+    // 戻るボタン
+    const backBtn = this.add.rectangle(width/2, 280, 100, 40, 0x555555).setInteractive();
+    const backText = this.add.text(width/2, 280, '戻る', {font:'16px Arial'}).setOrigin(0.5);
+    backBtn.on('pointerdown', () => {
+        this.input.stopPropagation();
+        this.skillMenu.setVisible(false);
+        this.mainMenu.setVisible(true);
+        this.updateMessage(`${GAME_DATA.player.name} のターン`);
+    });
+    this.skillMenu.add(backBtn);
+    this.skillMenu.add(backText);
+
 
     // 入力リスナー
     this.input.on('pointerdown', () => this.handleInput());
@@ -105,69 +157,53 @@ class BattleScene extends Phaser.Scene {
     this.isPlayerTurn = true;
     this.qteMode = null; 
     this.qteActive = false;
-    this.guardBroken = false; // お手つきフラグ
+    this.guardBroken = false;
+    this.selectedSkill = null; // 選択したスキル
 
     this.refreshStatus();
     this.startBattle();
   }
 
   handleInput() {
-    // 1. 攻撃QTE中
     if (this.qteMode === 'attack' && this.qteActive) {
         this.resolveAttackQTE();
         return;
     }
-
-    // 2. 防御待機中（敵が構えている時）
     if (this.qteMode === 'defense_wait') {
-        // ここで押すと「お手つき」！
         this.triggerGuardPenalty();
         return;
     }
-
-    // 3. 防御QTE中（「！」が出ている瞬間）
     if (this.qteMode === 'defense_active') {
         this.resolveDefenseQTE();
         return;
     }
   }
 
-  // --- お手つき（連打対策）処理 ---
-  triggerGuardPenalty() {
-      if (this.guardBroken) return; // 既に失敗していれば何もしない
+  // --- メニュー操作 ---
+  openSkillMenu() {
+      if (!this.isPlayerTurn) return;
+      this.mainMenu.setVisible(false);
+      this.skillMenu.setVisible(true);
+      this.updateMessage("行動を選択してください");
+  }
 
-      this.guardBroken = true; // ガード不可状態にする
-      
-      // 視覚的フィードバック：バツ印とメッセージ
-      this.penaltyX.setVisible(true);
-      this.penaltyX.setAlpha(1);
-      this.playerSprite.setTint(0x888888); // プレイヤーを暗くする
-      
-      // 文字演出
-      this.qteText.setText("BAD TIMING");
-      this.qteText.setVisible(true);
-      this.qteText.setScale(1);
-      this.tweens.add({
-          targets: this.qteText,
-          y: this.qteText.y - 30,
-          alpha: 0,
-          duration: 600,
-          onComplete: () => {
-              this.qteText.setVisible(false);
-              this.qteText.y += 30;
-              this.qteText.setAlpha(1);
-          }
-      });
+  selectSkill(skill) {
+      this.skillMenu.setVisible(false);
+      this.selectedSkill = skill;
 
-      this.cameras.main.shake(100, 0.01); // 失敗した感を出す揺れ
+      if (skill.type === 'heal') {
+          // 回復スキルなら即発動（QTEなし）
+          this.executeHeal(skill);
+      } else {
+          // 攻撃スキルならQTE開始
+          this.startAttackQTE(skill);
+      }
   }
 
   // --- 攻撃QTE ---
-  startAttackQTE() {
-    if (!this.isPlayerTurn) return;
+  startAttackQTE(skill) {
     this.isPlayerTurn = false;
-    this.btnGroup.setVisible(false);
-    this.updateMessage("タイミングよくタップせよ！");
+    this.updateMessage(`${skill.name}！\nタイミングよくタップせよ！`);
 
     const targetX = this.enemySprite.x;
     const targetY = this.enemySprite.y;
@@ -180,14 +216,16 @@ class BattleScene extends Phaser.Scene {
     this.qteRingScale = 2.5; 
     this.qteMode = 'attack';
     
-    // 遅延開始
     this.time.delayedCall(200, () => {
         this.qteActive = true;
         this.qteEvent = this.time.addEvent({
           delay: 16, loop: true,
           callback: () => {
             if (!this.qteActive) return;
-            this.qteRingScale -= 0.04;
+            // スキルごとのspeedによってリングの縮小速度を変える
+            const speed = 0.03 * skill.speed; 
+            this.qteRingScale -= speed;
+            
             this.qteRing.clear();
             this.qteRing.lineStyle(4, 0xffff00);
             this.qteRing.strokeCircle(targetX, targetY, 50 * this.qteRingScale);
@@ -223,49 +261,66 @@ class BattleScene extends Phaser.Scene {
   }
 
   executeAttack(rank) {
-    let damage = GAME_DATA.player.atk;
+    let damage = this.selectedSkill.power * GAME_DATA.player.atk; // スキル威力 x プレイヤー倍率
     let msg = "";
     if (rank === 'PERFECT') { damage = Math.floor(damage * 1.5); msg = "会心の一撃！！"; this.cameras.main.shake(200, 0.03); }
     else if (rank === 'GOOD') { msg = "ナイスタイミング！"; }
     else if (rank === 'BAD' || rank === 'MISS') { damage = Math.floor(damage * 0.5); msg = "タイミングが悪い..."; }
 
     this.currentEnemy.hp -= damage;
-    this.updateMessage(`${msg}\n${damage} のダメージ！`);
+    this.updateMessage(`${this.selectedSkill.name}！\n${msg}\n${damage} のダメージ！`);
     this.tweens.add({ targets: this.playerSprite, x: this.playerSprite.x + 50, duration: 100, yoyo: true });
     this.checkBattleEnd();
   }
 
-  // --- 敵ターン（防御QTE） ---
+  executeHeal(skill) {
+      this.isPlayerTurn = false;
+      const heal = skill.power;
+      GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + heal, GAME_DATA.player.maxHp);
+      
+      this.updateMessage(`${skill.name} を行った。\nHPが ${heal} 回復した！`);
+      
+      // 回復エフェクト（プレイヤーが緑に光る）
+      this.tweens.add({
+          targets: this.playerSprite,
+          tint: 0x00ff00,
+          duration: 200,
+          yoyo: true,
+          onComplete: () => this.playerSprite.clearTint()
+      });
+      
+      this.checkBattleEnd();
+  }
+
+  // --- 敵ターンなどは同じ ---
+  triggerGuardPenalty() {
+      if (this.guardBroken) return;
+      this.guardBroken = true;
+      this.penaltyX.setVisible(true);
+      this.playerSprite.setTint(0x888888);
+      this.qteText.setText("BAD TIMING").setVisible(true).setScale(1);
+      this.tweens.add({ targets: this.qteText, y: this.qteText.y - 30, alpha: 0, duration: 600, onComplete: () => { this.qteText.setVisible(false); this.qteText.y += 30; this.qteText.setAlpha(1); } });
+      this.cameras.main.shake(100, 0.01);
+  }
+
   startEnemyTurn() {
     if (this.currentEnemy.hp <= 0) return;
-    
-    // 状態リセット
     this.updateMessage(`${this.currentEnemy.name} が攻撃を構えた...`);
-    this.qteMode = 'defense_wait'; // 「待て」の状態
-    this.guardBroken = false;      // お手つきフラグ解除
+    this.qteMode = 'defense_wait';
+    this.guardBroken = false;
     this.penaltyX.setVisible(false);
     this.playerSprite.clearTint();
-    
-    const delay = Phaser.Math.Between(1000, 2500); // 溜め時間をランダムに
-    
+    const delay = Phaser.Math.Between(1000, 2500);
     this.time.delayedCall(delay, () => {
-        // もし「お手つき」してたら、「！」が出ても反応させない
-        if (this.guardBroken) {
-             // 失敗確定状態で攻撃実行へ
-             this.executeDefense(false);
-             return;
-        }
-
-        // 通常通り「！」を出す
+        if (this.guardBroken) { this.executeDefense(false); return; }
         this.guardSignal.setVisible(true);
-        this.guardSignal.setScale(1);
-        this.qteMode = 'defense_active'; // 「押せ！」の状態
-
+        this.guardMode = 'defense_active';
+        this.qteMode = 'defense_active';
         this.time.delayedCall(400, () => {
             if (this.qteMode === 'defense_active') {
                 this.guardSignal.setVisible(false);
                 this.qteMode = null;
-                this.executeDefense(false); // 時間切れ
+                this.executeDefense(false);
             }
         });
     });
@@ -274,84 +329,28 @@ class BattleScene extends Phaser.Scene {
   resolveDefenseQTE() {
     this.guardSignal.setVisible(false);
     this.qteMode = null;
-    
-    this.qteText.setText("BLOCK!");
-    this.qteText.setVisible(true);
-    this.qteText.setScale(1);
-    this.tweens.add({
-        targets: this.qteText,
-        y: this.qteText.y - 50, alpha: 0, duration: 500,
-        onComplete: () => {
-            this.qteText.setVisible(false);
-            this.qteText.setAlpha(1);
-            this.qteText.y += 50;
-        }
-    });
-
+    this.qteText.setText("BLOCK!").setVisible(true).setScale(1);
+    this.tweens.add({ targets: this.qteText, y: this.qteText.y - 50, alpha: 0, duration: 500, onComplete: () => { this.qteText.setVisible(false); this.qteText.setAlpha(1); this.qteText.y += 50; } });
     this.executeDefense(true);
   }
 
   executeDefense(success) {
     let damage = this.currentEnemy.atk;
-    
     this.tweens.add({ targets: this.enemySprite, x: this.enemySprite.x - 50, duration: 100, yoyo: true });
-
-    if (success) {
-        damage = 0;
-        this.updateMessage(`見事に見切った！\nダメージ 0！`);
-    } else {
-        // お手つきしていた場合はメッセージを変える
-        if (this.guardBroken) {
-            this.updateMessage(`体勢が崩れている！\n${damage} のダメージ！`);
-        } else {
-            this.updateMessage(`直撃を受けた！\n${damage} のダメージ！`);
-        }
+    if (success) { damage = 0; this.updateMessage(`見事に見切った！\nダメージ 0！`); }
+    else {
+        if (this.guardBroken) this.updateMessage(`体勢が崩れている！\n${damage} のダメージ！`);
+        else this.updateMessage(`直撃を受けた！\n${damage} のダメージ！`);
         GAME_DATA.player.hp -= damage;
         this.cameras.main.shake(200, 0.02);
     }
-    
     this.refreshStatus();
-    this.qteMode = null; // QTE終了
-
-    if (GAME_DATA.player.hp <= 0) {
-        GAME_DATA.player.hp = 0;
-        this.updateMessage(`目の前が真っ暗になった... (リロード)`);
-    } else {
-        this.time.delayedCall(1500, () => {
-            this.isPlayerTurn = true;
-            this.btnGroup.setVisible(true);
-            this.penaltyX.setVisible(false); // バツ印消去
-            this.playerSprite.clearTint();   // 色戻す
-            this.updateMessage(`${GAME_DATA.player.name} のターン`);
-        });
-    }
+    this.qteMode = null;
+    if (GAME_DATA.player.hp <= 0) { GAME_DATA.player.hp = 0; this.updateMessage(`目の前が真っ暗になった... (リロード)`); }
+    else { this.time.delayedCall(1500, () => { this.isPlayerTurn = true; this.mainMenu.setVisible(true); this.penaltyX.setVisible(false); this.playerSprite.clearTint(); this.updateMessage(`${GAME_DATA.player.name} のターン`); }); }
   }
 
   // --- 共通 ---
-  playerTurn(action, item = null) {
-    if (!this.isPlayerTurn) return;
-    this.isPlayerTurn = false;
-
-    if (action === 'heal') {
-        const heal = GAME_DATA.player.healPower;
-        GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + heal, GAME_DATA.player.maxHp);
-        this.updateMessage(`計算式を整理した。\nHPが ${heal} 回復！`);
-        this.checkBattleEnd();
-    } else if (action === 'item') {
-        if (item.type === 'heal') {
-            GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + item.value, GAME_DATA.player.maxHp);
-            this.updateMessage(`${item.name} を使った！\nHPが ${item.value} 回復！`);
-        } else if (item.type === 'super_atk') {
-            const damage = item.value;
-            this.currentEnemy.hp -= damage;
-            this.updateMessage(`${item.name} を投げた！\n${damage} のダメージ！`);
-        }
-        const index = GAME_DATA.player.items.indexOf(item);
-        if (index > -1) GAME_DATA.player.items.splice(index, 1);
-        this.checkBattleEnd();
-    }
-  }
-
   checkBattleEnd() {
     this.refreshStatus();
     if (this.currentEnemy.hp <= 0) {
@@ -365,15 +364,13 @@ class BattleScene extends Phaser.Scene {
   startBattle() {
     this.nextBtn.setVisible(false);
     this.nextBtnText.setVisible(false);
-    this.btnGroup.setVisible(true);
+    this.mainMenu.setVisible(true);
     const enemyData = ENEMY_LIST[Math.floor(Math.random() * ENEMY_LIST.length)];
     this.currentEnemy = { ...enemyData };
     this.currentEnemy.maxHp = enemyData.hp;
-
     this.enemySprite.setTexture(this.currentEnemy.key).setVisible(true);
     this.enemyHpText.setVisible(true);
     this.enemyNameText.setText(this.currentEnemy.name).setVisible(true);
-
     this.updateMessage(`${this.currentEnemy.name} があらわれた！`);
     this.isPlayerTurn = true;
     this.refreshStatus();
@@ -383,21 +380,13 @@ class BattleScene extends Phaser.Scene {
     this.enemySprite.setVisible(false);
     this.enemyHpText.setVisible(false);
     this.enemyNameText.setVisible(false);
-    this.penaltyX.setVisible(false); 
+    this.penaltyX.setVisible(false);
     this.playerSprite.clearTint();
-    
     GAME_DATA.player.exp += this.currentEnemy.exp;
     let msg = `${this.currentEnemy.name} を倒した！\nExp +${this.currentEnemy.exp}`;
-    if (this.currentEnemy.drop) {
-        GAME_DATA.player.items.push(this.currentEnemy.drop);
-        msg += `\n[${this.currentEnemy.drop.name}] Get!`;
-    }
+    if (this.currentEnemy.drop) { GAME_DATA.player.items.push(this.currentEnemy.drop); msg += `\n[${this.currentEnemy.drop.name}] Get!`; }
     if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) {
-        GAME_DATA.player.level++;
-        GAME_DATA.player.maxHp += 20;
-        GAME_DATA.player.hp = GAME_DATA.player.maxHp;
-        GAME_DATA.player.atk += 5;
-        GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5);
+        GAME_DATA.player.level++; GAME_DATA.player.maxHp += 20; GAME_DATA.player.hp = GAME_DATA.player.maxHp; GAME_DATA.player.atk += 0.5; GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5);
         msg += `\nLvUp! Lv${GAME_DATA.player.level}`;
     }
     this.updateMessage(msg);
@@ -406,42 +395,33 @@ class BattleScene extends Phaser.Scene {
   }
 
   createTextureFromText(key, art) {
-    const canvas = document.createElement('canvas');
-    canvas.width = art[0].length; canvas.height = art.length;
+    const canvas = document.createElement('canvas'); canvas.width = art[0].length; canvas.height = art.length;
     const ctx = canvas.getContext('2d');
-    for (let y = 0; y < art.length; y++) {
-      for (let x = 0; x < art[0].length; x++) {
-        if (PALETTE[art[y][x]]) { ctx.fillStyle = PALETTE[art[y][x]]; ctx.fillRect(x, y, 1, 1); }
-      }
-    }
+    for (let y = 0; y < art.length; y++) { for (let x = 0; x < art[0].length; x++) { if (PALETTE[art[y][x]]) { ctx.fillStyle = PALETTE[art[y][x]]; ctx.fillRect(x, y, 1, 1); } } }
     this.textures.addCanvas(key, canvas);
   }
-
   createButton(x, y, text, color, callback) {
     const btn = this.add.rectangle(x, y, 120, 50, color).setInteractive();
     this.add.text(x, y, text, { font: '20px Arial', color: '#ffffff' }).setOrigin(0.5);
     btn.on('pointerdown', callback);
     return btn;
   }
-
-  createMessageBox(w, h) {
-    this.add.rectangle(w / 2, h - 100, w - 20, 160, 0x000000).setStrokeStyle(4, 0xffffff);
-    this.messageText = this.add.text(30, h - 160, '', { font: '18px Arial', color: '#ffffff', wordWrap: { width: w - 60 } });
-  }
-
+  createMessageBox(w, h) { this.add.rectangle(w / 2, h - 100, w - 20, 160, 0x000000).setStrokeStyle(4, 0xffffff); this.messageText = this.add.text(30, h - 160, '', { font: '18px Arial', color: '#ffffff', wordWrap: { width: w - 60 } }); }
   updateMessage(t) { this.messageText.setText(t); }
-  
   refreshStatus() {
     this.playerNameText.setText(GAME_DATA.player.name);
     this.playerHpText.setText(`HP: ${GAME_DATA.player.hp} / ${GAME_DATA.player.maxHp}`);
     this.playerLvText.setText(`Lv: ${GAME_DATA.player.level}`);
     if(this.currentEnemy) this.enemyHpText.setText(`HP: ${Math.max(0, this.currentEnemy.hp)}`);
   }
-  
   openItemMenu() {
       if (!this.isPlayerTurn) return;
       if (GAME_DATA.player.items.length === 0) { this.updateMessage("なし"); return; }
-      this.playerTurn('item', GAME_DATA.player.items[GAME_DATA.player.items.length - 1]);
+      const item = GAME_DATA.player.items[GAME_DATA.player.items.length - 1];
+      this.updateMessage(`${item.name} を使った！`);
+      if(item.type==='heal') GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + item.value, GAME_DATA.player.maxHp);
+      GAME_DATA.player.items.splice(GAME_DATA.player.items.length - 1, 1);
+      this.checkBattleEnd();
   }
 }
 
