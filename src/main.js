@@ -75,8 +75,6 @@ const GAME_DATA = {
 class BaseScene extends Phaser.Scene {
   preload() {
     Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
-    // ※音源ファイルがない場合はエラーにならないようダミー処理を入れていますが
-    // public/sounds フォルダにファイルがあれば鳴ります
     this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
     this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
     this.load.audio('se_select', '/sounds/se_select.mp3');
@@ -93,11 +91,7 @@ class BaseScene extends Phaser.Scene {
     this.textures.addCanvas(key, cvs);
   }
 
-  playSound(key, config = {}) { 
-      if (this.sound.get(key) || this.cache.audio.exists(key)) {
-          this.sound.play(key, config);
-      }
-  }
+  playSound(key, config = {}) { if (this.sound.get(key) || this.cache.audio.exists(key)) this.sound.play(key, config); }
   
   playBGM(key) {
       const current = this.sound.getAll('bgm_world').concat(this.sound.getAll('bgm_battle'));
@@ -200,24 +194,19 @@ class BaseScene extends Phaser.Scene {
     vc.add([sh, bg, tx]);
     if (isPulse) this.tweens.add({ targets: vc, scale: 1.05, duration: 800, yoyo: true, repeat: -1 });
     
-    // 【修正】通常ボタンは即反応
     const hit = this.add.rectangle(0, 0, w+10, h+20, 0x000, 0).setInteractive();
     hit.on('pointerdown', () => { vc.setScale(0.95); this.vibrate(5); });
-    hit.on('pointerup', () => { 
-        vc.setScale(1.0); 
-        this.playSound('se_select'); 
-        cb(); 
-    });
+    hit.on('pointerup', () => { vc.setScale(1.0); this.playSound('se_select'); cb(); });
     hit.on('pointerout', () => vc.setScale(1.0));
     c.add([vc, hit]);
     return c;
   }
 
-  // 【完全修正】スクロールリスト用ボタン（ドラッグ判定強化）
+  // 【完全修正版】スクロールリスト用ボタン
+  // シーンの isDragging フラグを参照することで確実なクリック判定を行う
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
-    
     const sh = this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
@@ -227,26 +216,21 @@ class BaseScene extends Phaser.Scene {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
     }
-    
-    // 【修正】右側テキストの配置（ボタンコンテナ内に追加）
     if(rightText) {
+        // 右端に配置
         const rt = this.add.text((w/2) - 20, 0, rightText, { font: `22px ${GAME_FONT}`, color: '#ff0' }).setOrigin(1, 0.5);
         vc.add(rt);
-        c.rightTextObj = rt; // 参照用
+        c.rightTextObj = rt; // 後で色変更するために参照保持
     }
     
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
-    let startY = 0;
     
-    hit.on('pointerdown', (pointer) => { 
-        startY = pointer.y;
-        vc.setScale(0.95); 
-    });
+    hit.on('pointerdown', () => { vc.setScale(0.95); });
     
-    hit.on('pointerup', (pointer) => { 
+    hit.on('pointerup', () => { 
         vc.setScale(1.0); 
-        // 【修正】指の移動距離が10px未満ならクリックとみなす（グローバル変数に頼らない）
-        if (Math.abs(pointer.y - startY) < 10) {
+        // シーンがスクロール中（ドラッグ中）でなければクリックとみなす
+        if (!this.isDragging) {
             this.playSound('se_select'); 
             cb(); 
         }
@@ -271,6 +255,7 @@ class BaseScene extends Phaser.Scene {
     c.update = (v, m) => { const r = Math.min(1, v/m); bar.width = (w-2)*r; bar.fillColor = r>=1?0xfff:0xfa0; };
     c.add([bg, bar]); return c;
   }
+
   createApBar(x, y) {
       const container = this.add.container(x, y);
       const boxes = [];
@@ -285,15 +270,44 @@ class BaseScene extends Phaser.Scene {
       return container;
   }
 
+  // スクロールコンテナ初期化
   initScrollView(contentHeight, maskY, maskH) {
       this.scrollContainer = this.add.container(0, maskY);
       const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
       const mask = shape.createGeometryMask(); this.scrollContainer.setMask(mask);
+      
+      // 全画面タッチ判定用
       const hitZone = this.add.rectangle(this.scale.width/2, maskY + maskH/2, this.scale.width, maskH, 0x000000, 0).setInteractive();
-      const minScroll = Math.min(0, maskH - contentHeight - 50); const maxScroll = 0;
-      let isDragging = false; let dragStartY = 0; let containerStartY = 0;
-      this.input.on('pointerdown', (pointer) => { if (pointer.y >= maskY && pointer.y <= maskY + maskH) { isDragging = false; dragStartY = pointer.y; containerStartY = this.scrollContainer.y; } });
-      this.input.on('pointermove', (pointer) => { if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) { const diff = pointer.y - dragStartY; if (Math.abs(diff) > 10) isDragging = true; if (isDragging) { this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY); } } });
+      
+      const minScroll = Math.min(0, maskH - contentHeight - 50); 
+      const maxScroll = 0;
+      this.isDragging = false; 
+      let dragStartY = 0; 
+      let containerStartY = 0;
+
+      this.input.on('pointerdown', (pointer) => {
+          if (pointer.y >= maskY && pointer.y <= maskY + maskH) {
+              this.isDragging = false;
+              dragStartY = pointer.y;
+              containerStartY = this.scrollContainer.y;
+          }
+      });
+
+      this.input.on('pointermove', (pointer) => {
+          if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) {
+              const diff = pointer.y - dragStartY;
+              if (Math.abs(diff) > 10) this.isDragging = true;
+              if (this.isDragging) {
+                  this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY);
+              }
+          }
+      });
+      
+      this.input.on('pointerup', () => {
+          // ドラッグ終了後、少し待ってからフラグを下ろす（誤タップ防止）
+          this.time.delayedCall(50, () => { this.isDragging = false; });
+      });
+
       return this.scrollContainer;
   }
 }
@@ -439,7 +453,7 @@ class ShopScene extends BaseScene {
     let y = 50; 
     skillList.forEach((s) => {
         const has = GAME_DATA.player.ownedSkillIds.includes(s.id);
-        const spec = (s.type === 'heal') ? `回復力:${s.power}` : `威力:${s.power} / 速度:${s.speed}`;
+        const spec = (s.type === 'heal') ? `回復:${s.power}/AP:${s.apCost}` : `威力:${s.power}/AP:${s.apCost}`;
         const rightText = has ? "済" : `${s.cost}G`;
         
         const btn = this.createScrollableButton(w/2, y, s.name, has?0x333333:0x000000, () => {
@@ -728,43 +742,6 @@ class BattleScene extends BaseScene {
     this.tweens.add({ targets: this.qtxt, scale:1.5, duration:300, yoyo:true, onComplete:()=>{ this.qtxt.setVisible(false); this.executeAttack(res); }});
   }
 
-  // 【修正】Limit Breakが反応しない問題を修正（確実な実行）
-  activateLimitBreak() {
-    this.isPlayerTurn = false; 
-    GAME_DATA.player.stress = 0; 
-    this.refreshStatus();
-
-    this.vibrate(1000); 
-    this.cameras.main.flash(500, 255, 0, 0); 
-    this.cameras.main.shake(500, 0.05);      
-    this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
-    
-    // ダメージ計算と適用
-    const dmg = Math.floor(GAME_DATA.player.atk * 150); 
-    
-    // 確実に次へ進むように遅延実行
-    this.time.delayedCall(1500, () => { 
-        if ((this.ed.hp - dmg) <= 0) {
-             // WIN演出
-             this.cameras.main.zoomTo(1.5, 200); 
-             this.tweens.timeScale = 0.1;
-             this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
-             this.ed.hp -= dmg; 
-             this.showDamagePopup(this.es.x, this.es.y, dmg, true); 
-             this.refreshStatus();
-             this.time.delayedCall(1500, () => { 
-                 this.tweens.timeScale=1.0; 
-                 this.cameras.main.zoomTo(1.0, 500); 
-                 this.winBattle(); 
-             });
-        } else {
-             this.ed.hp -= dmg; 
-             this.showDamagePopup(this.es.x, this.es.y, dmg, true); 
-             this.checkEnd();
-        }
-    });
-  }
-
   executeAttack(res) {
     this.playSwordAnimation(() => {
         let dmg = this.selS.power * GAME_DATA.player.atk;
@@ -783,6 +760,30 @@ class BattleScene extends BaseScene {
         } else {
             this.playSound('se_attack'); this.vibrate(v); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, c);
             GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5); this.checkEnd();
+        }
+    });
+  }
+
+  // 【修正】ブチギレ演出と処理の確実な実行
+  activateLimitBreak() {
+    this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
+    this.refreshStatus(); // ゲージを空にする
+    
+    this.vibrate(1000); 
+    this.cameras.main.flash(500, 255, 0, 0); 
+    this.cameras.main.shake(500, 0.05);      
+    this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
+    
+    const dmg = Math.floor(GAME_DATA.player.atk * 150); 
+    
+    this.time.delayedCall(1500, () => { 
+        if ((this.ed.hp - dmg) <= 0) {
+             this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1;
+             this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
+             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
+             this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
+        } else {
+             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd();
         }
     });
   }
@@ -991,25 +992,3 @@ const config = {
   scene: [OpeningScene, TutorialScene, WorldScene, ShopScene, SkillScene, BattleScene, NormalClearScene, SecretBossIntroScene, TrueClearScene]
 };
 new Phaser.Game(config);
-``````json
-{
-  "name": "加藤先生RPG",
-  "short_name": "加藤先生",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "description": "数学の加藤先生が戦うターン制RPG",
-  "icons": [
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/1046/1046355.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/1046/1046355.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
