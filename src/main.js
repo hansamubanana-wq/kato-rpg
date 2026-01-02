@@ -72,7 +72,7 @@ class BaseScene extends Phaser.Scene {
   }
 
   hitStop(duration) {
-      this.tweens.timeScale = 0.1; 
+      this.tweens.timeScale = 0.05; 
       this.time.delayedCall(duration, () => {
           this.tweens.timeScale = 1.0; 
       });
@@ -105,10 +105,14 @@ class BaseScene extends Phaser.Scene {
       const graphics = this.add.graphics();
       graphics.lineStyle(4, 0xffff00);
       graphics.beginPath();
-      graphics.moveTo(x-20, y-20); graphics.lineTo(x-40, y-40);
-      graphics.moveTo(x+20, y-20); graphics.lineTo(x+40, y-40);
-      graphics.moveTo(x-20, y+20); graphics.lineTo(x-40, y+40);
-      graphics.moveTo(x+20, y+20); graphics.lineTo(x+40, y+40);
+      // 放射状の線
+      for(let i=0; i<8; i++){
+          const angle = i * (Math.PI / 4);
+          const c = Math.cos(angle);
+          const s = Math.sin(angle);
+          graphics.moveTo(x + c*20, y + s*20);
+          graphics.lineTo(x + c*50, y + s*50);
+      }
       graphics.strokePath();
       const circle = this.add.circle(x, y, 10, 0xffffff);
       this.tweens.add({
@@ -417,6 +421,47 @@ class BattleScene extends BaseScene {
     });
   }
 
+  // 【新規】剣生成アニメーション
+  playSwordAnimation(callback) {
+      // 剣（定規）の描画
+      const sword = this.add.graphics();
+      sword.fillStyle(0x00ffff, 0.8); // 水色に光る
+      sword.lineStyle(2, 0xffffff, 1);
+      // 三角定規のような形
+      sword.beginPath();
+      sword.moveTo(0,0);
+      sword.lineTo(20, -100);
+      sword.lineTo(40, 0);
+      sword.closePath();
+      sword.fillPath();
+      sword.strokePath();
+      
+      sword.x = this.playerSprite.x + 20;
+      sword.y = this.playerSprite.y - 20;
+      sword.angle = -30; // 構え
+      sword.setDepth(200);
+
+      // アニメーションシーケンス
+      this.tweens.chain({
+          targets: sword,
+          tweens: [
+              { angle: -60, duration: 200, ease: 'Back.Out' }, // 振りかぶり
+              { 
+                  angle: 120, // 一閃！
+                  x: this.enemySprite.x - 30,
+                  y: this.enemySprite.y,
+                  duration: 150, 
+                  ease: 'Quad.In',
+                  onComplete: () => {
+                      this.createImpactEffect(this.enemySprite.x, this.enemySprite.y);
+                      sword.destroy();
+                      callback();
+                  }
+              }
+          ]
+      });
+  }
+
   startAttackQTE(s) {
     this.isPlayerTurn = false; this.updateMessage(`${s.name}！\nタイミングよくタップせよ！`);
     const tx = this.enemySprite.x; const ty = this.enemySprite.y;
@@ -428,7 +473,7 @@ class BattleScene extends BaseScene {
             if (!this.qteActive) return;
             this.qteRingScale -= (0.03 * s.speed);
             this.qteRing.clear().lineStyle(4, 0xffff00).strokeCircle(tx, ty, 50 * this.qteRingScale);
-            // 【修正完了】縮みきったら強制ミスにしてループ終了
+            // 【修正】縮みすぎたら失敗にして終了
             if (this.qteRingScale <= 0.5) {
                 this.qteActive = false;
                 this.qteEvent.remove();
@@ -439,8 +484,8 @@ class BattleScene extends BaseScene {
   }
   resolveAttackQTE() {
     this.qteActive = false; this.qteEvent.remove(); this.qteRing.clear(); this.qteTarget.clear();
-    // 振動追加
-    this.vibrate(20);
+    // 【新規】止めた瞬間の振動
+    this.vibrate(20); 
     const d = Math.abs(this.qteRingScale - 1.0);
     if (d < 0.15) this.finishQTE('PERFECT'); else if (d < 0.4) this.finishQTE('GOOD'); else this.finishQTE('BAD');
   }
@@ -449,22 +494,24 @@ class BattleScene extends BaseScene {
     this.tweens.add({ targets: this.qteText, scale:1.5, duration:300, yoyo:true, onComplete:()=>{ this.qteText.setVisible(false); this.executeAttack(res); }});
   }
   executeAttack(res) {
-    let dmg = this.selectedSkill.power * GAME_DATA.player.atk;
-    let vibe = 50;
-    if (res==='PERFECT') { 
-        dmg = Math.floor(dmg*1.5); 
-        vibe = [50, 50, 300]; 
-        this.cameras.main.shake(300, 0.04);
-        this.hitStop(200); 
-    } 
-    else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); vibe = 20; }
-    
-    this.vibrate(vibe); 
-    this.enemyData.hp -= dmg;
-    this.updateMessage(`${dmg} ダメージ！`);
-    GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
-    this.tweens.add({targets:this.playerSprite, x:this.playerSprite.x+50, duration:100, yoyo:true});
-    this.checkEnd();
+    // 剣アニメーション再生 → 完了後にダメージ処理
+    this.playSwordAnimation(() => {
+        let dmg = this.selectedSkill.power * GAME_DATA.player.atk;
+        let vibe = 50;
+        if (res==='PERFECT') { 
+            dmg = Math.floor(dmg*1.5); 
+            vibe = [50, 50, 300]; 
+            this.cameras.main.shake(300, 0.04);
+            this.hitStop(200); 
+        } 
+        else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); vibe = 20; }
+        
+        this.vibrate(vibe); 
+        this.enemyData.hp -= dmg;
+        this.updateMessage(`${dmg} ダメージ！`);
+        GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
+        this.checkEnd();
+    });
   }
   executeHeal(s) {
     this.isPlayerTurn = false; const h = s.power;
