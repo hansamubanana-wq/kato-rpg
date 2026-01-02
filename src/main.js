@@ -70,13 +70,16 @@ class BattleScene extends Phaser.Scene {
     this.enemyNameText = this.add.text(width * 0.75, height * 0.4 - 50, '', { font: '20px Arial', color: '#ffaaaa' }).setOrigin(0.5);
     this.enemyHpText = this.add.text(width * 0.75, height * 0.4 + 50, '', { font: '24px Arial', color: '#ffaaaa' }).setOrigin(0.5);
 
-    // QTE用パーツ（Depthを大きくして最前面へ）
+    // QTE用パーツ
     this.qteTarget = this.add.graphics().setDepth(100);
     this.qteRing = this.add.graphics().setDepth(100);
     this.qteText = this.add.text(width/2, height/2 - 100, '', { font: '40px Arial', color: '#ffcc00', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(101);
     
     // 防御用シグナル
     this.guardSignal = this.add.text(width/2, height/2, '！', { font: '80px Arial', color: '#ff0000', stroke: '#fff', strokeThickness: 6 }).setOrigin(0.5).setVisible(false).setDepth(101);
+
+    // ペナルティ表示用（バツ印）
+    this.penaltyX = this.add.text(width * 0.25, height * 0.6, '×', { font: '80px Arial', color: '#ff0000', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setVisible(false).setDepth(200);
 
     // メッセージウィンドウ
     this.createMessageBox(width, height);
@@ -100,103 +103,121 @@ class BattleScene extends Phaser.Scene {
 
     // 初期化
     this.isPlayerTurn = true;
-    this.qteMode = null;
+    this.qteMode = null; 
     this.qteActive = false;
+    this.guardBroken = false; // お手つきフラグ
+
     this.refreshStatus();
     this.startBattle();
   }
 
   handleInput() {
-    if (!this.qteActive) return;
+    // 1. 攻撃QTE中
+    if (this.qteMode === 'attack' && this.qteActive) {
+        this.resolveAttackQTE();
+        return;
+    }
 
-    if (this.qteMode === 'attack') {
-      this.resolveAttackQTE();
-    } else if (this.qteMode === 'defense') {
-      this.resolveDefenseQTE();
+    // 2. 防御待機中（敵が構えている時）
+    if (this.qteMode === 'defense_wait') {
+        // ここで押すと「お手つき」！
+        this.triggerGuardPenalty();
+        return;
+    }
+
+    // 3. 防御QTE中（「！」が出ている瞬間）
+    if (this.qteMode === 'defense_active') {
+        this.resolveDefenseQTE();
+        return;
     }
   }
 
-  // --- 修正箇所：開始時に少し待つ ---
+  // --- お手つき（連打対策）処理 ---
+  triggerGuardPenalty() {
+      if (this.guardBroken) return; // 既に失敗していれば何もしない
+
+      this.guardBroken = true; // ガード不可状態にする
+      
+      // 視覚的フィードバック：バツ印とメッセージ
+      this.penaltyX.setVisible(true);
+      this.penaltyX.setAlpha(1);
+      this.playerSprite.setTint(0x888888); // プレイヤーを暗くする
+      
+      // 文字演出
+      this.qteText.setText("BAD TIMING");
+      this.qteText.setVisible(true);
+      this.qteText.setScale(1);
+      this.tweens.add({
+          targets: this.qteText,
+          y: this.qteText.y - 30,
+          alpha: 0,
+          duration: 600,
+          onComplete: () => {
+              this.qteText.setVisible(false);
+              this.qteText.y += 30;
+              this.qteText.setAlpha(1);
+          }
+      });
+
+      this.cameras.main.shake(100, 0.01); // 失敗した感を出す揺れ
+  }
+
+  // --- 攻撃QTE ---
   startAttackQTE() {
     if (!this.isPlayerTurn) return;
     this.isPlayerTurn = false;
     this.btnGroup.setVisible(false);
-    
     this.updateMessage("タイミングよくタップせよ！");
 
-    // ターゲット位置
     const targetX = this.enemySprite.x;
     const targetY = this.enemySprite.y;
     
-    // ターゲット円描画
     this.qteTarget.clear();
     this.qteTarget.lineStyle(4, 0xffffff);
     this.qteTarget.strokeCircle(targetX, targetY, 50);
     this.qteTarget.setVisible(true);
-
-    // リング初期化
     this.qteRing.clear();
     this.qteRingScale = 2.5; 
     this.qteMode = 'attack';
     
-    // 【重要】ボタンを押した指が離れるのを待つため、200ms後に判定開始
+    // 遅延開始
     this.time.delayedCall(200, () => {
         this.qteActive = true;
-        
-        // アニメーションループ開始
         this.qteEvent = this.time.addEvent({
-          delay: 16,
-          loop: true,
+          delay: 16, loop: true,
           callback: () => {
             if (!this.qteActive) return;
-            
             this.qteRingScale -= 0.04;
-            
             this.qteRing.clear();
             this.qteRing.lineStyle(4, 0xffff00);
             this.qteRing.strokeCircle(targetX, targetY, 50 * this.qteRingScale);
-
-            if (this.qteRingScale <= 0.5) {
-                this.finishQTE('MISS');
-            }
+            if (this.qteRingScale <= 0.5) this.finishQTE('MISS');
           }
         });
     });
   }
 
   resolveAttackQTE() {
-    // 判定処理などは同じ
     this.qteActive = false;
     if (this.qteEvent) this.qteEvent.remove();
     this.qteRing.clear();
     this.qteTarget.clear();
-
     const diff = Math.abs(this.qteRingScale - 1.0);
-    
-    if (diff < 0.15) {
-        this.finishQTE('PERFECT');
-    } else if (diff < 0.4) {
-        this.finishQTE('GOOD');
-    } else {
-        this.finishQTE('BAD');
-    }
+    if (diff < 0.15) this.finishQTE('PERFECT');
+    else if (diff < 0.4) this.finishQTE('GOOD');
+    else this.finishQTE('BAD');
   }
 
   finishQTE(result) {
     this.qteText.setText(result);
     this.qteText.setVisible(true);
     this.qteText.setScale(0);
-    
     this.tweens.add({
         targets: this.qteText,
-        scale: 1.5,
-        duration: 300,
-        yoyo: true,
+        scale: 1.5, duration: 300, yoyo: true,
         onComplete: () => {
             this.qteText.setVisible(false);
-            if (this.qteMode === 'attack') {
-                this.executeAttack(result);
-            }
+            if (this.qteMode === 'attack') this.executeAttack(result);
         }
     });
   }
@@ -204,66 +225,62 @@ class BattleScene extends Phaser.Scene {
   executeAttack(rank) {
     let damage = GAME_DATA.player.atk;
     let msg = "";
-
-    if (rank === 'PERFECT') {
-        damage = Math.floor(damage * 1.5);
-        msg = "会心の一撃！！";
-        this.cameras.main.shake(200, 0.03);
-    } else if (rank === 'GOOD') {
-        msg = "ナイスタイミング！";
-    } else if (rank === 'BAD' || rank === 'MISS') {
-        damage = Math.floor(damage * 0.5);
-        msg = "タイミングが悪い...";
-    }
+    if (rank === 'PERFECT') { damage = Math.floor(damage * 1.5); msg = "会心の一撃！！"; this.cameras.main.shake(200, 0.03); }
+    else if (rank === 'GOOD') { msg = "ナイスタイミング！"; }
+    else if (rank === 'BAD' || rank === 'MISS') { damage = Math.floor(damage * 0.5); msg = "タイミングが悪い..."; }
 
     this.currentEnemy.hp -= damage;
     this.updateMessage(`${msg}\n${damage} のダメージ！`);
-    
-    this.tweens.add({
-        targets: this.playerSprite,
-        x: this.playerSprite.x + 50,
-        duration: 100,
-        yoyo: true
-    });
-
+    this.tweens.add({ targets: this.playerSprite, x: this.playerSprite.x + 50, duration: 100, yoyo: true });
     this.checkBattleEnd();
   }
 
+  // --- 敵ターン（防御QTE） ---
   startEnemyTurn() {
     if (this.currentEnemy.hp <= 0) return;
     
+    // 状態リセット
     this.updateMessage(`${this.currentEnemy.name} が攻撃を構えた...`);
+    this.qteMode = 'defense_wait'; // 「待て」の状態
+    this.guardBroken = false;      // お手つきフラグ解除
+    this.penaltyX.setVisible(false);
+    this.playerSprite.clearTint();
     
-    const delay = Phaser.Math.Between(1000, 2000);
+    const delay = Phaser.Math.Between(1000, 2500); // 溜め時間をランダムに
     
     this.time.delayedCall(delay, () => {
+        // もし「お手つき」してたら、「！」が出ても反応させない
+        if (this.guardBroken) {
+             // 失敗確定状態で攻撃実行へ
+             this.executeDefense(false);
+             return;
+        }
+
+        // 通常通り「！」を出す
         this.guardSignal.setVisible(true);
         this.guardSignal.setScale(1);
-        this.qteMode = 'defense';
-        this.qteActive = true;
+        this.qteMode = 'defense_active'; // 「押せ！」の状態
 
         this.time.delayedCall(400, () => {
-            if (this.qteActive) {
-                this.qteActive = false;
+            if (this.qteMode === 'defense_active') {
                 this.guardSignal.setVisible(false);
-                this.executeDefense(false);
+                this.qteMode = null;
+                this.executeDefense(false); // 時間切れ
             }
         });
     });
   }
 
   resolveDefenseQTE() {
-    this.qteActive = false;
     this.guardSignal.setVisible(false);
+    this.qteMode = null;
     
     this.qteText.setText("BLOCK!");
     this.qteText.setVisible(true);
     this.qteText.setScale(1);
     this.tweens.add({
         targets: this.qteText,
-        y: this.qteText.y - 50,
-        alpha: 0,
-        duration: 500,
+        y: this.qteText.y - 50, alpha: 0, duration: 500,
         onComplete: () => {
             this.qteText.setVisible(false);
             this.qteText.setAlpha(1);
@@ -277,23 +294,24 @@ class BattleScene extends Phaser.Scene {
   executeDefense(success) {
     let damage = this.currentEnemy.atk;
     
-    this.tweens.add({
-        targets: this.enemySprite,
-        x: this.enemySprite.x - 50,
-        duration: 100,
-        yoyo: true
-    });
+    this.tweens.add({ targets: this.enemySprite, x: this.enemySprite.x - 50, duration: 100, yoyo: true });
 
     if (success) {
         damage = 0;
         this.updateMessage(`見事に見切った！\nダメージ 0！`);
     } else {
+        // お手つきしていた場合はメッセージを変える
+        if (this.guardBroken) {
+            this.updateMessage(`体勢が崩れている！\n${damage} のダメージ！`);
+        } else {
+            this.updateMessage(`直撃を受けた！\n${damage} のダメージ！`);
+        }
         GAME_DATA.player.hp -= damage;
-        this.updateMessage(`直撃を受けた！\n${damage} のダメージ！`);
         this.cameras.main.shake(200, 0.02);
     }
     
     this.refreshStatus();
+    this.qteMode = null; // QTE終了
 
     if (GAME_DATA.player.hp <= 0) {
         GAME_DATA.player.hp = 0;
@@ -302,11 +320,14 @@ class BattleScene extends Phaser.Scene {
         this.time.delayedCall(1500, () => {
             this.isPlayerTurn = true;
             this.btnGroup.setVisible(true);
+            this.penaltyX.setVisible(false); // バツ印消去
+            this.playerSprite.clearTint();   // 色戻す
             this.updateMessage(`${GAME_DATA.player.name} のターン`);
         });
     }
   }
 
+  // --- 共通 ---
   playerTurn(action, item = null) {
     if (!this.isPlayerTurn) return;
     this.isPlayerTurn = false;
@@ -362,6 +383,8 @@ class BattleScene extends Phaser.Scene {
     this.enemySprite.setVisible(false);
     this.enemyHpText.setVisible(false);
     this.enemyNameText.setVisible(false);
+    this.penaltyX.setVisible(false); 
+    this.playerSprite.clearTint();
     
     GAME_DATA.player.exp += this.currentEnemy.exp;
     let msg = `${this.currentEnemy.name} を倒した！\nExp +${this.currentEnemy.exp}`;
