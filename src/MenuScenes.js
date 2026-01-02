@@ -10,7 +10,6 @@ export class OpeningScene extends BaseScene {
     const w = this.scale.width; const h = this.scale.height;
     this.add.rectangle(w/2, h/2, w, h, 0x000000);
 
-    // タイトルロゴ
     this.add.text(w/2, h*0.2, "私立青稜中学校", { font: `32px ${GAME_FONT}`, color: '#aaa' }).setOrigin(0.5);
     this.add.text(w/2, h*0.28, "ＲＰＧ", { font: `60px ${GAME_FONT}`, color: '#fff', stroke:'#00f', strokeThickness:6 }).setOrigin(0.5);
 
@@ -35,10 +34,8 @@ export class OpeningScene extends BaseScene {
         onComplete: () => {}
     });
 
-    // STARTボタン
     this.createButton(w/2, h - 140, 'START', 0xcc3333, () => this.transitionTo('TutorialScene'), 200, 60);
 
-    // アプリ化説明ボタン
     const installBtn = this.add.text(w/2, h - 50, "【アプリとして保存する方法】", { font: `16px ${GAME_FONT}`, color: '#0ff', underline: true }).setOrigin(0.5).setInteractive();
     installBtn.on('pointerdown', () => {
         const modal = this.add.container(0, 0).setDepth(100);
@@ -56,7 +53,6 @@ export class OpeningScene extends BaseScene {
 export class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
   create() {
-    // すぐに実践チュートリアル（BattleSceneの特殊モード）へ飛ばす
     this.transitionTo('BattleScene', { isTutorial: true });
   }
 }
@@ -145,6 +141,7 @@ export class ShopScene extends BaseScene {
 
       const itemHeight = 90;
       const contentHeight = items.length * itemHeight + 50;
+      // BaseSceneの新しいinitScrollViewを使用
       this.listContainer = this.initScrollView(contentHeight, 150, h - 230);
       let y = 50; 
       items.forEach((item) => {
@@ -245,14 +242,106 @@ export class SecretBossIntroScene extends BaseScene {
   }
 }
 
+// 【豪華版】エンディング
 export class TrueClearScene extends BaseScene {
   constructor() { super('TrueClearScene'); }
+
   create() {
-    this.fadeInScene();
-    const w = this.scale.width; const h = this.scale.height;
-    this.add.rectangle(w/2, h/2, w, h, 0xffffff); 
-    this.add.text(w/2, h*0.3, "祝・完全制覇！", {font:`40px ${GAME_FONT}`, color:'#000', stroke:'#fff', strokeThickness:4}).setOrigin(0.5);
-    this.add.text(w/2, h*0.5, "青稜中学校は\n加藤先生の手によって\n真の姿を取り戻した！\n\nThank you for playing!", {font:`24px ${GAME_FONT}`, color:'#000', align:'center'}).setOrigin(0.5);
-    this.createButton(w/2, h*0.8, 'タイトルへ戻る', 0x555555, () => { location.reload(); });
+    this.sound.stopAll();
+    this.playSound('se_win');
+    this.time.delayedCall(2000, () => {
+        this.playBGM('bgm_world');
+    });
+
+    this.cameras.main.fadeIn(2000, 255, 255, 255);
+    const w = this.scale.width;
+    const h = this.scale.height;
+
+    // 1. 背景：平和な青空と校舎
+    this.createGameBackground('world');
+    const sky = this.add.graphics();
+    sky.fillGradientStyle(0x88ccff, 0x88ccff, 0xffffff, 0xffffff, 1);
+    sky.fillRect(0, 0, w, h * 0.6);
+    sky.setDepth(-50);
+
+    // 2. エフェクト：紙吹雪
+    if (!this.textures.exists('particle_confetti')) {
+        const cvs = document.createElement('canvas'); cvs.width=4; cvs.height=4;
+        const ctx = cvs.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,4,4);
+        this.textures.addCanvas('particle_confetti', cvs);
+    }
+    const emitter = this.add.particles(0, 0, 'particle_confetti', {
+        x: { min: 0, max: w },
+        y: -50,
+        lifespan: 4000,
+        gravityY: 50, speedX: { min: -20, max: 20 },
+        scale: { start: 1.5, end: 0.5 },
+        rotate: { min: 0, max: 360 },
+        tint: [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff],
+        quantity: 2, frequency: 100
+    });
+    emitter.setDepth(-10);
+
+    // 3. キャラクター集合
+    const charaY = h * 0.65;
+    const chars = [];
+
+    // ステージの敵キャラを並べる（一部除く）
+    let bossCount = 0;
+    STAGES.forEach((stage, i) => {
+        if (stage.key !== 'dozo' && stage.key !== 'kingetsu') { 
+             const spr = this.add.sprite(w * 0.1 + (i%5) * 50, charaY - Math.floor(i/5)*30, stage.key).setScale(3.5).setAlpha(0.9);
+             this.startIdleAnimation(spr);
+             chars.push(spr);
+        }
+    });
+
+    // 主人公（中央）
+    const kato = this.add.sprite(w/2, charaY - 40, 'kato').setScale(8);
+    this.startIdleAnimation(kato);
+    chars.push(kato);
+
+    chars.forEach((c, i) => {
+        const targetY = c.y;
+        c.y += 300;
+        this.tweens.add({
+            targets: c, y: targetY, duration: 1500, ease: 'Back.Out', delay: 500 + i * 50
+        });
+    });
+
+    // 4. テキスト
+    const titleText = this.add.text(w/2, h*0.15, "祝・完全制覇！", {
+        font:`48px ${GAME_FONT}`, color:'#ffcc00', stroke:'#000', strokeThickness:6
+    }).setOrigin(0.5).setScale(0).setDepth(100);
+
+    this.tweens.add({ targets: titleText, scale: 1, duration: 1200, ease: 'Elastic.Out', delay: 2000 });
+
+    const message = 
+`青稜中学校に、真の平和が訪れた。
+
+反抗期パンデミックは収束し、
+生徒たちの笑顔が戻ってきた。
+
+これも全て、
+加藤先生の熱い指導のおかげである。
+
+Thank you for playing!`;
+
+    const msgText = this.add.text(w/2, h*0.45, message, {
+        font:`20px ${GAME_FONT}`, color:'#fff', stroke:'#000', strokeThickness:3, align:'center', lineSpacing: 12
+    }).setOrigin(0.5, 0).setAlpha(0).setDepth(100);
+
+    this.tweens.add({ targets: msgText, alpha: 1, y: h*0.4, duration: 2500, delay: 3500 });
+
+    // 5. 戻るボタン
+    this.time.delayedCall(7000, () => {
+        const btn = this.createButton(w/2, h*0.9, 'タイトルへ戻る', 0x555555, () => {
+            this.cameras.main.fadeOut(1000, 0,0,0);
+            this.cameras.main.once('camerafadeoutcomplete', () => { location.reload(); });
+        }, 200, 50).setAlpha(0);
+        this.tweens.add({ targets: btn, alpha: 1, duration: 1000 });
+    });
+
+    this.cameras.main.zoomTo(1.05, 15000, 'Linear', true);
   }
 }
