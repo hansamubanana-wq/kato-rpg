@@ -113,7 +113,6 @@ export class BattleScene extends BaseScene {
     }
   }
 
-  // --- チュートリアル ---
   startTutorialStep1() {
       this.tutorialStep = 1;
       this.updateMessage("まずは攻撃だ！\n「コマンド」をタップ！");
@@ -154,7 +153,6 @@ export class BattleScene extends BaseScene {
       });
   }
 
-  // --- ロジック ---
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
@@ -275,6 +273,8 @@ export class BattleScene extends BaseScene {
       if (s.type === 'heal') this.executeHeal(s); 
       else {
           if (this.isTutorial && this.tutorialStep === 2) this.startTutorialStep3();
+          // 【強化】カメラズーム演出
+          this.cameras.main.zoomTo(1.2, 200, 'Sine.easeInOut');
           this.startAttackQTE(s); 
       }
   }
@@ -289,98 +289,34 @@ export class BattleScene extends BaseScene {
       }
   }
 
-  // --- ★ここが新しくなったアニメーション関数！ ---
   playSwordAnimation(cb) {
       const animType = this.selS ? this.selS.anim : 'normal';
       const s = this.add.graphics(); 
       s.setDepth(200);
 
-      // 1. 出席確認 (チェックマーク)
+      // (アニメーション処理は変更なしですが、context保持のため記載)
       if (animType === 'check') {
-          s.lineStyle(8, 0x00ff00);
-          s.beginPath();
-          const startX = this.es.x - 40; const startY = this.es.y;
-          s.moveTo(startX, startY);
-          
-          this.tweens.addCounter({
-              from: 0, to: 100, duration: 300,
-              onUpdate: (tw) => {
-                  s.clear(); s.lineStyle(8, 0x00ff00); s.beginPath(); s.moveTo(startX, startY);
-                  const p = tw.getValue();
-                  if(p < 40) s.lineTo(startX + p, startY + p);
-                  else { s.lineTo(startX + 40, startY + 40); s.lineTo(startX + 40 + (p-40)*1.5, startY + 40 - (p-40)*2.5); }
-                  s.strokePath();
-              },
-              onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); }
-          });
-      }
-      // 2. チョーク (白い弾丸)
-      else if (animType === 'chalk') {
+          s.lineStyle(8, 0x00ff00); s.beginPath(); const startX = this.es.x - 40; const startY = this.es.y; s.moveTo(startX, startY);
+          this.tweens.addCounter({ from: 0, to: 100, duration: 300, onUpdate: (tw) => { s.clear(); s.lineStyle(8, 0x00ff00); s.beginPath(); s.moveTo(startX, startY); const p = tw.getValue(); if(p < 40) s.lineTo(startX + p, startY + p); else { s.lineTo(startX + 40, startY + 40); s.lineTo(startX + 40 + (p-40)*1.5, startY + 40 - (p-40)*2.5); } s.strokePath(); }, onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } });
+      } else if (animType === 'chalk') {
           const chalk = this.add.rectangle(this.ps.x, this.ps.y, 40, 10, 0xffffff).setDepth(200);
-          this.tweens.add({
-              targets: chalk, x: this.es.x, y: this.es.y, angle: 360, duration: 300, ease: 'Linear',
-              onComplete: () => { chalk.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); }
-          });
-      }
-      // 3. 本 (サクシード/宿題)
-      else if (animType === 'book') {
+          this.tweens.add({ targets: chalk, x: this.es.x, y: this.es.y, angle: 360, duration: 300, ease: 'Linear', onComplete: () => { chalk.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); } });
+      } else if (animType === 'book') {
           const book = this.add.rectangle(this.es.x, this.es.y - 300, 80, 100, 0x3366cc).setStrokeStyle(4, 0xffffff).setDepth(200);
-          this.tweens.add({
-              targets: book, y: this.es.y, angle: 20, duration: 400, ease: 'Bounce.Out',
-              onComplete: () => { 
-                  this.cameras.main.shake(100, 0.05); 
-                  book.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); 
-              }
-          });
-      }
-      // 4. 早弁/回復 (ハート)
-      else if (animType === 'food') {
-          const h1 = this.add.text(this.ps.x, this.ps.y, "🍞", {fontSize:'40px'}).setDepth(200);
-          const h2 = this.add.text(this.ps.x, this.ps.y, "🥛", {fontSize:'40px'}).setDepth(200);
-          this.tweens.add({ targets: h1, y: this.ps.y-100, x: this.ps.x-30, alpha: 0, duration: 800 });
-          this.tweens.add({ targets: h2, y: this.ps.y-100, x: this.ps.x+30, alpha: 0, duration: 800, delay: 200, onComplete: () => { cb(); } });
-      }
-      // 5. 校庭10周 (砂煙)
-      else if (animType === 'run') {
-          const dusts = [];
-          for(let i=0; i<5; i++) {
-              const d = this.add.circle(this.es.x + (Math.random()-0.5)*100, this.es.y+50, 15, 0xaaaaaa, 0.8).setDepth(200);
-              dusts.push(d);
-              this.tweens.add({
-                  targets: d, scale: 2, alpha: 0, y: d.y-50, duration: 600, delay: i*100,
-                  onComplete: () => { d.destroy(); if(i===4) cb(); }
-              });
-          }
-      }
-      // 既存アニメーション (rapid)
-      else if (animType === 'rapid') {
-          s.clear();
-          this.tweens.addCounter({
-              from: 0, to: 5, duration: 400,
-              onUpdate: (tw) => {
-                  const val = tw.getValue();
-                  const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100;
-                  s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath();
-              },
-              onComplete: () => { s.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); }
-          });
-      } 
-      // 既存アニメーション (heavy)
-      else if (animType === 'heavy') {
-          s.fillStyle(0xffaa00, 1).fillCircle(0,0,50); s.y -= 200; s.x = this.ps.x;
-          this.tweens.add({ targets: s, x: this.es.x, y: this.es.y, duration: 300, ease: 'Bounce.Out', onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); cb(); } });
-      } 
-      // 既存アニメーション (magic)
-      else if (animType === 'magic') {
-          s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10); s.x = this.ps.x; s.y = this.ps.y;
-          this.tweens.add({ targets: s, scale: 5, alpha: 0, duration: 500, onComplete: () => { s.destroy(); cb(); } });
-      } 
-      // デフォルト (normal)
-      else {
-          s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1);
-          s.x = this.ps.x; s.y = this.ps.y;
-          s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.angle = -30;
-          this.tweens.chain({ targets: s, tweens: [ { angle: -60, duration: 200, ease: 'Back.Out' }, { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } } ] });
+          this.tweens.add({ targets: book, y: this.es.y, angle: 20, duration: 400, ease: 'Bounce.Out', onComplete: () => { this.cameras.main.shake(100, 0.05); book.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); } });
+      } else if (animType === 'food') {
+          const h1 = this.add.text(this.ps.x, this.ps.y, "🍞", {fontSize:'40px'}).setDepth(200); const h2 = this.add.text(this.ps.x, this.ps.y, "🥛", {fontSize:'40px'}).setDepth(200);
+          this.tweens.add({ targets: h1, y: this.ps.y-100, x: this.ps.x-30, alpha: 0, duration: 800 }); this.tweens.add({ targets: h2, y: this.ps.y-100, x: this.ps.x+30, alpha: 0, duration: 800, delay: 200, onComplete: () => { cb(); } });
+      } else if (animType === 'run') {
+          const dusts = []; for(let i=0; i<5; i++) { const d = this.add.circle(this.es.x + (Math.random()-0.5)*100, this.es.y+50, 15, 0xaaaaaa, 0.8).setDepth(200); dusts.push(d); this.tweens.add({ targets: d, scale: 2, alpha: 0, y: d.y-50, duration: 600, delay: i*100, onComplete: () => { d.destroy(); if(i===4) cb(); } }); }
+      } else if (animType === 'rapid') {
+          s.clear(); this.tweens.addCounter({ from: 0, to: 5, duration: 400, onUpdate: (tw) => { const val = tw.getValue(); const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100; s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath(); }, onComplete: () => { s.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); } });
+      } else if (animType === 'heavy') {
+          s.fillStyle(0xffaa00, 1).fillCircle(0,0,50); s.y -= 200; s.x = this.ps.x; this.tweens.add({ targets: s, x: this.es.x, y: this.es.y, duration: 300, ease: 'Bounce.Out', onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); cb(); } });
+      } else if (animType === 'magic') {
+          s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10); s.x = this.ps.x; s.y = this.ps.y; this.tweens.add({ targets: s, scale: 5, alpha: 0, duration: 500, onComplete: () => { s.destroy(); cb(); } });
+      } else {
+          s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1); s.x = this.ps.x; s.y = this.ps.y; s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.angle = -30; this.tweens.chain({ targets: s, tweens: [ { angle: -60, duration: 200, ease: 'Back.Out' }, { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } } ] });
       }
   }
 
@@ -416,11 +352,25 @@ export class BattleScene extends BaseScene {
 
   executeAttack(res) {
     this.playSwordAnimation(() => {
+        // 攻撃終了後にカメラを戻す
+        this.cameras.main.zoomTo(1.0, 200);
+
         let dmg = this.selS.power * GAME_DATA.player.atk;
         let v = 50; let c = false;
-        if (res==='PERFECT') { dmg = Math.floor(dmg*1.5); v = [50, 50, 300]; this.cameras.main.shake(300, 0.04); this.hitStop(200); c = true; } 
-        else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); v = 20; }
-        else if (res==='MISS') { dmg = 0; }
+        
+        // 【強化】ヒット時の演出分岐
+        if (res==='PERFECT') { 
+            dmg = Math.floor(dmg*1.5); v = [50, 50, 300]; 
+            this.cameras.main.shake(300, 0.04); 
+            this.hitStop(200); // 完璧ならしっかり止める
+            this.damageFlash(this.es); // 敵を光らせる
+            c = true; 
+        } else if (res!=='GOOD') { 
+            dmg = Math.floor(dmg*0.5); v = 20; 
+        } else if (res==='MISS') { 
+            dmg = 0; 
+        }
+        
         if(this.isTutorial && dmg===0) dmg = 10;
 
         if ((this.ed.hp - dmg) <= 0) {
@@ -432,7 +382,11 @@ export class BattleScene extends BaseScene {
             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
             this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
         } else {
-            this.playSound('se_attack'); this.vibrate(v); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, c);
+            if(dmg > 0) {
+                this.playSound('se_attack'); 
+                this.damageFlash(this.es); // ダメージがあれば敵を光らせる
+            }
+            this.vibrate(v); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, c);
             if (this.selS.status) {
                 this.ed.status = this.selS.status;
                 const txt = this.selS.status==='sleep'?"居眠り": "炎上";
@@ -456,6 +410,8 @@ export class BattleScene extends BaseScene {
           const baseDmg = GAME_DATA.player.atk * 100; const percDmg = this.ed.maxHp * 0.2; const dmg = Math.floor(baseDmg + percDmg); 
           this.selS = { anim: 'heavy' };
           this.playSwordAnimation(() => {
+              this.hitStop(300); // 必殺技は重く
+              this.damageFlash(this.es);
               if ((this.ed.hp - dmg) <= 0) { this.createExplosion(this.es.x, this.es.y); this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1; this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); }); } 
               else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd(); }
           });
@@ -484,7 +440,7 @@ export class BattleScene extends BaseScene {
   }
 
   startEnemyTurn() {
-    if (this.ed.status === 'burn') { const dmg = Math.floor(this.ed.maxHp * 0.05); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, false); this.showStatusPopup(this.es.x, this.es.y - 80, "炎上ダメージ"); this.refreshStatus(); if (this.ed.hp <= 0) { this.winBattle(); return; } }
+    if (this.ed.status === 'burn') { const dmg = Math.floor(this.ed.maxHp * 0.05); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, false); this.showStatusPopup(this.es.x, this.es.y - 80, "炎上ダメージ"); this.damageFlash(this.es); this.refreshStatus(); if (this.ed.hp <= 0) { this.winBattle(); return; } }
     if (this.ed.status === 'sleep') { this.ed.status = null; this.showStatusPopup(this.es.x, this.es.y - 50, "Zzz..."); this.updateMessage(`${this.ed.name} は眠っている`); this.time.delayedCall(1500, () => this.endEnemyTurn()); return; }
 
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
@@ -511,15 +467,33 @@ export class BattleScene extends BaseScene {
   launchAttack() {
       if (this.guardBroken) { this.executeDefense(false); return; }
       this.qteMode = 'defense_active'; this.gs.setVisible(true);
+      // 【強化】敵攻撃時にズームイン
+      this.cameras.main.zoomTo(1.1, 200);
       this.eat = this.tweens.add({
           targets: this.es, x: this.ps.x + 50, duration: this.isTutorial ? 600 : 300, 
           ease: 'Expo.In',
           onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
       });
   }
-  launchRapidAttack() { if (this.rapidCount <= 0) { if (this.perfectGuardChain) this.triggerCounterAttack(); else this.time.delayedCall(500, () => this.endEnemyTurn()); return; } if (this.guardBroken) { this.executeDefense(false, true); return; } this.qteMode = 'defense_active'; this.gs.setVisible(true); this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }); }
-  launchStatusAttack() { if (this.guardBroken) { this.executeDefense(false); return; } this.qteMode = 'defense_active'; this.gs.setVisible(true); this.es.setTint(0xff00ff); this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 500, ease: 'Quad.InOut', onComplete: () => { this.es.clearTint(); if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); }
-  launchDelayAttack() { if (this.guardBroken) { this.executeDefense(false); return; } this.qteMode = 'defense_active'; this.gs.setVisible(true); this.tweens.add({ targets: this.es, x: this.ps.x + 150, duration: 400, ease: 'Quad.Out', onComplete: () => { this.time.delayedCall(Phaser.Math.Between(400, 1000), () => { if (this.guardBroken) return; this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 100, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); }); } }); }
+  launchRapidAttack() { 
+      if (this.rapidCount <= 0) { if (this.perfectGuardChain) this.triggerCounterAttack(); else this.time.delayedCall(500, () => this.endEnemyTurn()); return; } 
+      if (this.guardBroken) { this.executeDefense(false, true); return; } 
+      this.qteMode = 'defense_active'; this.gs.setVisible(true); 
+      this.cameras.main.zoomTo(1.1, 200);
+      this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }); 
+  }
+  launchStatusAttack() { 
+      if (this.guardBroken) { this.executeDefense(false); return; } 
+      this.qteMode = 'defense_active'; this.gs.setVisible(true); this.es.setTint(0xff00ff); 
+      this.cameras.main.zoomTo(1.1, 200);
+      this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 500, ease: 'Quad.InOut', onComplete: () => { this.es.clearTint(); if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); 
+  }
+  launchDelayAttack() { 
+      if (this.guardBroken) { this.executeDefense(false); return; } 
+      this.qteMode = 'defense_active'; this.gs.setVisible(true); 
+      this.cameras.main.zoomTo(1.1, 200);
+      this.tweens.add({ targets: this.es, x: this.ps.x + 150, duration: 400, ease: 'Quad.Out', onComplete: () => { this.time.delayedCall(Phaser.Math.Between(400, 1000), () => { if (this.guardBroken) return; this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 100, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); }); } }); 
+  }
 
   resolveDefenseQTE() {
     this.gs.setVisible(false); this.qteMode = null; if (this.eat) this.eat.stop();
@@ -527,6 +501,8 @@ export class BattleScene extends BaseScene {
     this.cameras.main.flash(100, 255, 255, 255); 
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
+    // パリィ成功時にカメラを戻す
+    this.cameras.main.zoomTo(1.0, 200);
     if (this.rapidCount > 0) this.executeDefense(true, true); else this.executeDefense(true, false);
   }
 
@@ -541,6 +517,9 @@ export class BattleScene extends BaseScene {
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
         this.tweens.add({ targets: this.es, x: this.ebx, duration: 150, ease: 'Back.Out' });
     } else { 
+        // 失敗時、プレイヤーが光って揺れる
+        this.damageFlash(this.ps);
+        this.cameras.main.zoomTo(1.0, 200);
         this.perfectGuardChain = false;
         if (this.currentAttackType === 'status') { const rnd = Math.random(); if (rnd < 0.5) { GAME_DATA.player.status = 'burn'; this.showStatusPopup(this.ps.x, this.ps.y - 50, "炎上した！"); } else { GAME_DATA.player.status = 'sleep'; this.showStatusPopup(this.ps.x, this.ps.y - 50, "眠らされた！"); } }
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
@@ -570,6 +549,8 @@ export class BattleScene extends BaseScene {
           this.updateMessage("見切った！ カウンター！");
           this.playSwordAnimation(() => {
               let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
+              this.hitStop(300); // カウンターは重く
+              this.damageFlash(this.es);
               if ((this.ed.hp - dmg) <= 0) { this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1; this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack'); const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0); this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' }); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); }); } 
               else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.playSound('se_attack'); this.vibrate([50, 50, 100]); this.refreshStatus(); this.time.delayedCall(1000, () => this.endEnemyTurn()); }
           });
@@ -577,7 +558,7 @@ export class BattleScene extends BaseScene {
   }
 
   endEnemyTurn() {
-      if (GAME_DATA.player.status === 'burn') { const dmg = Math.floor(GAME_DATA.player.maxHp * 0.05); GAME_DATA.player.hp -= dmg; this.showDamagePopup(this.ps.x, this.ps.y, dmg, false); this.showStatusPopup(this.ps.x, this.ps.y - 80, "炎上中..."); this.refreshStatus(); if (GAME_DATA.player.hp <= 0) { this.updateMessage("敗北... (クリックで戻る)"); this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); }); return; } }
+      if (GAME_DATA.player.status === 'burn') { const dmg = Math.floor(GAME_DATA.player.maxHp * 0.05); GAME_DATA.player.hp -= dmg; this.showDamagePopup(this.ps.x, this.ps.y, dmg, false); this.showStatusPopup(this.ps.x, this.ps.y - 80, "炎上中..."); this.damageFlash(this.ps); this.refreshStatus(); if (GAME_DATA.player.hp <= 0) { this.updateMessage("敗北... (クリックで戻る)"); this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); }); return; } }
       if (GAME_DATA.player.status === 'sleep') { GAME_DATA.player.status = null; this.showStatusPopup(this.ps.x, this.ps.y - 50, "Zzz...(行動不能)"); this.updateMessage("眠っていて動けない！"); this.time.delayedCall(1500, () => this.startEnemyTurn()); return; }
 
       this.isPlayerTurn = true; 
@@ -588,7 +569,6 @@ export class BattleScene extends BaseScene {
       if(this.isTutorial) {
           this.updateMessage("さあ、反撃だ！\n好きなように戦え！");
           this.tutorialLayer.setVisible(false); 
-          
           this.tutorialFreeMode = true;
       } else {
           this.updateMessage("ターン開始"); 

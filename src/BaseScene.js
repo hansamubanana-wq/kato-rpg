@@ -3,10 +3,8 @@ import { GAME_FONT, P, ARTS } from './data.js';
 
 export class BaseScene extends Phaser.Scene {
   preload() {
-    // 全テクスチャ生成
     Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
     
-    // サウンド読み込み
     this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
     this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
     this.load.audio('se_select', '/sounds/se_select.mp3');
@@ -38,9 +36,29 @@ export class BaseScene extends Phaser.Scene {
 
   vibrate(pattern) { if (navigator.vibrate) navigator.vibrate(pattern); }
 
+  // 【強化】ヒットストップ演出（時間を一瞬遅くする）
   hitStop(duration) {
-      this.tweens.timeScale = 0.05; 
-      this.time.delayedCall(duration, () => { this.tweens.timeScale = 1.0; });
+      this.tweens.timeScale = 0.1; // 世界をスローに
+      this.time.delayedCall(duration, () => { 
+          this.tweens.timeScale = 1.0; // 元に戻す
+      });
+  }
+
+  // 【追加】敵を白く光らせて揺らす演出
+  damageFlash(target) {
+      if(!target || !target.scene) return;
+      target.setTintFill(0xffffff); // 真っ白にする
+      // 揺らす
+      this.tweens.add({
+          targets: target,
+          x: target.x + (Math.random() < 0.5 ? 10 : -10),
+          duration: 50,
+          yoyo: true,
+          repeat: 1,
+          onComplete: () => {
+              target.clearTint(); // 色を戻す
+          }
+      });
   }
 
   transitionTo(sceneName, data={}) {
@@ -50,7 +68,6 @@ export class BaseScene extends Phaser.Scene {
   
   fadeInScene() { this.cameras.main.fadeIn(500, 0, 0, 0); }
 
-  // --- 背景生成 ---
   createGameBackground(type) {
     const w = this.scale.width; const h = this.scale.height;
     const bgContainer = this.add.container(0, 0).setDepth(-100);
@@ -83,8 +100,6 @@ export class BaseScene extends Phaser.Scene {
   startIdleAnimation(target) {
       this.tweens.add({ targets: target, y: '+=10', duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
   }
-
-  // --- 演出強化版UI ---
 
   showDamagePopup(x, y, amount, isCrit) {
       let color = isCrit ? '#ff0000' : '#ffffff'; 
@@ -205,7 +220,6 @@ export class BaseScene extends Phaser.Scene {
     return c;
   }
 
-  // --- 【重要】バグ修正版スクロールボタン ---
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
@@ -226,14 +240,12 @@ export class BaseScene extends Phaser.Scene {
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
     let startY = 0;
     
-    // 押した位置を記録
     hit.on('pointerdown', (pointer) => { 
         startY = pointer.y;
         this.tweens.add({ targets: vc, scale: 0.98, duration: 50, yoyo: true });
         this.vibrate(5);
     });
     
-    // 指を離した時、位置があまり変わっていなければクリックとみなす
     hit.on('pointerup', (pointer) => { 
         if (Math.abs(pointer.y - startY) < 10) {
             this.playSound('se_select'); 
@@ -291,10 +303,7 @@ export class BaseScene extends Phaser.Scene {
       return container;
   }
 
-  // --- 【重要】バグ修正版スクロールコンテナ ---
   initScrollView(contentHeight, maskY, maskH) {
-      // 画面を覆う透明な板（Zone）は作らない！
-      // 代わりにグローバルなInputイベントで制御する
       this.scrollContainer = this.add.container(0, maskY);
       const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
       const mask = shape.createGeometryMask(); this.scrollContainer.setMask(mask);
@@ -305,7 +314,6 @@ export class BaseScene extends Phaser.Scene {
       let containerStartY = 0;
       let isDragging = false;
 
-      // 画面のどこでもドラッグ開始できるが、スクロール範囲内かチェックする
       this.input.on('pointerdown', (pointer) => {
           if (pointer.y >= maskY && pointer.y <= maskY + maskH) {
               isDragging = true;
