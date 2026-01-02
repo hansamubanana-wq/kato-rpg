@@ -18,7 +18,6 @@ export class BattleScene extends BaseScene {
     
     this.tutorialFreeMode = false;
 
-    // 敵データ生成
     let enemy = null;
     if (this.isTutorial) {
         enemy = { ...STAGES[0], maxHp: 50, hp: 50, atk: 5, name: "練習用土蔵" }; 
@@ -35,12 +34,10 @@ export class BattleScene extends BaseScene {
     this.ed.maxHp = this.ed.hp; 
     this.ed.status = null; 
 
-    // キャラ配置
     this.ps = this.add.sprite(w*0.25, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
     this.es = this.add.sprite(w*0.75, h*0.4, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
 
-    // UI
     const topY = 40;
     this.add.text(w-20, topY, this.ed.name, {font:`20px ${GAME_FONT}`}).setOrigin(1, 0);
     this.ehb = this.createHpBar(w-170, topY+30, 150, 15, this.ed.hp, this.ed.maxHp); 
@@ -50,7 +47,6 @@ export class BattleScene extends BaseScene {
     this.sb = this.createStressBar(80, topY+63, 90, 10); 
     this.apBar = this.createApBar(w/2 - 90, topY + 90);
 
-    // チュートリアルスキップボタン
     if (this.isTutorial) {
         const skipBtn = this.add.container(w - 60, 90);
         const sBg = this.add.rectangle(0, 0, 100, 40, 0x555555).setStrokeStyle(1, 0xffffff);
@@ -67,11 +63,9 @@ export class BattleScene extends BaseScene {
         skipBtn.setDepth(3000);
     }
 
-    // コマンドエリア
     this.createMessageBox(w, h); 
     this.mm = this.add.container(0, 0);
     
-    // ボタン配置
     const cmdY = h - 230; 
     const btnW = 160; const btnH = 60; const gapX = 10;
     
@@ -89,7 +83,6 @@ export class BattleScene extends BaseScene {
     this.lb.setVisible(false); this.mm.add(this.lb);
     this.mm.add(this.createButton(this.btnPos.pass.x, this.btnPos.pass.y, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
 
-    // QTE UI
     this.qt = this.add.graphics().setDepth(100); this.qr = this.add.graphics().setDepth(100);
     this.qtxt = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.gs = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
@@ -98,7 +91,6 @@ export class BattleScene extends BaseScene {
     this.createSkillMenu(w, h);
     this.createItemMenu(w, h);
     
-    // --- チュートリアル用レイヤー ---
     this.tutorialLayer = this.add.container(0, 0).setDepth(2000).setVisible(false);
     this.tutorialOverlay = this.add.rectangle(w/2, h/2, w*2, h*2, 0x000000, 0.7).setInteractive();
     this.guideRect = this.add.graphics();
@@ -116,14 +108,12 @@ export class BattleScene extends BaseScene {
     this.perfectGuardChain = true; 
     this.refreshStatus();
 
-    // チュートリアル開始トリガー
     if (this.isTutorial) {
         this.time.delayedCall(1000, () => this.startTutorialStep1());
     }
   }
 
-  // --- チュートリアル進行 ---
-
+  // --- チュートリアル ---
   startTutorialStep1() {
       this.tutorialStep = 1;
       this.updateMessage("まずは攻撃だ！\n「コマンド」をタップ！");
@@ -131,7 +121,6 @@ export class BattleScene extends BaseScene {
           this.openSkillMenu();
       });
   }
-
   startTutorialStep2() {
       this.tutorialStep = 2;
       this.updateMessage("技を選ぼう！\n「出席確認」をタップ！");
@@ -142,13 +131,11 @@ export class BattleScene extends BaseScene {
           this.selectSkill(skill);
       });
   }
-
   startTutorialStep3() {
       this.tutorialStep = 3;
       this.tutorialLayer.setVisible(false);
       this.updateMessage("黄色い輪が重なる瞬間に\n画面をタップ！");
   }
-
   showGuide(x, y, w, h, callback) {
       this.tutorialLayer.setVisible(true);
       this.guideRect.clear();
@@ -167,8 +154,7 @@ export class BattleScene extends BaseScene {
       });
   }
 
-  // --- 通常ロジック ---
-
+  // --- ロジック ---
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
@@ -303,25 +289,96 @@ export class BattleScene extends BaseScene {
       }
   }
 
+  // --- ★ここが新しくなったアニメーション関数！ ---
   playSwordAnimation(cb) {
       const animType = this.selS ? this.selS.anim : 'normal';
       const s = this.add.graphics(); 
-      s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1);
-      s.x = this.ps.x; s.y = this.ps.y; s.setDepth(200);
-      if (animType === 'rapid') {
+      s.setDepth(200);
+
+      // 1. 出席確認 (チェックマーク)
+      if (animType === 'check') {
+          s.lineStyle(8, 0x00ff00);
+          s.beginPath();
+          const startX = this.es.x - 40; const startY = this.es.y;
+          s.moveTo(startX, startY);
+          
+          this.tweens.addCounter({
+              from: 0, to: 100, duration: 300,
+              onUpdate: (tw) => {
+                  s.clear(); s.lineStyle(8, 0x00ff00); s.beginPath(); s.moveTo(startX, startY);
+                  const p = tw.getValue();
+                  if(p < 40) s.lineTo(startX + p, startY + p);
+                  else { s.lineTo(startX + 40, startY + 40); s.lineTo(startX + 40 + (p-40)*1.5, startY + 40 - (p-40)*2.5); }
+                  s.strokePath();
+              },
+              onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); }
+          });
+      }
+      // 2. チョーク (白い弾丸)
+      else if (animType === 'chalk') {
+          const chalk = this.add.rectangle(this.ps.x, this.ps.y, 40, 10, 0xffffff).setDepth(200);
+          this.tweens.add({
+              targets: chalk, x: this.es.x, y: this.es.y, angle: 360, duration: 300, ease: 'Linear',
+              onComplete: () => { chalk.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); }
+          });
+      }
+      // 3. 本 (サクシード/宿題)
+      else if (animType === 'book') {
+          const book = this.add.rectangle(this.es.x, this.es.y - 300, 80, 100, 0x3366cc).setStrokeStyle(4, 0xffffff).setDepth(200);
+          this.tweens.add({
+              targets: book, y: this.es.y, angle: 20, duration: 400, ease: 'Bounce.Out',
+              onComplete: () => { 
+                  this.cameras.main.shake(100, 0.05); 
+                  book.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); 
+              }
+          });
+      }
+      // 4. 早弁/回復 (ハート)
+      else if (animType === 'food') {
+          const h1 = this.add.text(this.ps.x, this.ps.y, "🍞", {fontSize:'40px'}).setDepth(200);
+          const h2 = this.add.text(this.ps.x, this.ps.y, "🥛", {fontSize:'40px'}).setDepth(200);
+          this.tweens.add({ targets: h1, y: this.ps.y-100, x: this.ps.x-30, alpha: 0, duration: 800 });
+          this.tweens.add({ targets: h2, y: this.ps.y-100, x: this.ps.x+30, alpha: 0, duration: 800, delay: 200, onComplete: () => { cb(); } });
+      }
+      // 5. 校庭10周 (砂煙)
+      else if (animType === 'run') {
+          const dusts = [];
+          for(let i=0; i<5; i++) {
+              const d = this.add.circle(this.es.x + (Math.random()-0.5)*100, this.es.y+50, 15, 0xaaaaaa, 0.8).setDepth(200);
+              dusts.push(d);
+              this.tweens.add({
+                  targets: d, scale: 2, alpha: 0, y: d.y-50, duration: 600, delay: i*100,
+                  onComplete: () => { d.destroy(); if(i===4) cb(); }
+              });
+          }
+      }
+      // 既存アニメーション (rapid)
+      else if (animType === 'rapid') {
           s.clear();
           this.tweens.addCounter({
               from: 0, to: 5, duration: 400,
-              onUpdate: (tw) => { const val = tw.getValue(); const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100; s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath(); },
+              onUpdate: (tw) => {
+                  const val = tw.getValue();
+                  const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100;
+                  s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath();
+              },
               onComplete: () => { s.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); }
           });
-      } else if (animType === 'heavy') {
-          s.fillStyle(0xffaa00, 1).fillCircle(0,0,50); s.y -= 200;
-          this.tweens.add({ targets: s, y: this.es.y, duration: 300, ease: 'Bounce.Out', onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); cb(); } });
-      } else if (animType === 'magic') {
+      } 
+      // 既存アニメーション (heavy)
+      else if (animType === 'heavy') {
+          s.fillStyle(0xffaa00, 1).fillCircle(0,0,50); s.y -= 200; s.x = this.ps.x;
+          this.tweens.add({ targets: s, x: this.es.x, y: this.es.y, duration: 300, ease: 'Bounce.Out', onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); cb(); } });
+      } 
+      // 既存アニメーション (magic)
+      else if (animType === 'magic') {
           s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10); s.x = this.ps.x; s.y = this.ps.y;
           this.tweens.add({ targets: s, scale: 5, alpha: 0, duration: 500, onComplete: () => { s.destroy(); cb(); } });
-      } else {
+      } 
+      // デフォルト (normal)
+      else {
+          s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1);
+          s.x = this.ps.x; s.y = this.ps.y;
           s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.angle = -30;
           this.tweens.chain({ targets: s, tweens: [ { angle: -60, duration: 200, ease: 'Back.Out' }, { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } } ] });
       }
@@ -332,16 +389,15 @@ export class BattleScene extends BaseScene {
     if(this.isTutorial) this.updateMessage("黄色い輪が重なる瞬間に\n画面をタップ！");
     else this.updateMessage(`${s.name}！\nタイミング！`);
     const tx = this.es.x; const ty = this.es.y;
-    // 【修正】色を修正
-    this.qt.clear().lineStyle(4, 0xffffff).strokeCircle(tx, ty, 50).setVisible(true); // 白
-    this.qr.clear().lineStyle(4, 0xffff00).strokeCircle(tx, ty, 50 * this.qrs); // 黄色
+    this.qt.clear().lineStyle(4, 0xffffff).strokeCircle(tx, ty, 50).setVisible(true);
+    this.qr.clear().lineStyle(4, 0xffff00).strokeCircle(tx, ty, 50 * 2.5);
+    this.qrs = 2.5;
     this.qteMode = 'attack';
     this.time.delayedCall(200, () => {
         this.qteActive = true;
         this.qe = this.time.addEvent({ delay: 16, loop: true, callback: () => {
             if (!this.qteActive) return;
             this.qrs -= (0.03 * s.speed);
-            // 【修正】色を修正
             this.qr.clear().lineStyle(4, 0xffff00).strokeCircle(tx, ty, 50 * this.qrs);
             if (this.qrs <= 0.5) { this.qteActive = false; this.qe.remove(); this.finishQTE('MISS'); }
         }});
@@ -533,7 +589,6 @@ export class BattleScene extends BaseScene {
           this.updateMessage("さあ、反撃だ！\n好きなように戦え！");
           this.tutorialLayer.setVisible(false); 
           
-          // 【修正】ここでフリーモードを解禁！
           this.tutorialFreeMode = true;
       } else {
           this.updateMessage("ターン開始"); 
@@ -544,7 +599,6 @@ export class BattleScene extends BaseScene {
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; 
     
-    // チュートリアル終了後も進まない
     if(!this.isTraining && !this.isTutorial) GAME_DATA.stageIndex++; 
     
     this.sound.stopAll(); this.playSound('se_win'); this.vibrate([100, 50, 100, 50, 200]); 
