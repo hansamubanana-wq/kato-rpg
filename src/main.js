@@ -12,9 +12,9 @@ document.head.appendChild(fontStyle);
 const GAME_FONT = 'DotGothic16';
 
 // ================================================================
-//  1. データ定義 (バランス調整版)
+//  1. データ定義 (背景パーツ追加版)
 // ================================================================
-const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0' };
+const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#060', 'B':'#630', 'C':'#888', 'D':'#ccf', 'E':'#f80' };
 const ARTS = {
   kato: ["......0000......",".....000000.....","....00000000....","....00000000....","....01111110....","....03111130....","....01111110....",".....222222.....","....22233222....","....22222222....","....22222222....",".....33..33.....",".....33..33.....",".....00..00....."],
   dozo: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","...333333333....","...333333333....","...333333333....","...333333333....","....3333333.....","....77...77.....","....77...77.....","....00...00....."],
@@ -23,10 +23,15 @@ const ARTS = {
   kitai: [".....666666.....","....66666666....","...666666666....","...661111166....","...661010166....","...661111166....","...661111166....","....2222222.....","...222222222....","...222222222....","....7777777.....","....77...77.....","....77...77.....","....00...00....."],
   fukumorita: ["......0000......",".....000000.....","....00000000....","....01111110....","....01011010....","....01111110....","....7777777.....","...777777777....","...777222777....","...777777777....","...777777777....","....77...77.....","....77...77.....","....22...22....."],
   aota: ["......0000......",".....000000.....","....00....00....","....01111110....","....01011010....","....01111110....",".....223322.....","....33333333....","....33333333....","....33333333....","....77777777....","....77....77....","....77....77....","....00....00...."],
-  kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."]
+  kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."],
+  // 背景パーツ定義
+  bg_blackboard: ["BBBBBBBBBBBBBBBB","B00000000000000B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B0AAAAAAAAAAAA0B","B00000000000000B","BBBBBBBBBBBBBBBB"],
+  bg_window: ["DDDDDDDD","D222222D","D222222D","D222222D","DDDDDDDD","D222222D","D222222D","D222222D","DDDDDDDD"],
+  bg_shelf: ["BBBBBBBB","B992299B","BBBBBBBB","B292922B","BBBBBBBB","B922992B","BBBBBBBB"],
+  bg_locker: ["CCCCCCCC","C888888C","C878888C","C888888C","C888888C","C888888C","C888888C","CCCCCCCC"],
+  bg_window_sunset: ["EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE"]
 };
 
-// 【調整】敵を大幅強化 (HP 3~5倍 / ATK 2倍)
 const STAGES = [
   { id: 0, name: '土蔵', hp: 120, atk: 12, exp: 20, gold: 100, key: 'dozo' },
   { id: 1, name: '前田', hp: 200, atk: 18, exp: 40, gold: 150, key: 'maeda' },
@@ -37,7 +42,6 @@ const STAGES = [
   { id: 6, name: '金月', hp: 3000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
-// 【調整】スキルのバランス (初期技は弱く、高い技は強く)
 const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃' },
   { id: 2, name: 'チョーク投げ', type: 'attack', power: 35, speed: 1.2, cost: 150, desc: '威力中・速度中' },
@@ -53,7 +57,7 @@ const GAME_DATA = {
   stageIndex: 0,
   player: {
     name: '加藤先生', level: 1, exp: 0, nextExp: 50,
-    hp: 80, maxHp: 80, atk: 1.0, // HPを少し下げて緊張感を出す
+    hp: 80, maxHp: 80, atk: 1.0, 
     stress: 0, maxStress: 100,
     ownedSkillIds: [1],
     equippedSkillIds: [1]
@@ -107,11 +111,45 @@ class BaseScene extends Phaser.Scene {
   }
   fadeInScene() { this.cameras.main.fadeIn(500, 0, 0, 0); }
 
-  createPatternBackground(c1, c2) {
+  // 【新規】リッチなドット絵背景を生成するメソッド
+  createGameBackground(type) {
     const w = this.scale.width; const h = this.scale.height;
-    const bg = this.add.graphics(); bg.fillStyle(c1, 1); bg.fillRect(0,0,w,h); bg.fillStyle(c2, 1);
-    for(let y=0; y<h; y+=16) for(let x=0; x<w; x+=16) { bg.fillRect(x,y,8,8); bg.fillRect(x+8,y+8,8,8); }
-    this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3);
+    const bgContainer = this.add.container(0, 0).setDepth(-100);
+    const wall = this.add.graphics(); const floor = this.add.graphics();
+    
+    // 壁と床のベース色
+    let wallColor = 0xffeebb; let floorColor = 0x885522;
+    if(type==='shop') { wallColor = 0xaaccff; floorColor = 0xcccccc; }
+    if(type==='skill') { wallColor = 0xaaaaaa; floorColor = 0x666666; }
+    if(type==='battle') { wallColor = 0x552255; floorColor = 0x221122; } // 夕暮れ
+
+    wall.fillStyle(wallColor, 1).fillRect(0, 0, w, h*0.6);
+    floor.fillStyle(floorColor, 1).fillRect(0, h*0.6, w, h*0.4);
+    
+    // ドットノイズ追加
+    const noise = this.add.graphics(); noise.fillStyle(0x000000, 0.05);
+    for(let y=0; y<h; y+=4) for(let x=0; x<w; x+=4) if(Math.random()>0.5) noise.fillRect(x,y,4,4);
+
+    bgContainer.add([wall, floor, noise]);
+
+    // シーン別のパーツ配置
+    if (type === 'world') {
+        const bb = this.add.sprite(w/2, h*0.3, 'bg_blackboard').setScale(10).setAlpha(0.7);
+        bgContainer.add(bb);
+    } else if (type === 'shop') {
+        for(let i=0; i<3; i++) bgContainer.add(this.add.sprite(60+i*140, h*0.4, 'bg_shelf').setScale(6));
+    } else if (type === 'skill') {
+        for(let i=0; i<4; i++) bgContainer.add(this.add.sprite(50+i*100, h*0.4, 'bg_locker').setScale(6));
+    } else if (type === 'battle') {
+        // 夕暮れの窓
+        for(let i=0; i<2; i++) bgContainer.add(this.add.sprite(100+i*200, h*0.3, 'bg_window_sunset').setScale(8).setAlpha(0.8));
+        // 全体を少し暗く、赤く
+        const overlay = this.add.rectangle(w/2, h/2, w, h, 0x440000, 0.3);
+        bgContainer.add(overlay);
+    }
+
+    // UIを見やすくするための暗幕
+    bgContainer.add(this.add.rectangle(w/2, h/2, w, h, 0x000000, 0.3));
   }
 
   startIdleAnimation(target) {
@@ -184,7 +222,8 @@ class WorldScene extends BaseScene {
   constructor() { super('WorldScene'); }
   create() {
     this.playBGM('bgm_world');
-    this.fadeInScene(); this.createPatternBackground(0x444, 0x333);
+    this.fadeInScene(); 
+    this.createGameBackground('world'); // 背景変更
     const w = this.scale.width; const h = this.scale.height;
     this.createPanel(10, 10, w-20, 80);
     this.add.text(30, 30, `Lv:${GAME_DATA.player.level} ${GAME_DATA.player.name}`, { font:`24px ${GAME_FONT}` });
@@ -201,12 +240,13 @@ class WorldScene extends BaseScene {
 }
 
 // ================================================================
-//  4. 購買部 & 5. 編成 (省略なし)
+//  4. 購買部 & 5. 編成
 // ================================================================
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
   create() {
-    this.fadeInScene(); this.createPatternBackground(0x225, 0x113);
+    this.fadeInScene(); 
+    this.createGameBackground('shop'); // 背景変更
     const w = this.scale.width; 
     this.add.text(w/2, 40, `購買部`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5);
     this.add.text(w/2, 70, `${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' }).setOrigin(0.5);
@@ -235,7 +275,8 @@ class ShopScene extends BaseScene {
 class SkillScene extends BaseScene {
   constructor() { super('SkillScene'); }
   create() {
-    this.fadeInScene(); this.createPatternBackground(0x252, 0x131);
+    this.fadeInScene(); 
+    this.createGameBackground('skill'); // 背景変更
     const w = this.scale.width;
     this.add.text(w/2, 40, "スキル編成", {font:`28px ${GAME_FONT}`}).setOrigin(0.5);
     this.createButton(w/2, this.scale.height-60, '完了', 0x555, () => this.transitionTo('WorldScene'));
@@ -263,13 +304,14 @@ class SkillScene extends BaseScene {
 }
 
 // ================================================================
-//  6. バトルシーン (フィニッシュ演出強化)
+//  6. バトルシーン
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
   create() {
     this.playBGM('bgm_battle');
-    this.fadeInScene(); this.createPatternBackground(0x522, 0x311);
+    this.fadeInScene(); 
+    this.createGameBackground('battle'); // 背景変更
     const w = this.scale.width; const h = this.scale.height;
     const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
     this.ed = { ...STAGES[idx], maxHp: STAGES[idx].hp };
@@ -375,7 +417,6 @@ class BattleScene extends BaseScene {
     this.tweens.add({ targets: this.qtxt, scale:1.5, duration:300, yoyo:true, onComplete:()=>{ this.qtxt.setVisible(false); this.executeAttack(res); }});
   }
 
-  // --- 攻撃実行（フィニッシュ演出付き） ---
   executeAttack(res) {
     this.playSwordAnimation(() => {
         let dmg = this.selS.power * GAME_DATA.player.atk;
@@ -383,35 +424,16 @@ class BattleScene extends BaseScene {
         if (res==='PERFECT') { dmg = Math.floor(dmg*1.5); v = [50, 50, 300]; this.cameras.main.shake(300, 0.04); this.hitStop(200); c = true; } 
         else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); v = 20; }
         
-        // トドメかどうかの判定
         if ((this.ed.hp - dmg) <= 0) {
-            // フィニッシュ演出！
-            this.vibrate(1000); 
-            this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); // ズームイン
-            this.tweens.timeScale = 0.1; // 超スロー
-            this.cameras.main.flash(1000, 255, 255, 255); // 長いフラッシュ
-            this.playSound('se_attack');
-            
-            // WIN文字
+            this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1;
+            this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
             const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
             this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' });
-
-            this.ed.hp -= dmg;
-            this.showDamagePopup(this.es.x, this.es.y, dmg, true);
-            this.refreshStatus();
-
-            this.time.delayedCall(1500, () => {
-                this.tweens.timeScale = 1.0; 
-                this.cameras.main.zoomTo(1.0, 500); // ズーム戻す
-                this.winBattle();
-            });
+            this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
+            this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
         } else {
-            // 通常ヒット
-            this.playSound('se_attack'); this.vibrate(v); 
-            this.ed.hp -= dmg;
-            this.showDamagePopup(this.es.x, this.es.y, dmg, c);
-            GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
-            this.checkEnd();
+            this.playSound('se_attack'); this.vibrate(v); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, c);
+            GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5); this.checkEnd();
         }
     });
   }
@@ -424,18 +446,12 @@ class BattleScene extends BaseScene {
     
     this.time.delayedCall(1000, () => { 
         if ((this.ed.hp - dmg) <= 0) {
-             // 必殺トドメ演出
-             this.cameras.main.zoomTo(1.5, 200);
-             this.tweens.timeScale = 0.1;
+             this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1;
              this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
-             this.ed.hp -= dmg;
-             this.showDamagePopup(this.es.x, this.es.y, dmg, true);
-             this.refreshStatus();
+             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
              this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
         } else {
-             this.ed.hp -= dmg;
-             this.showDamagePopup(this.es.x, this.es.y, dmg, true);
-             this.checkEnd();
+             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd();
         }
     });
   }
@@ -511,9 +527,7 @@ class BattleScene extends BaseScene {
 
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; GAME_DATA.stageIndex++; 
-    this.sound.stopAll(); // BGM止める
-    this.playSound('se_win'); 
-    this.vibrate([100, 50, 100, 50, 200]); 
+    this.sound.stopAll(); this.playSound('se_win'); this.vibrate([100, 50, 100, 50, 200]); 
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) {
         GAME_DATA.player.ownedSkillIds.push(7); msg += "\nレア技【居残り指導】習得！";
