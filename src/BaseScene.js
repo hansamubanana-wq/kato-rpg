@@ -148,7 +148,6 @@ export class BaseScene extends Phaser.Scene {
     return c;
   }
 
-  // スクロール用ボタン (hitZoneなし版)
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
@@ -156,7 +155,6 @@ export class BaseScene extends Phaser.Scene {
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
     vc.add([sh, bg, tx]);
-    
     if(subText) {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
@@ -240,7 +238,6 @@ export class BaseScene extends Phaser.Scene {
               this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY);
           }
       });
-      
       return this.scrollContainer;
   }
 }

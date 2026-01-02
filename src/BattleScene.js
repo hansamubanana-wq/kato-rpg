@@ -28,7 +28,7 @@ export class BattleScene extends BaseScene {
     this.ed.maxHp = this.ed.hp; 
     this.ed.status = null; 
 
-    // キャラ配置
+    // キャラ配置 (少し上に)
     this.ps = this.add.sprite(w*0.2, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
     this.es = this.add.sprite(w*0.8, h*0.35, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
@@ -531,12 +531,17 @@ export class BattleScene extends BaseScene {
 
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; 
+    
+    // 補習モードでなければステージを進める
     if(!this.isTraining) GAME_DATA.stageIndex++; 
+    
     this.sound.stopAll(); this.playSound('se_win'); this.vibrate([100, 50, 100, 50, 200]); 
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
+    
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) {
         GAME_DATA.player.ownedSkillIds.push(7); msg += "\nレア技【居残り指導】習得！";
     }
+    
     if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) {
         GAME_DATA.player.level++; GAME_DATA.player.maxHp+=20; GAME_DATA.player.hp = GAME_DATA.player.maxHp; GAME_DATA.player.atk += 0.2;
         GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5);
@@ -560,11 +565,3 @@ export class BattleScene extends BaseScene {
   }
   updateMessage(t) { this.messageText.setText(t); }
 }
-
-const config = {
-  type: Phaser.AUTO, width: 400, height: 800, backgroundColor: '#000000',
-  parent: 'game-container', pixelArt: true,
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [OpeningScene, TutorialScene, WorldScene, ShopScene, SkillScene, BattleScene, NormalClearScene, SecretBossIntroScene, TrueClearScene]
-};
-new Phaser.Game(config);
