@@ -1,5 +1,5 @@
 import { BaseScene } from './BaseScene.js';
-import { GAME_DATA, SKILL_DB, ITEM_DB, STAGES, GAME_FONT, saveGame, getSkillLevel, getSkillPower, getUpgradeCost } from './data.js';
+import { GAME_DATA, SKILL_DB, ITEM_DB, STAGES, GAME_FONT, saveGame, resetGame } from './data.js';
 import Phaser from 'phaser';
 
 export class OpeningScene extends BaseScene {
@@ -70,6 +70,7 @@ export class OpeningScene extends BaseScene {
   }
 }
 
+// ★ここから5ページ版チュートリアル
 export class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
   create() {
@@ -77,6 +78,7 @@ export class TutorialScene extends BaseScene {
     this.showPage1();
   }
 
+  // 1. 攻撃と防御
   showPage1() {
     this.children.removeAll(); 
     this.createGameBackground('battle');
@@ -85,12 +87,14 @@ export class TutorialScene extends BaseScene {
     this.add.text(w/2, 50, "チュートリアル (1/5)", { font: `24px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     this.add.text(w/2, 100, "基本ルール", { font: `32px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     
+    // 攻撃の説明
     this.add.text(w/2, 180, "⚔️ 攻 撃", { font: `24px ${GAME_FONT}`, color: '#0ff' }).setOrigin(0.5);
     const ring = this.add.graphics();
     ring.lineStyle(4, 0xffff00); ring.strokeCircle(w/2, 240, 30);
     ring.lineStyle(2, 0xffffff); ring.strokeCircle(w/2, 240, 30);
     this.add.text(w/2, 290, "黄色い輪が重なる瞬間に\n画面をタップ！", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
     
+    // 防御の説明
     this.add.text(w/2, 360, "🛡️ 防 御 (パリィ)", { font: `24px ${GAME_FONT}`, color: '#0ff' }).setOrigin(0.5);
     this.add.text(w/2, 410, "！", { font: `50px ${GAME_FONT}`, color: '#f00', stroke:'#fff', strokeThickness:4 }).setOrigin(0.5);
     this.add.text(w/2, 470, "敵の頭上に「！」が出たら\n即座に画面をタップ！\n※攻撃パターンは複数あります！", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
@@ -98,6 +102,7 @@ export class TutorialScene extends BaseScene {
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage2());
   }
 
+  // 2. APシステム
   showPage2() {
     this.children.removeAll();
     this.createGameBackground('battle');
@@ -105,6 +110,7 @@ export class TutorialScene extends BaseScene {
     this.add.text(w/2, 50, "チュートリアル (2/5)", { font: `24px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     this.add.text(w/2, 100, "AP (行動力)", { font: `32px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     
+    // APバー図解
     const c = this.add.container(w/2 - 60, 160);
     for(let i=0; i<5; i++) c.add(this.add.rectangle(i*30, 0, 24, 24, 0xffff00).setStrokeStyle(2,0x888));
     
@@ -123,6 +129,7 @@ APが足りないと何もできません。
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
   }
 
+  // 3. ストレスとブチギレ
   showPage3() {
     this.children.removeAll();
     this.createGameBackground('secret'); 
@@ -130,6 +137,7 @@ APが足りないと何もできません。
     this.add.text(w/2, 50, "チュートリアル (3/5)", { font: `24px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     this.add.text(w/2, 100, "ストレスとブチギレ", { font: `32px ${GAME_FONT}`, color: '#f00', stroke:'#fff', strokeThickness:4 }).setOrigin(0.5);
 
+    // ストレスバー図解
     this.add.rectangle(w/2, 180, 200, 20, 0x440000).setStrokeStyle(2, 0xffffff);
     this.add.rectangle(w/2, 180, 200, 16, 0xff0000);
     this.add.text(w/2, 150, "ストレスゲージ", { font: `16px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
@@ -149,6 +157,7 @@ APが足りないと何もできません。
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage4());
   }
 
+  // 4. 状態異常とアイテム
   showPage4() {
     this.children.removeAll();
     this.createGameBackground('battle');
@@ -174,6 +183,7 @@ APが足りないと何もできません。
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage5());
   }
 
+  // 5. 成長と編成
   showPage5() {
     this.children.removeAll();
     this.createGameBackground('shop');
@@ -277,7 +287,7 @@ export class ShopScene extends BaseScene {
   refreshList(w, h) {
       if(this.listContainer) this.listContainer.destroy();
       let items = [];
-      if(this.mode === 'skill') items = SKILL_DB.filter(s => s.cost >= 0);
+      if(this.mode === 'skill') items = SKILL_DB.filter(s => s.cost > 0);
       else items = ITEM_DB;
 
       const itemHeight = 90;
@@ -285,59 +295,26 @@ export class ShopScene extends BaseScene {
       this.listContainer = this.initScrollView(contentHeight, 150, h - 230);
       let y = 50; 
       items.forEach((item) => {
-          let spec = ""; let rightText = "";
-          
+          let has = false; let spec = ""; let rightText = "";
           if(this.mode === 'skill') {
-              const lv = getSkillLevel(item.id);
-              const cost = getUpgradeCost(item);
-              const power = getSkillPower(item);
-              
-              spec = `${item.desc}\n[威力:${power} / AP:${item.apCost}]`;
-              if (lv === 0) {
-                  rightText = `習得\n${cost}G`;
-              } else if (lv < 10) {
-                  rightText = `Lv.${lv}→${lv+1}\n${cost}G`;
-              } else {
-                  rightText = `Lv.MAX\n済`;
-              }
+              has = GAME_DATA.player.ownedSkillIds.includes(item.id);
+              spec = `${item.desc}\n[威力:${item.power} / AP:${item.apCost}]`;
+              rightText = has ? "済" : `${item.cost}G`;
           } else {
               const count = GAME_DATA.player.items[item.id] || 0;
               spec = item.desc;
               rightText = `${item.cost}G\n(所持:${count})`;
           }
-          
-          const isMax = (this.mode === 'skill' && getSkillLevel(item.id) >= 10);
-          
-          const btn = this.createScrollableButton(w/2, y, item.name, isMax?0x333333:0x000000, () => {
+          const btn = this.createScrollableButton(w/2, y, item.name, has?0x333333:0x000000, () => {
               if(this.mode === 'skill') {
-                  const lv = getSkillLevel(item.id);
-                  if(lv >= 10) return; // MAX
-                  const cost = getUpgradeCost(item);
-                  
-                  if(GAME_DATA.gold >= cost) { 
-                      GAME_DATA.gold -= cost; 
-                      if(!GAME_DATA.player.ownedSkills[item.id]) GAME_DATA.player.ownedSkills[item.id] = 0;
-                      GAME_DATA.player.ownedSkills[item.id]++;
-                      // 初めて入手したら自動で装備(空きがあれば)
-                      if(GAME_DATA.player.ownedSkills[item.id] === 1 && GAME_DATA.player.equippedSkillIds.length < 6) {
-                          GAME_DATA.player.equippedSkillIds.push(item.id);
-                      }
-                      saveGame(); this.scene.restart(); 
-                  } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
+                  if(has) return;
+                  if(GAME_DATA.gold >= item.cost) { GAME_DATA.gold -= item.cost; GAME_DATA.player.ownedSkillIds.push(item.id); saveGame(); this.scene.restart(); } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
               } else {
-                  if(GAME_DATA.gold >= item.cost) { 
-                      GAME_DATA.gold -= item.cost; 
-                      if(!GAME_DATA.player.items[item.id]) GAME_DATA.player.items[item.id] = 0; 
-                      GAME_DATA.player.items[item.id]++; 
-                      saveGame(); this.scene.restart(); 
-                  } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
+                  if(GAME_DATA.gold >= item.cost) { GAME_DATA.gold -= item.cost; if(!GAME_DATA.player.items[item.id]) GAME_DATA.player.items[item.id] = 0; GAME_DATA.player.items[item.id]++; saveGame(); this.scene.restart(); } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
               }
           }, w-40, 75, spec, rightText);
           
-          if(this.mode === 'skill' && isMax) { 
-              btn.list[0].list[2].setColor('#888'); 
-              if(btn.rightTextObj) btn.rightTextObj.setColor('#888');
-          }
+          if(this.mode === 'skill' && has) { btn.list[0].list[2].setColor('#888'); if(btn.rightTextObj) btn.rightTextObj.setColor('#888'); }
           this.listContainer.add(btn); y += itemHeight;
       });
   }
@@ -352,11 +329,8 @@ export class SkillScene extends BaseScene {
     this.add.text(w/2, 40, "スキル編成", {font:`28px ${GAME_FONT}`}).setOrigin(0.5).setDepth(20);
     this.createButton(w/2, h-60, '完了', 0x555, () => this.transitionTo('WorldScene')).setDepth(20);
 
-    const ownedIds = Object.keys(GAME_DATA.player.ownedSkills).map(Number);
-    
     const equipped = GAME_DATA.player.equippedSkillIds.map(id => ({...SKILL_DB.find(x=>x.id===id), isEquip:true}));
-    const owned = ownedIds.filter(id => !GAME_DATA.player.equippedSkillIds.includes(id)).map(id => ({...SKILL_DB.find(x=>x.id===id), isEquip:false}));
-    
+    const owned = GAME_DATA.player.ownedSkillIds.filter(id => !GAME_DATA.player.equippedSkillIds.includes(id)).map(id => ({...SKILL_DB.find(x=>x.id===id), isEquip:false}));
     const allItems = [...equipped, {isSeparator:true, text:"▼ 所持リスト"}, ...owned];
     const itemHeight = 70;
     const contentHeight = allItems.length * itemHeight + 50;
@@ -367,14 +341,9 @@ export class SkillScene extends BaseScene {
         if(item.isSeparator) {
             const sep = this.add.text(30, y, item.text, {font:`18px ${GAME_FONT}`, color:'#ff8'}); container.add(sep); y += 40;
         } else {
-            const lv = getSkillLevel(item.id);
-            const power = getSkillPower(item);
-            // Lvも表示
-            const nameText = `${item.name} Lv.${lv}`;
-            const spec = (item.type === 'heal') ? `[威力:${power} / AP:${item.apCost}]` : `[威力:${power} / AP:${item.apCost}]`;
-            
+            const spec = (item.type === 'heal') ? `[AP:${item.apCost}]` : `[AP:${item.apCost}/速:${item.speed}]`;
             const color = item.isEquip ? 0x006600 : 0x444444;
-            const btn = this.createScrollableButton(w/2, y, nameText, color, () => {
+            const btn = this.createScrollableButton(w/2, y, item.name, color, () => {
                 if(item.isEquip) {
                     if(GAME_DATA.player.equippedSkillIds.length > 1) {
                         const index = GAME_DATA.player.equippedSkillIds.indexOf(item.id);
@@ -466,7 +435,6 @@ export class TrueClearScene extends BaseScene {
     const charaY = h * 0.65;
     const chars = [];
 
-    // ステージの敵キャラ（一部除く）
     let bossCount = 0;
     STAGES.forEach((stage, i) => {
         if (stage.key !== 'dozo' && stage.key !== 'kingetsu') { 
@@ -476,7 +444,6 @@ export class TrueClearScene extends BaseScene {
         }
     });
 
-    // 主人公
     const kato = this.add.sprite(w/2, charaY - 40, 'kato').setScale(8);
     this.startIdleAnimation(kato);
     chars.push(kato);
@@ -489,7 +456,6 @@ export class TrueClearScene extends BaseScene {
         });
     });
 
-    // テキスト
     const titleText = this.add.text(w/2, h*0.15, "祝・完全制覇！", {
         font:`48px ${GAME_FONT}`, color:'#ffcc00', stroke:'#000', strokeThickness:6
     }).setOrigin(0.5).setScale(0).setDepth(100);
@@ -513,7 +479,6 @@ Thank you for playing!`;
 
     this.tweens.add({ targets: msgText, alpha: 1, y: h*0.4, duration: 2500, delay: 3500 });
 
-    // 戻るボタン
     this.time.delayedCall(7000, () => {
         const btn = this.createButton(w/2, h*0.9, 'タイトルへ戻る', 0x555555, () => {
             this.cameras.main.fadeOut(1000, 0,0,0);
