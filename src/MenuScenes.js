@@ -10,11 +10,12 @@ export class OpeningScene extends BaseScene {
     const w = this.scale.width; const h = this.scale.height;
     this.add.rectangle(w/2, h/2, w, h, 0x000000);
 
+    // テキスト変更: 教育崩壊 -> 反抗期パンデミック
     const storyText = `
 私立青稜中学校。
 
 自由な校風で知られるこの名門校に
-突如として『教育崩壊現象』が巻き起こった。
+突如として『反抗期パンデミック』が巻き起こった。
 
 生徒たちはスマホに支配され、
 教師たちはやる気を失い、
@@ -38,8 +39,7 @@ export class OpeningScene extends BaseScene {
         onComplete: () => this.transitionTo('TutorialScene')
     });
 
-    this.createButton(w/2, h - 120, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
-    this.createButton(w/2, h - 50, 'データ消去して最初から', 0x880000, () => resetGame());
+    this.createButton(w/2, h - 80, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
   }
 }
 
@@ -72,9 +72,12 @@ export class TutorialScene extends BaseScene {
     this.createGameBackground('shop');
     const w = this.scale.width; const h = this.scale.height;
     this.add.text(w/2, 50, "【チュートリアル 2/3】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
+    
     this.add.text(w/2, 130, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    this.add.text(w/2, 240, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技や\nアイテムを購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
+    // テキスト変更: 購買部 -> プチレーブ
+    this.add.text(w/2, 240, "① 敵を倒してゴールドを獲得\n\n②「プチレーブ」で強力な技や\nアイテムを購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
     this.add.text(w/2, 380, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
+    
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage3());
   }
 
@@ -89,6 +92,7 @@ export class TutorialScene extends BaseScene {
     this.add.text(w/2, 220, "技を使うにはAPが必要です。\n強い技ほど多くのAPを消費します。", { font: `18px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
     this.add.text(w/2, 300, "＜APの回復方法＞", { font: `20px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     this.add.text(w/2, 360, "・自分のターンが来る (+1)\n・敵の攻撃をパリィする (+1)\n・「パス」コマンドを使う (+1)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'left' }).setOrigin(0.5);
+    
     this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), 220, 50, true);
   }
 }
@@ -103,8 +107,12 @@ export class WorldScene extends BaseScene {
     this.createPanel(10, 10, w-20, 80);
     this.add.text(30, 30, `Lv:${GAME_DATA.player.level} ${GAME_DATA.player.name}`, { font:`24px ${GAME_FONT}` });
     this.add.text(30, 60, `Gold: ${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' });
+    
+    // 背景: 303教室っぽく
     const kato = this.add.sprite(w/2, h*0.32, 'kato').setScale(6); this.startIdleAnimation(kato);
     this.add.text(w/2, h*0.46, "「次はどうしますか？」", { font:`20px ${GAME_FONT}` }).setOrigin(0.5);
+    
+    // 場所名変更: 職員室 -> 303教室 (表示は特にないが雰囲気として)
     
     let sn = "裏ボス";
     if (GAME_DATA.stageIndex < STAGES.length - 1) {
@@ -113,7 +121,9 @@ export class WorldScene extends BaseScene {
     
     this.createButton(w/2, h*0.58, '出撃する', 0xc33, () => this.transitionTo('BattleScene', {isTraining: false}), 220, 50, true);
     this.add.text(w/2, h*0.58 + 40, `(${sn})`, {font:`14px ${GAME_FONT}`, color:'#aaa'}).setOrigin(0.5);
-    this.createButton(w/2, h*0.70, '購買部', 0x33c, () => this.transitionTo('ShopScene'));
+    
+    // 名称変更: 購買部 -> プチレーブ
+    this.createButton(w/2, h*0.70, 'プチレーブ', 0x33c, () => this.transitionTo('ShopScene'));
     this.createButton(w/2, h*0.80, '編成', 0x282, () => this.transitionTo('SkillScene'));
     this.createButton(w/2, h*0.90, '補習 (Gold稼ぎ)', 0x886600, () => this.transitionTo('BattleScene', {isTraining: true}));
     
@@ -127,7 +137,8 @@ export class ShopScene extends BaseScene {
     this.fadeInScene(); 
     this.createGameBackground('shop'); 
     const w = this.scale.width; const h = this.scale.height;
-    this.add.text(w/2, 40, `購買部`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5).setDepth(20);
+    // タイトル変更: 購買部 -> プチレーブ
+    this.add.text(w/2, 40, `プチレーブ`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5).setDepth(20);
     this.add.text(w/2, 70, `${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' }).setOrigin(0.5).setDepth(20);
     this.createButton(w/2, h-60, '戻る', 0x555, () => this.transitionTo('WorldScene')).setDepth(20);
 
@@ -196,7 +207,6 @@ export class ShopScene extends BaseScene {
           
           if(this.mode === 'skill') {
               has = GAME_DATA.player.ownedSkillIds.includes(item.id);
-              // 【修正】詳細を表示
               spec = `${item.desc}\n[威力:${item.power} / AP:${item.apCost}]`;
               rightText = has ? "済" : `${item.cost}G`;
           } else {

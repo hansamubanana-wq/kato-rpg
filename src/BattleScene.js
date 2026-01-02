@@ -41,7 +41,8 @@ export class BattleScene extends BaseScene {
     this.add.text(20, topY, GAME_DATA.player.name, {font:`20px ${GAME_FONT}`});
     this.phb = this.createHpBar(20, topY+30, 150, 15, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
     
-    this.add.text(20, topY+55, "Stress", {font:`14px ${GAME_FONT}`, color:'#fa0'});
+    // 表示名変更: Stress -> ストレス
+    this.add.text(20, topY+55, "ストレス", {font:`14px ${GAME_FONT}`, color:'#fa0'});
     this.sb = this.createStressBar(80, topY+63, 90, 10); 
 
     this.apBar = this.createApBar(w/2 - 90, topY + 90);
@@ -88,7 +89,6 @@ export class BattleScene extends BaseScene {
       this.lb.setVisible(GAME_DATA.player.stress >= GAME_DATA.player.maxStress);
   }
 
-  // 【修正】スキルボタンに状態異常を表示
   createSkillMenu(w, h) {
     this.sm = this.add.container(0, h-320).setVisible(false).setDepth(50);
     const bg = this.add.graphics().fillStyle(0x000, 0.9).lineStyle(2, 0xfff).fillRoundedRect(10, 0, w-20, 310, 10).strokeRoundedRect(10, 0, w-20, 310, 10);
@@ -107,11 +107,9 @@ export class BattleScene extends BaseScene {
         const t = this.add.text(0, -8, s.name, {font:`16px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
         
         let val = s.type === 'heal' ? `回復:${s.power}` : `威力:${s.power}`;
-        // 状態異常がある場合は追記
         if (s.status === 'burn') val += ' [炎上]';
         if (s.status === 'sleep') val += ' [眠り]';
 
-        // フォントサイズを11pxにして情報を詰め込む
         const sub = this.add.text(0, 12, `AP:${s.apCost}/${val}`, {font:`11px ${GAME_FONT}`, color:'#ff0'}).setOrigin(0.5);
         
         const hRect = this.add.rectangle(0,0,160,60).setInteractive();
@@ -349,11 +347,7 @@ export class BattleScene extends BaseScene {
     });
     
     this.time.delayedCall(2000, () => { 
-        // プレイヤーの攻撃力依存ダメージ + 敵の最大HPの20% (割合ダメージ)
-        const baseDmg = GAME_DATA.player.atk * 100;
-        const percDmg = this.ed.maxHp * 0.2;
-        const dmg = Math.floor(baseDmg + percDmg); 
-        
+        const dmg = Math.floor(GAME_DATA.player.atk * 150); 
         this.selS = { anim: 'heavy' };
         this.playSwordAnimation(() => {
             if ((this.ed.hp - dmg) <= 0) {

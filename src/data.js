@@ -2,7 +2,7 @@
 //  データ & 定数定義
 // ================================================================
 export const GAME_FONT = 'DotGothic16';
-export const SAVE_KEY = 'kato_rpg_save_v3';
+export const SAVE_KEY = 'kato_rpg_save_v4'; // バージョンアップ
 
 // ドット絵データ
 export const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#f00' };
@@ -34,27 +34,27 @@ export const STAGES = [
   { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
-// スキルデータ
+// スキルデータ（名称変更）
 export const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, anim:'normal', status: null, desc: '基本攻撃。確実に出席をとる。' },
   { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, anim:'normal', status: null, desc: '威力は低いが、当てやすい。' },
   { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 2, anim:'rapid', status: 'sleep', desc: '確率で敵を「居眠り」させる。' },
-  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, anim:'rapid', status: null, desc: '鋭い一撃。判定が少し速い。' },
-  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, anim:'magic', status: null, desc: '基本となる回復魔法。' },
-  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, anim:'normal', status: null, desc: '長い定規で切り裂く。威力大。' },
-  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, anim:'heavy', status: null, desc: '鈍器のような重み。' },
-  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, anim:'magic', status: null, desc: '体力を大幅に回復する。' },
+  { id: 8, name: 'コンパス刺し', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, anim:'rapid', status: null, desc: '鋭い一撃。判定が少し速い。' },
+  { id: 6, name: '生徒を叱る', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, anim:'magic', status: null, desc: '大声を出しストレス発散して回復。' },
+  { id: 4, name: '風呂キャン', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, anim:'normal', status: null, desc: '入浴拒否による精神ダメージ。' },
+  { id: 9, name: 'サクシード提出', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, anim:'heavy', status: null, desc: '分厚い問題集を叩きつける。' },
+  { id: 11, name: '競馬大勝ち', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, anim:'magic', status: null, desc: '臨時収入で心が大幅に回復。' },
   { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, apCost: 6, anim:'heavy', status: 'burn', desc: '脳を焼き、「炎上」状態にする。' },
-  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, apCost: 7, anim:'rapid', status: 'burn', desc: '高速採点。「炎上」付与。' },
+  { id: 10, name: '赤点の連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, apCost: 7, anim:'rapid', status: 'burn', desc: '容赦ない採点。「炎上」付与。' },
   { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, apCost: 9, anim:'heavy', status: null, desc: '絶望的な威力。判定は一瞬。' },
-  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, anim:'heavy', status: 'sleep', desc: '長時間拘束。「居眠り」付与。' }
+  { id: 7, name: '居残り', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, anim:'heavy', status: 'sleep', desc: '長時間拘束。「居眠り」付与。' }
 ];
 
-// アイテムデータ
+// アイテムデータ（名称変更）
 export const ITEM_DB = [
-    { id: 101, name: 'ブラックコーヒー', cost: 100, desc: 'APを全回復する。', type: 'ap_full' },
-    { id: 102, name: '没収したマンガ', cost: 200, desc: '敵の注意を引く（100%居眠り）。', type: 'enemy_sleep' },
-    { id: 103, name: '赤点答案', cost: 150, desc: '相手を精神的に燃やす（100%炎上）。', type: 'enemy_burn' }
+    { id: 101, name: '酒', cost: 100, desc: 'APを全回復する。', type: 'ap_full' },
+    { id: 102, name: '没収したスマホ', cost: 200, desc: '敵の注意を引く（100%居眠り）。', type: 'enemy_sleep' },
+    { id: 103, name: '火炎瓶', cost: 150, desc: '敵を物理的に燃やす（100%炎上）。', type: 'enemy_burn' }
 ];
 
 // ゲームの状態変数
