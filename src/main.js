@@ -10,6 +10,7 @@ fontStyle.innerHTML = `
 `;
 document.head.appendChild(fontStyle);
 const GAME_FONT = 'DotGothic16';
+const SAVE_KEY = 'kato_rpg_save_v1'; // セーブデータのキー
 
 // ================================================================
 //  1. データ定義
@@ -56,7 +57,7 @@ const SKILL_DB = [
   { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, anim:'heavy', desc: 'ドロップ限定奥義。' }
 ];
 
-const GAME_DATA = {
+let GAME_DATA = {
   gold: 0,
   stageIndex: 0,
   player: {
@@ -68,6 +69,32 @@ const GAME_DATA = {
     equippedSkillIds: [1]
   }
 };
+
+// 【新規】セーブ＆ロード機能
+function saveGame() {
+    try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(GAME_DATA));
+    } catch(e) { console.error("Save failed", e); }
+}
+
+function loadGame() {
+    try {
+        const d = localStorage.getItem(SAVE_KEY);
+        if(d) {
+            const parsed = JSON.parse(d);
+            // 互換性チェックのため、キーをマージ
+            GAME_DATA = { ...GAME_DATA, ...parsed, player: { ...GAME_DATA.player, ...parsed.player } };
+        }
+    } catch(e) { console.error("Load failed", e); }
+}
+
+function resetGame() {
+    localStorage.removeItem(SAVE_KEY);
+    location.reload();
+}
+
+// 起動時にロード
+loadGame();
 
 // ================================================================
 //  2. 共通UI & システム
@@ -179,6 +206,27 @@ class BaseScene extends Phaser.Scene {
       this.tweens.add({ targets: [g, c], scale: 1.5, alpha: 0, duration: 200, onComplete: () => { g.destroy(); c.destroy(); } });
   }
 
+  // 【新規】爆発エフェクト
+  createExplosion(x, y) {
+      for(let i=0; i<20; i++) {
+          const p = this.add.rectangle(x, y, 8, 8, Phaser.Utils.Array.GetRandom([0xff0000, 0xffaa00, 0xffff00, 0xffffff]));
+          const angle = Phaser.Math.Between(0, 360) * (Math.PI/180);
+          const speed = Phaser.Math.Between(50, 150);
+          this.tweens.add({
+              targets: p,
+              x: x + Math.cos(angle) * speed,
+              y: y + Math.sin(angle) * speed,
+              alpha: 0,
+              scale: 0.1,
+              angle: 360,
+              duration: 800,
+              ease: 'Power2',
+              onComplete: () => p.destroy()
+          });
+      }
+      this.cameras.main.shake(300, 0.05);
+  }
+
   createPanel(x, y, w, h) {
     this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(x+4, y+4, w, h, 10);
     const bg = this.add.graphics(); bg.fillStyle(0x002244, 0.95).lineStyle(2, 0xfff, 1).fillRoundedRect(x, y, w, h, 10).strokeRoundedRect(x, y, w, h, 10);
@@ -202,7 +250,6 @@ class BaseScene extends Phaser.Scene {
     return c;
   }
 
-  // スクロール用ボタン
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
@@ -210,7 +257,6 @@ class BaseScene extends Phaser.Scene {
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
     vc.add([sh, bg, tx]);
-    
     if(subText) {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
@@ -270,7 +316,6 @@ class BaseScene extends Phaser.Scene {
       return container;
   }
 
-  // スクロールコンテナ初期化 (hitZone削除版)
   initScrollView(contentHeight, maskY, maskH) {
       this.scrollContainer = this.add.container(0, maskY);
       const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
@@ -338,7 +383,8 @@ class OpeningScene extends BaseScene {
         onComplete: () => this.transitionTo('TutorialScene')
     });
 
-    this.createButton(w/2, h - 50, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
+    this.createButton(w/2, h - 120, 'SKIP >>', 0x555555, () => this.transitionTo('TutorialScene'));
+    this.createButton(w/2, h - 50, 'データ消去して最初から', 0x880000, () => resetGame());
   }
 }
 
@@ -416,12 +462,14 @@ class WorldScene extends BaseScene {
         sn = `Stage ${GAME_DATA.stageIndex+1}: ${STAGES[GAME_DATA.stageIndex].name}`;
     }
     
-    // 縦並び配置 (修正)
     this.createButton(w/2, h*0.58, '出撃する', 0xc33, () => this.transitionTo('BattleScene', {isTraining: false}), true);
     this.add.text(w/2, h*0.58 + 40, `(${sn})`, {font:`14px ${GAME_FONT}`, color:'#aaa'}).setOrigin(0.5);
     this.createButton(w/2, h*0.70, '購買部', 0x33c, () => this.transitionTo('ShopScene'));
     this.createButton(w/2, h*0.80, '編成', 0x282, () => this.transitionTo('SkillScene'));
     this.createButton(w/2, h*0.90, '補習 (Gold稼ぎ)', 0x886600, () => this.transitionTo('BattleScene', {isTraining: true}));
+    
+    // オートセーブ
+    saveGame();
   }
 }
 
@@ -454,6 +502,7 @@ class ShopScene extends BaseScene {
             if(GAME_DATA.gold >= s.cost) { 
                 GAME_DATA.gold -= s.cost; 
                 GAME_DATA.player.ownedSkillIds.push(s.id); 
+                saveGame(); // セーブ
                 this.scene.restart(); 
             }
             else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
@@ -501,11 +550,13 @@ class SkillScene extends BaseScene {
                     if(GAME_DATA.player.equippedSkillIds.length > 1) {
                         const index = GAME_DATA.player.equippedSkillIds.indexOf(item.id);
                         GAME_DATA.player.equippedSkillIds.splice(index, 1);
+                        saveGame();
                         this.scene.restart();
                     }
                 } else {
                     if(GAME_DATA.player.equippedSkillIds.length < 6) {
                         GAME_DATA.player.equippedSkillIds.push(item.id);
+                        saveGame();
                         this.scene.restart();
                     }
                 }
@@ -569,26 +620,12 @@ class BattleScene extends BaseScene {
   create() {
     this.playBGM('bgm_battle');
     this.fadeInScene(); 
+    const isSecret = (GAME_DATA.stageIndex >= STAGES.length - 1);
+    this.createGameBackground(isSecret ? 'secret' : 'battle'); 
     
     const w = this.scale.width; const h = this.scale.height;
-    
-    // 敵決定
-    let enemy = null;
-    if (this.isTraining) {
-        const maxIdx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
-        const rndIdx = Phaser.Math.Between(0, maxIdx);
-        enemy = { ...STAGES[rndIdx] };
-        enemy.name = "練習用" + enemy.name; 
-        enemy.hp = Math.floor(enemy.hp * 0.8); 
-        this.createGameBackground('skill'); 
-    } else {
-        const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
-        enemy = { ...STAGES[idx], maxHp: STAGES[idx].hp };
-        const isSecret = (GAME_DATA.stageIndex >= STAGES.length - 1);
-        this.createGameBackground(isSecret ? 'secret' : 'battle');
-    }
-    this.ed = enemy;
-    this.ed.maxHp = this.ed.hp; 
+    const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
+    this.ed = { ...STAGES[idx], maxHp: STAGES[idx].hp };
 
     this.ps = this.add.sprite(w*0.2, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
     this.es = this.add.sprite(w*0.8, h*0.35, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
@@ -718,10 +755,47 @@ class BattleScene extends BaseScene {
   }
 
   playSwordAnimation(cb) {
-      const s = this.add.graphics(); s.fillStyle(0x0ff, 0.8).lineStyle(2, 0xfff, 1);
-      s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.strokePath();
-      s.x = this.ps.x+20; s.y = this.ps.y-20; s.angle = -30; s.setDepth(200);
-      this.tweens.chain({ targets: s, tweens: [ { angle: -60, duration: 200, ease: 'Back.Out' }, { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } } ] });
+      const animType = this.selS ? this.selS.anim : 'normal';
+      const s = this.add.graphics(); 
+      s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1);
+      s.x = this.ps.x; s.y = this.ps.y; s.setDepth(200);
+
+      if (animType === 'rapid') {
+          s.clear();
+          this.tweens.addCounter({
+              from: 0, to: 5, duration: 400,
+              onUpdate: (tw) => {
+                  const val = tw.getValue();
+                  const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100;
+                  s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath();
+              },
+              onComplete: () => { s.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); }
+          });
+      } else if (animType === 'heavy') {
+          s.fillStyle(0xffaa00, 1).fillCircle(0,0,50);
+          s.y -= 200;
+          this.tweens.add({
+              targets: s, y: this.es.y, duration: 300, ease: 'Bounce.Out',
+              onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); cb(); }
+          });
+      } else if (animType === 'magic') {
+          s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10);
+          s.x = this.ps.x; s.y = this.ps.y;
+          this.tweens.add({
+              targets: s, scale: 5, alpha: 0, duration: 500,
+              onComplete: () => { s.destroy(); cb(); }
+          });
+      } else {
+          s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath();
+          s.angle = -30;
+          this.tweens.chain({
+              targets: s,
+              tweens: [
+                  { angle: -60, duration: 200, ease: 'Back.Out' }, 
+                  { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } }
+              ]
+          });
+      }
   }
 
   startAttackQTE(s) {
@@ -772,6 +846,7 @@ class BattleScene extends BaseScene {
     });
   }
 
+  // 【修正】Limit Break
   activateLimitBreak() {
     this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
     this.refreshStatus();
@@ -780,17 +855,21 @@ class BattleScene extends BaseScene {
     this.cameras.main.shake(500, 0.05);      
     this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
     
-    const dmg = Math.floor(GAME_DATA.player.atk * 150); 
-    
-    this.time.delayedCall(1500, () => { 
-        if ((this.ed.hp - dmg) <= 0) {
-             this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1;
-             this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
-             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
-             this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
-        } else {
-             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd();
-        }
+    // 遅延して実行
+    this.time.delayedCall(1500, () => {
+        const dmg = Math.floor(GAME_DATA.player.atk * 150); 
+        this.selS = { anim: 'heavy' }; // アニメーション用ダミー
+        
+        this.playSwordAnimation(() => {
+            if ((this.ed.hp - dmg) <= 0) {
+                 this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1;
+                 this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
+                 this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
+                 this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
+            } else {
+                 this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd();
+            }
+        });
     });
   }
 
