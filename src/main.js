@@ -31,7 +31,6 @@ const ARTS = {
   bg_window_sunset: ["EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE"]
 };
 
-// 敵データ (HP高め)
 const STAGES = [
   { id: 0, name: '土蔵', hp: 150, atk: 12, exp: 20, gold: 100, key: 'dozo' },
   { id: 1, name: '前田', hp: 300, atk: 18, exp: 40, gold: 150, key: 'maeda' },
@@ -42,20 +41,20 @@ const STAGES = [
   { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
-// スキルデータ
+// 【APコスト追加】 apCost: 1~9
 const SKILL_DB = [
-  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃。確実に出席をとる。' },
-  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, desc: '威力は低いが、当てやすい。' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, desc: 'スナップを効かせた投擲。' },
-  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, desc: '鋭い一撃。判定が少し速い。' },
-  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, desc: '基本となる回復魔法。' },
-  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, desc: '長い定規で切り裂く。威力大。' },
-  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, desc: '鈍器のような重み。当てやすい。' },
-  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, desc: '体力を大幅に回復する。' },
-  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, desc: '超威力だが、判定が激ムズ。' },
-  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, desc: '高速採点による連続攻撃。' },
-  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, desc: '絶望的な威力。判定は一瞬。' },
-  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義。' }
+  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, desc: '基本攻撃。確実に出席をとる。' },
+  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, desc: '威力は低いが、当てやすい。' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 2, desc: 'スナップを効かせた投擲。' },
+  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, desc: '鋭い一撃。判定が少し速い。' },
+  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, desc: '基本となる回復魔法。' },
+  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, desc: '長い定規で切り裂く。威力大。' },
+  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, desc: '鈍器のような重み。当てやすい。' },
+  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, desc: '体力を大幅に回復する。' },
+  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, apCost: 6, desc: '超威力だが、判定が激ムズ。' },
+  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, apCost: 7, desc: '高速採点による連続攻撃。' },
+  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, apCost: 9, desc: '絶望的な威力。判定は一瞬。' },
+  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, desc: 'ドロップ限定奥義。' }
 ];
 
 const GAME_DATA = {
@@ -65,6 +64,7 @@ const GAME_DATA = {
     name: '加藤先生', level: 1, exp: 0, nextExp: 50,
     hp: 80, maxHp: 80, atk: 1.0, 
     stress: 0, maxStress: 100,
+    ap: 3, maxAp: 9, // 【新規】AP導入：初期3, 最大9
     ownedSkillIds: [1],
     equippedSkillIds: [1]
   }
@@ -198,34 +198,27 @@ class BaseScene extends Phaser.Scene {
     return c;
   }
 
-  // 【完全修正版】スクロールリスト用ボタン
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
     const sh = this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     
-    // テキスト配置調整
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
     vc.add([sh, bg, tx]);
     
-    // スペック説明（下部）
     if(subText) {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
     }
 
-    // 右側のテキスト（値段や装備中など）
     if(rightText) {
         const rt = this.add.text((w/2) - 20, 0, rightText, { font: `22px ${GAME_FONT}`, color: '#ff0' }).setOrigin(1, 0.5);
         vc.add(rt);
-        // 購入済みならグレーアウトさせる等の処理用に参照できるようにする
         c.rightTextObj = rt;
     }
     
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
-    
-    // タップ判定のロジック改善
     let startY = 0;
     hit.on('pointerdown', (pointer) => { 
         startY = pointer.y;
@@ -234,7 +227,6 @@ class BaseScene extends Phaser.Scene {
     
     hit.on('pointerup', (pointer) => { 
         vc.setScale(1.0); 
-        // 指が10px以上動いていなければクリックとみなす（スクロール誤爆防止）
         if (Math.abs(pointer.y - startY) < 10) {
             this.playSound('se_select'); 
             cb(); 
@@ -261,41 +253,39 @@ class BaseScene extends Phaser.Scene {
     c.add([bg, bar]); return c;
   }
 
-  // スクロールビュー初期化（判定用オブジェクトなし版）
+  // 【新規】APバーの描画
+  createApBar(x, y) {
+      const container = this.add.container(x, y);
+      const boxes = [];
+      const size = 12;
+      const margin = 4;
+
+      for (let i = 0; i < 9; i++) {
+          const bg = this.add.rectangle(i * (size + margin), 0, size, size, 0x333333).setStrokeStyle(1, 0x888888);
+          const fill = this.add.rectangle(i * (size + margin), 0, size - 2, size - 2, 0xffff00).setVisible(false);
+          container.add([bg, fill]);
+          boxes.push(fill);
+      }
+
+      container.update = (currentAp) => {
+          boxes.forEach((box, index) => {
+              box.setVisible(index < currentAp);
+          });
+      };
+
+      container.add(this.add.text(-20, -7, "AP", { fontSize: '14px', color: '#ff0' }));
+      return container;
+  }
+
   initScrollView(contentHeight, maskY, maskH) {
       this.scrollContainer = this.add.container(0, maskY);
-      
-      const shape = this.make.graphics();
-      shape.fillStyle(0xffffff);
-      shape.fillRect(0, maskY, this.scale.width, maskH);
-      const mask = shape.createGeometryMask();
-      this.scrollContainer.setMask(mask);
-
-      // 画面全体でスクロール操作を受け付ける
-      const minScroll = Math.min(0, maskH - contentHeight - 50); 
-      const maxScroll = 0;
-      let isDragging = false;
-      let dragStartY = 0;
-      let containerStartY = 0;
-
-      this.input.on('pointerdown', (pointer) => {
-          if (pointer.y >= maskY && pointer.y <= maskY + maskH) {
-              isDragging = false;
-              dragStartY = pointer.y;
-              containerStartY = this.scrollContainer.y;
-          }
-      });
-
-      this.input.on('pointermove', (pointer) => {
-          if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) {
-              const diff = pointer.y - dragStartY;
-              if (Math.abs(diff) > 10) isDragging = true;
-              if (isDragging) {
-                  this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY);
-              }
-          }
-      });
-      
+      const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
+      const mask = shape.createGeometryMask(); this.scrollContainer.setMask(mask);
+      const hitZone = this.add.rectangle(this.scale.width/2, maskY + maskH/2, this.scale.width, maskH, 0x000000, 0).setInteractive();
+      const minScroll = Math.min(0, maskH - contentHeight - 50); const maxScroll = 0;
+      let isDragging = false; let dragStartY = 0; let containerStartY = 0;
+      this.input.on('pointerdown', (pointer) => { if (pointer.y >= maskY && pointer.y <= maskY + maskH) { isDragging = false; dragStartY = pointer.y; containerStartY = this.scrollContainer.y; } });
+      this.input.on('pointermove', (pointer) => { if (pointer.isDown && pointer.y >= maskY && pointer.y <= maskY + maskH) { const diff = pointer.y - dragStartY; if (Math.abs(diff) > 10) isDragging = true; if (isDragging) { this.scrollContainer.y = Phaser.Math.Clamp(containerStartY + diff, minScroll + maskY, maxScroll + maskY); } } });
       return this.scrollContainer;
   }
 }
@@ -311,7 +301,6 @@ class OpeningScene extends BaseScene {
     const w = this.scale.width; const h = this.scale.height;
     this.add.rectangle(w/2, h/2, w, h, 0x000000);
 
-    // 【修正】ストーリーテキスト：青稜中学校版
     const storyText = `
 私立青稜中学校。
 
@@ -376,8 +365,7 @@ class TutorialScene extends BaseScene {
     const w = this.scale.width; const h = this.scale.height;
     this.add.text(w/2, 50, "【チュートリアル 2/2】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     this.add.text(w/2, 150, "強くなるには？", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
-    this.add.text(w/2, 220, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技を購入\n\n③「編成」で技を装備！\n(最大6つまで)", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
-    this.add.text(w/2, 350, "※ 技をセットしないと\n使えないので注意！", { font: `20px ${GAME_FONT}`, color: '#f88', align:'center' }).setOrigin(0.5);
+    this.add.text(w/2, 220, "① 敵を倒してゴールドを獲得\n\n②「購買部」で強力な技を購入\n\n③「編成」で技を装備！\n(最大6つまで)\n\n④戦闘中はAP(行動力)に注意！", { font: `20px ${GAME_FONT}`, color: '#fff', align:'center' }).setOrigin(0.5);
     this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), true);
   }
 }
@@ -430,10 +418,9 @@ class ShopScene extends BaseScene {
     let y = 50; 
     skillList.forEach((s) => {
         const has = GAME_DATA.player.ownedSkillIds.includes(s.id);
-        const spec = (s.type === 'heal') ? `回復力:${s.power}` : `威力:${s.power} / 速度:${s.speed}`;
+        const spec = (s.type === 'heal') ? `回復:${s.power}/AP:${s.apCost}` : `威力:${s.power}/AP:${s.apCost}`;
         const rightText = has ? "済" : `${s.cost}G`;
         
-        // 【修正】createScrollableButtonを使用
         const btn = this.createScrollableButton(w/2, y, s.name, has?0x333333:0x000000, () => {
             if(has) return;
             if(GAME_DATA.gold >= s.cost) { 
@@ -445,8 +432,8 @@ class ShopScene extends BaseScene {
         }, w-40, 75, `${s.desc}\n[${spec}]`, rightText);
         
         if(has) {
-            btn.list[0].list[2].setColor('#888'); // 文字色グレー
-            if(btn.rightTextObj) btn.rightTextObj.setColor('#888'); // 金額もグレー
+            btn.list[0].list[2].setColor('#888'); 
+            if(btn.rightTextObj) btn.rightTextObj.setColor('#888');
         }
         
         container.add(btn);
@@ -479,7 +466,7 @@ class SkillScene extends BaseScene {
         if(item.isSeparator) {
             const sep = this.add.text(30, y, item.text, {font:`18px ${GAME_FONT}`, color:'#ff8'}); container.add(sep); y += 40;
         } else {
-            const spec = (item.type === 'heal') ? `[回復:${item.power}]` : `[攻:${item.power}/速:${item.speed}]`;
+            const spec = (item.type === 'heal') ? `[AP:${item.apCost}]` : `[AP:${item.apCost}/速:${item.speed}]`;
             const color = item.isEquip ? 0x006600 : 0x444444;
             const btn = this.createScrollableButton(w/2, y, item.name, color, () => {
                 if(item.isEquip) {
@@ -546,7 +533,7 @@ class TrueClearScene extends BaseScene {
 }
 
 // ================================================================
-//  9. バトルシーン
+//  9. バトルシーン (AP管理)
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
@@ -570,11 +557,14 @@ class BattleScene extends BaseScene {
     this.add.text(w*0.7, h*0.4-90, this.ed.name, {font:`16px ${GAME_FONT}`});
     this.sb = this.createStressBar(w*0.1, h*0.6+80, 100, 8);
     this.add.text(w*0.1+60, h*0.6+80, "Stress", {font:`12px ${GAME_FONT}`, color:'#fa0'}).setOrigin(0, 0.5);
+    
+    // APバー
+    this.apBar = this.createApBar(w*0.1 + 25, h*0.6 + 100);
 
     this.createMessageBox(w, h);
     this.mm = this.add.container(0, 0);
     this.mm.add(this.createButton(w*0.75, h-220, 'コマンド', 0xc33, () => this.openSkillMenu()));
-    this.mm.add(this.createButton(w*0.75, h-150, '逃げる', 0x555, () => this.transitionTo('WorldScene')));
+    this.mm.add(this.createButton(w*0.75, h-150, 'パス(AP回復)', 0x555, () => this.skipTurn())); // パスボタン
     this.lb = this.createButton(w*0.25, h-220, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), true);
     this.lb.setVisible(false); this.mm.add(this.lb);
 
@@ -586,6 +576,9 @@ class BattleScene extends BaseScene {
     this.createSkillMenu(w, h);
     this.input.on('pointerdown', () => this.handleInput());
     this.updateMessage(`${this.ed.name} があらわれた！`);
+    
+    // 初期APリセット
+    GAME_DATA.player.ap = 3; 
     this.isPlayerTurn = true; this.qteMode = null; this.qteActive = false;
     this.perfectGuardChain = true; 
     this.refreshStatus();
@@ -595,6 +588,7 @@ class BattleScene extends BaseScene {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
       this.sb.update(GAME_DATA.player.stress, GAME_DATA.player.maxStress);
+      this.apBar.update(GAME_DATA.player.ap);
       this.lb.setVisible(GAME_DATA.player.stress >= GAME_DATA.player.maxStress);
   }
 
@@ -602,16 +596,35 @@ class BattleScene extends BaseScene {
     this.sm = this.add.container(0, h-320).setVisible(false).setDepth(50);
     const bg = this.add.graphics().fillStyle(0x000, 0.9).lineStyle(2, 0xfff).fillRoundedRect(10, 0, w-20, 310, 10).strokeRoundedRect(10, 0, w-20, 310, 10);
     this.sm.add(bg);
+    
+    this.skillButtons = [];
     const eq = GAME_DATA.player.equippedSkillIds.map(id => SKILL_DB.find(s => s.id === id));
+    
     eq.forEach((s, i) => {
         const x = w*0.25+(i%2)*(w*0.5); const y = 50 + Math.floor(i/2)*80;
         const c = this.add.container(x, y);
-        const b = this.add.graphics().fillStyle(s.type==='heal'?0x282:0x822, 1).lineStyle(2,0xfff).fillRoundedRect(-75,-25,150,50,8).strokeRoundedRect(-75,-25,150,50,8);
-        const t = this.add.text(0,0,s.name,{font:`18px ${GAME_FONT}`,color:'#fff'}).setOrigin(0.5);
-        const h = this.add.rectangle(0,0,160,60).setInteractive();
-        h.on('pointerdown', () => { this.input.stopPropagation(); this.vibrate(10); this.selectSkill(s); });
-        c.add([b, t, h]); this.sm.add(c);
+        const b = this.add.graphics();
+        const t = this.add.text(0, -10, s.name, {font:`18px ${GAME_FONT}`, color:'#fff'}).setOrigin(0.5);
+        const ap = this.add.text(0, 15, `AP: ${s.apCost}`, {font:`14px ${GAME_FONT}`, color:'#ff0'}).setOrigin(0.5);
+        const hRect = this.add.rectangle(0,0,160,60).setInteractive();
+        
+        hRect.on('pointerdown', () => { 
+            if (GAME_DATA.player.ap >= s.apCost) {
+                this.input.stopPropagation(); 
+                this.vibrate(10); 
+                this.selectSkill(s); 
+            } else {
+                this.vibrate(50); // エラー振動
+            }
+        });
+        
+        c.add([b, t, ap, hRect]); 
+        this.sm.add(c);
+        
+        // ボタン更新用データ保持
+        this.skillButtons.push({ container: c, bg: b, skill: s });
     });
+    
     const bc = this.add.container(w/2, 270);
     const bb = this.add.graphics().fillStyle(0x555, 1).fillRoundedRect(-50,-20,100,40,5);
     const bt = this.add.text(0,0,'戻る',{font:`16px ${GAME_FONT}`}).setOrigin(0.5);
@@ -620,14 +633,50 @@ class BattleScene extends BaseScene {
     bc.add([bb, bt, bh]); this.sm.add(bc);
   }
 
+  // スキルメニューの表示更新（AP不足をグレーアウト）
+  updateSkillMenu() {
+      this.skillButtons.forEach(btn => {
+          const canUse = (GAME_DATA.player.ap >= btn.skill.apCost);
+          const color = canUse ? (btn.skill.type==='heal'?0x228822:0x882222) : 0x333333;
+          btn.bg.clear().fillStyle(color, 1).lineStyle(2,0xffffff).fillRoundedRect(-75,-25,150,50,8).strokeRoundedRect(-75,-25,150,50,8);
+          btn.container.setAlpha(canUse ? 1.0 : 0.5);
+      });
+  }
+
   handleInput() {
     if (this.qteMode === 'attack' && this.qteActive) this.resolveAttackQTE();
     else if (this.qteMode === 'defense_wait') this.triggerGuardPenalty();
     else if (this.qteMode === 'defense_active') this.resolveDefenseQTE();
   }
 
-  openSkillMenu() { if(this.isPlayerTurn) { this.vibrate(10); this.mm.setVisible(false); this.openWindowAnimation(this.sm); this.updateMessage("行動を選択"); } }
-  selectSkill(s) { this.sm.setVisible(false); this.selS = s; if (s.type === 'heal') this.executeHeal(s); else this.startAttackQTE(s); }
+  openSkillMenu() { 
+      if(this.isPlayerTurn) { 
+          this.vibrate(10); 
+          this.updateSkillMenu(); // APに応じて表示更新
+          this.mm.setVisible(false); 
+          this.openWindowAnimation(this.sm); 
+          this.updateMessage("行動を選択"); 
+      } 
+  }
+
+  selectSkill(s) { 
+      // AP消費
+      GAME_DATA.player.ap -= s.apCost;
+      this.refreshStatus();
+      
+      this.sm.setVisible(false); 
+      this.selS = s; 
+      if (s.type === 'heal') this.executeHeal(s); else this.startAttackQTE(s); 
+  }
+
+  skipTurn() {
+      if(this.isPlayerTurn) {
+          this.isPlayerTurn = false;
+          this.mm.setVisible(false);
+          this.updateMessage("ターンをパスした");
+          this.time.delayedCall(1000, () => this.startEnemyTurn());
+      }
+  }
 
   playSwordAnimation(cb) {
       const s = this.add.graphics(); s.fillStyle(0x0ff, 0.8).lineStyle(2, 0xfff, 1);
@@ -668,6 +717,7 @@ class BattleScene extends BaseScene {
         let v = 50; let c = false;
         if (res==='PERFECT') { dmg = Math.floor(dmg*1.5); v = [50, 50, 300]; this.cameras.main.shake(300, 0.04); this.hitStop(200); c = true; } 
         else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); v = 20; }
+        else if (res==='MISS') { dmg = 0; }
         
         if ((this.ed.hp - dmg) <= 0) {
             this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1;
@@ -802,6 +852,8 @@ class BattleScene extends BaseScene {
     
     if (suc) { 
         dmg = 0; this.playSound('se_parry'); this.vibrate(30); 
+        // パリィ成功でAP回復！
+        GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
         this.tweens.add({ targets: this.es, x: this.ebx, duration: 150, ease: 'Back.Out' });
     } else { 
@@ -859,7 +911,11 @@ class BattleScene extends BaseScene {
   }
 
   endEnemyTurn() {
-      this.isPlayerTurn = true; this.mm.setVisible(true); this.px.setVisible(false); this.ps.clearTint(); 
+      this.isPlayerTurn = true; 
+      // ターン開始時AP回復
+      GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
+      
+      this.mm.setVisible(true); this.px.setVisible(false); this.ps.clearTint(); 
       this.updateMessage("ターン開始"); this.refreshStatus();
   }
 
