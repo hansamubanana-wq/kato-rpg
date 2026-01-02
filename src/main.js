@@ -41,19 +41,20 @@ const STAGES = [
   { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
+// 【更新】 anim: 'normal' | 'rapid' | 'heavy'
 const SKILL_DB = [
-  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, desc: '基本攻撃。確実に出席をとる。' },
-  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, desc: '威力は低いが、当てやすい。' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 2, desc: 'スナップを効かせた投擲。' },
-  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, desc: '鋭い一撃。判定が少し速い。' },
-  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, desc: '基本となる回復魔法。' },
-  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, desc: '長い定規で切り裂く。威力大。' },
-  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, desc: '鈍器のような重み。当てやすい。' },
-  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, desc: '体力を大幅に回復する。' },
-  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, apCost: 6, desc: '超威力だが、判定が激ムズ。' },
-  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, apCost: 7, desc: '高速採点による連続攻撃。' },
-  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, apCost: 9, desc: '絶望的な威力。判定は一瞬。' },
-  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, desc: 'ドロップ限定奥義。' }
+  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, anim:'normal', desc: '基本攻撃。確実に出席をとる。' },
+  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, anim:'normal', desc: '威力は低いが、当てやすい。' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 2, anim:'rapid', desc: 'スナップを効かせた投擲。' },
+  { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, anim:'rapid', desc: '鋭い一撃。判定が少し速い。' },
+  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, anim:'magic', desc: '基本となる回復魔法。' },
+  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, anim:'normal', desc: '長い定規で切り裂く。威力大。' },
+  { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, anim:'heavy', desc: '鈍器のような重み。' },
+  { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, anim:'magic', desc: '体力を大幅に回復する。' },
+  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, apCost: 6, anim:'heavy', desc: '超威力だが、判定が激ムズ。' },
+  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, apCost: 7, anim:'rapid', desc: '高速採点による連続攻撃。' },
+  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, apCost: 9, anim:'heavy', desc: '絶望的な威力。判定は一瞬。' },
+  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, anim:'heavy', desc: 'ドロップ限定奥義。' }
 ];
 
 const GAME_DATA = {
@@ -110,9 +111,9 @@ class BaseScene extends Phaser.Scene {
       this.time.delayedCall(duration, () => { this.tweens.timeScale = 1.0; });
   }
 
-  transitionTo(sceneName) {
+  transitionTo(sceneName, data={}) {
       this.cameras.main.fadeOut(500, 0, 0, 0); 
-      this.cameras.main.once('camerafadeoutcomplete', () => { this.scene.start(sceneName); });
+      this.cameras.main.once('camerafadeoutcomplete', () => { this.scene.start(sceneName, data); });
   }
   fadeInScene() { this.cameras.main.fadeIn(500, 0, 0, 0); }
 
@@ -202,22 +203,18 @@ class BaseScene extends Phaser.Scene {
     return c;
   }
 
-  // 【完全修正版】スクロールリスト用ボタン
-  // 画面全体のスクロールフラグではなく、ボタン個別のタッチ座標で判定
+  // スクロールリスト用ボタン
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="", rightText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
-    
     const sh = this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
     vc.add([sh, bg, tx]);
-    
     if(subText) {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
     }
-    
     if(rightText) {
         const rt = this.add.text((w/2) - 20, 0, rightText, { font: `22px ${GAME_FONT}`, color: '#ff0' }).setOrigin(1, 0.5);
         vc.add(rt);
@@ -227,16 +224,14 @@ class BaseScene extends Phaser.Scene {
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
     let startY = 0;
     
-    // タップ開始時の座標を記録
     hit.on('pointerdown', (pointer) => { 
         startY = pointer.y;
         vc.setScale(0.95); 
     });
     
-    // タップ終了時、指の移動が少なければクリックとみなす
     hit.on('pointerup', (pointer) => { 
         vc.setScale(1.0); 
-        // 10px以上動いていなければクリック
+        // 10px以上動いていなければクリックとみなす
         if (Math.abs(pointer.y - startY) < 10) {
             this.playSound('se_select'); 
             cb(); 
@@ -276,7 +271,7 @@ class BaseScene extends Phaser.Scene {
       return container;
   }
 
-  // スクロール判定（入力ブロックなし）
+  // スクロールコンテナ初期化
   initScrollView(contentHeight, maskY, maskH) {
       this.scrollContainer = this.add.container(0, maskY);
       const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
@@ -287,7 +282,7 @@ class BaseScene extends Phaser.Scene {
       let dragStartY = 0; 
       let containerStartY = 0;
 
-      // 画面全体でスクロール操作を受け付ける
+      // 画面全体でスクロール操作
       this.input.on('pointerdown', (pointer) => {
           if (pointer.y >= maskY && pointer.y <= maskY + maskH) {
               dragStartY = pointer.y;
@@ -417,12 +412,18 @@ class WorldScene extends BaseScene {
     this.add.text(30, 60, `Gold: ${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' });
     const kato = this.add.sprite(w/2, h*0.35, 'kato').setScale(6); this.startIdleAnimation(kato);
     this.add.text(w/2, h*0.5, "「次はどうしますか？」", { font:`20px ${GAME_FONT}` }).setOrigin(0.5);
-    let n = STAGES[Math.min(GAME_DATA.stageIndex, STAGES.length-1)];
-    const sn = (GAME_DATA.stageIndex >= STAGES.length) ? "裏ボス" : `Stage ${GAME_DATA.stageIndex+1}: ${n.name}`;
-    this.createButton(w/2, h*0.65, '出撃する', 0xc33, () => this.transitionTo('BattleScene'), true);
+    
+    let sn = "裏ボス";
+    if (GAME_DATA.stageIndex < STAGES.length - 1) {
+        sn = `Stage ${GAME_DATA.stageIndex+1}: ${STAGES[GAME_DATA.stageIndex].name}`;
+    }
+    this.createButton(w/2, h*0.65, '出撃する', 0xc33, () => this.transitionTo('BattleScene', {isTraining: false}), true);
     this.add.text(w/2, h*0.65 + 40, `(${sn})`, {font:`14px ${GAME_FONT}`, color:'#aaa'}).setOrigin(0.5);
-    this.createButton(w/2, h*0.8, '購買部', 0x33c, () => this.transitionTo('ShopScene'));
-    this.createButton(w/2, h*0.9, '編成', 0x282, () => this.transitionTo('SkillScene'));
+    
+    // 【新規】補習ボタン
+    this.createButton(w*0.3, h*0.8, '購買部', 0x33c, () => this.transitionTo('ShopScene'));
+    this.createButton(w*0.7, h*0.8, '編成', 0x282, () => this.transitionTo('SkillScene'));
+    this.createButton(w/2, h*0.9, '補習 (Gold稼ぎ)', 0x886600, () => this.transitionTo('BattleScene', {isTraining: true}));
   }
 }
 
@@ -566,15 +567,35 @@ class TrueClearScene extends BaseScene {
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
+  init(data) {
+      // 補習モードかどうかのフラグを受け取る
+      this.isTraining = data.isTraining || false;
+  }
   create() {
     this.playBGM('bgm_battle');
     this.fadeInScene(); 
-    const isSecret = (GAME_DATA.stageIndex >= STAGES.length - 1);
-    this.createGameBackground(isSecret ? 'secret' : 'battle'); 
     
     const w = this.scale.width; const h = this.scale.height;
-    const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
-    this.ed = { ...STAGES[idx], maxHp: STAGES[idx].hp };
+    
+    // 敵データの決定
+    let enemy = null;
+    if (this.isTraining) {
+        // 補習: 現在のステージ以下の敵からランダム
+        const maxIdx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
+        const rndIdx = Phaser.Math.Between(0, maxIdx);
+        enemy = { ...STAGES[rndIdx] };
+        enemy.name = "練習用" + enemy.name; // 名前を変える
+        enemy.hp = Math.floor(enemy.hp * 0.8); // 少し弱くする
+        this.createGameBackground('skill'); // 背景は教室
+    } else {
+        // 本番
+        const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
+        enemy = { ...STAGES[idx], maxHp: STAGES[idx].hp };
+        const isSecret = (GAME_DATA.stageIndex >= STAGES.length - 1);
+        this.createGameBackground(isSecret ? 'secret' : 'battle');
+    }
+    this.ed = enemy;
+    this.ed.maxHp = this.ed.hp; // 最大HPセット
 
     this.ps = this.add.sprite(w*0.2, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
     this.es = this.add.sprite(w*0.8, h*0.35, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
@@ -703,11 +724,53 @@ class BattleScene extends BaseScene {
       }
   }
 
+  // 【新規】アニメーション分岐
   playSwordAnimation(cb) {
-      const s = this.add.graphics(); s.fillStyle(0x0ff, 0.8).lineStyle(2, 0xfff, 1);
-      s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.strokePath();
-      s.x = this.ps.x+20; s.y = this.ps.y-20; s.angle = -30; s.setDepth(200);
-      this.tweens.chain({ targets: s, tweens: [ { angle: -60, duration: 200, ease: 'Back.Out' }, { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } } ] });
+      const animType = this.selS ? this.selS.anim : 'normal';
+      const s = this.add.graphics(); 
+      s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1);
+      s.x = this.ps.x; s.y = this.ps.y; s.setDepth(200);
+
+      if (animType === 'rapid') {
+          // 乱舞
+          s.clear();
+          this.tweens.addCounter({
+              from: 0, to: 5, duration: 400,
+              onUpdate: (tw) => {
+                  const val = tw.getValue();
+                  const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100;
+                  s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath();
+              },
+              onComplete: () => { s.destroy(); this.createImpactEffect(this.es.x, this.es.y); cb(); }
+          });
+      } else if (animType === 'heavy') {
+          // 叩きつけ
+          s.fillStyle(0xffaa00, 1).fillCircle(0,0,50);
+          s.y -= 200;
+          this.tweens.add({
+              targets: s, y: this.es.y, duration: 300, ease: 'Bounce.Out',
+              onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); cb(); }
+          });
+      } else if (animType === 'magic') {
+          // 魔法
+          s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10);
+          s.x = this.ps.x; s.y = this.ps.y;
+          this.tweens.add({
+              targets: s, scale: 5, alpha: 0, duration: 500,
+              onComplete: () => { s.destroy(); cb(); }
+          });
+      } else {
+          // 通常 (剣)
+          s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath();
+          s.angle = -30;
+          this.tweens.chain({
+              targets: s,
+              tweens: [
+                  { angle: -60, duration: 200, ease: 'Back.Out' }, 
+                  { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); cb(); } }
+              ]
+          });
+      }
   }
 
   startAttackQTE(s) {
@@ -758,26 +821,30 @@ class BattleScene extends BaseScene {
     });
   }
 
+  // 【修正】Limit Break
   activateLimitBreak() {
     this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
     this.refreshStatus();
-    
     this.vibrate(1000); 
     this.cameras.main.flash(500, 255, 0, 0); 
     this.cameras.main.shake(500, 0.05);      
     this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
     
-    const dmg = Math.floor(GAME_DATA.player.atk * 150); 
-    
-    this.time.delayedCall(1500, () => { 
-        if ((this.ed.hp - dmg) <= 0) {
-             this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1;
-             this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
-             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
-             this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
-        } else {
-             this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd();
-        }
+    // 遅延して実行
+    this.time.delayedCall(1500, () => {
+        const dmg = Math.floor(GAME_DATA.player.atk * 150); 
+        this.selS = { anim: 'heavy' }; // アニメーション用ダミー
+        
+        this.playSwordAnimation(() => {
+            if ((this.ed.hp - dmg) <= 0) {
+                 this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1;
+                 this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
+                 this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
+                 this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
+            } else {
+                 this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd();
+            }
+        });
     });
   }
 
@@ -918,6 +985,9 @@ class BattleScene extends BaseScene {
   triggerCounterAttack() {
       this.time.delayedCall(200, () => {
           this.updateMessage("見切った！ カウンター！");
+          // カウンター時は特別なアニメーション（heavy）を使用
+          this.selS = { anim: 'heavy' };
+          
           this.playSwordAnimation(() => {
               let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
               
@@ -945,18 +1015,23 @@ class BattleScene extends BaseScene {
       this.isPlayerTurn = true; 
       GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
       this.showApPopup(this.ps.x, this.ps.y - 50);
-      
       this.mm.setVisible(true); this.px.setVisible(false); this.ps.clearTint(); 
       this.updateMessage("ターン開始"); this.refreshStatus();
   }
 
   winBattle() {
-    GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; GAME_DATA.stageIndex++; 
+    GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; 
+    
+    // 補習モードでなければステージを進める
+    if(!this.isTraining) GAME_DATA.stageIndex++; 
+    
     this.sound.stopAll(); this.playSound('se_win'); this.vibrate([100, 50, 100, 50, 200]); 
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
+    
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) {
         GAME_DATA.player.ownedSkillIds.push(7); msg += "\nレア技【居残り指導】習得！";
     }
+    
     if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) {
         GAME_DATA.player.level++; GAME_DATA.player.maxHp+=20; GAME_DATA.player.hp = GAME_DATA.player.maxHp; GAME_DATA.player.atk += 0.2;
         GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5);
@@ -965,8 +1040,8 @@ class BattleScene extends BaseScene {
     this.updateMessage(msg + "\n(クリックで次へ)");
     this.mm.setVisible(false);
     this.input.once('pointerdown', () => {
-        if(GAME_DATA.stageIndex === 6) this.transitionTo('NormalClearScene'); // 青田撃破後
-        else if(GAME_DATA.stageIndex === 7) this.transitionTo('TrueClearScene'); // 金月撃破後
+        if(!this.isTraining && GAME_DATA.stageIndex === 6) this.transitionTo('NormalClearScene');
+        else if(!this.isTraining && GAME_DATA.stageIndex === 7) this.transitionTo('TrueClearScene');
         else this.transitionTo('WorldScene');
     });
   }
