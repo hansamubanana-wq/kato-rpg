@@ -13,12 +13,13 @@ export class BattleScene extends BaseScene {
     
     const w = this.scale.width; const h = this.scale.height;
     
+    // 敵データの生成
     let enemy = null;
     if (this.isTraining) {
-        // 【修正4】練習モードは常に「土蔵」(STAGES[0])にする
+        // 練習モードは「土蔵」固定
         enemy = { ...STAGES[0] };
         enemy.name = "練習用" + enemy.name; 
-        // HP補正はなしで、そのままの強さで練習
+        // HP補正なし
     } else {
         const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
         enemy = { ...STAGES[idx], maxHp: STAGES[idx].hp };
@@ -27,53 +28,46 @@ export class BattleScene extends BaseScene {
     this.ed.maxHp = this.ed.hp; 
     this.ed.status = null; 
 
-    // --- キャラ配置 (中央寄り) ---
+    // プレイヤーの状態異常リセット
+    GAME_DATA.player.status = null;
+
+    // --- キャラ配置 ---
     this.ps = this.add.sprite(w*0.25, h*0.55, 'kato').setScale(5); this.startIdleAnimation(this.ps);
     this.es = this.add.sprite(w*0.75, h*0.4, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
 
     // --- 上部ステータスエリア ---
     const topY = 40;
-    // 敵HPバー (右上)
+    // 敵HP
     this.add.text(w-20, topY, this.ed.name, {font:`20px ${GAME_FONT}`}).setOrigin(1, 0);
-    this.ehb = this.createHpBar(w-170, topY+30, 150, 15, this.ed.hp, this.ed.maxHp); // 右端合わせ
+    this.ehb = this.createHpBar(w-170, topY+30, 150, 15, this.ed.hp, this.ed.maxHp); 
 
-    // プレイヤーHPバー & ストレス (左上)
+    // プレイヤーHP & ストレス
     this.add.text(20, topY, GAME_DATA.player.name, {font:`20px ${GAME_FONT}`});
     this.phb = this.createHpBar(20, topY+30, 150, 15, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
     
-    // ストレスバー (HPの下)
     this.add.text(20, topY+55, "Stress", {font:`14px ${GAME_FONT}`, color:'#fa0'});
-    this.sb = this.createStressBar(80, topY+63, 90, 10); // 少し右にずらして配置
+    this.sb = this.createStressBar(80, topY+63, 90, 10); 
 
-    // APバー (さらに下、中央寄り)
+    // APバー
     this.apBar = this.createApBar(w/2 - 90, topY + 90);
 
-
-    // --- 下部コマンドエリア (2x2配置) ---
-    this.createMessageBox(w, h); // メッセージウィンドウは一番下
+    // --- 下部コマンドエリア (2x2) ---
+    this.createMessageBox(w, h); 
     this.mm = this.add.container(0, 0);
     
-    // ボタン配置の基準位置 (メッセージウィンドウの上)
     const cmdY = h - 230; 
-    const btnW = 160; 
-    const btnH = 60;
-    const gapX = 10;
-    const gapY = 15;
+    const btnW = 160; const btnH = 60;
+    const gapX = 10; const gapY = 15;
 
-    // 左上: コマンド
     this.mm.add(this.createButton(w/2 - btnW/2 - gapX, cmdY, 'コマンド', 0xc33, () => this.openSkillMenu(), btnW, btnH));
-    // 右上: アイテム
     this.mm.add(this.createButton(w/2 + btnW/2 + gapX, cmdY, 'アイテム', 0x383, () => this.openItemMenu(), btnW, btnH));
-    // 左下: ブチギレ (条件付き表示)
     this.lb = this.createButton(w/2 - btnW/2 - gapX, cmdY + btnH + gapY, 'ブチギレ', 0xf00, () => this.activateLimitBreak(), btnW, btnH, true);
     this.lb.setVisible(false); 
     this.mm.add(this.lb);
-    // 右下: パス
     this.mm.add(this.createButton(w/2 + btnW/2 + gapX, cmdY + btnH + gapY, 'パス', 0x555, () => this.skipTurn(), btnW, btnH)); 
 
-
-    // --- QTE等のUI要素 ---
+    // --- UI要素 ---
     this.qt = this.add.graphics().setDepth(100); this.qr = this.add.graphics().setDepth(100);
     this.qtxt = this.add.text(w/2, h/2-100, '', {font:`40px ${GAME_FONT}`, color:'#ff0', stroke:'#000', strokeThickness:4}).setOrigin(0.5).setDepth(101);
     this.gs = this.add.text(w/2, h/2, '！', {font:`80px ${GAME_FONT}`, color:'#f00', stroke:'#fff', strokeThickness:6}).setOrigin(0.5).setVisible(false).setDepth(101);
@@ -87,6 +81,8 @@ export class BattleScene extends BaseScene {
     GAME_DATA.player.ap = 3; 
     this.isPlayerTurn = true; this.qteMode = null; this.qteActive = false;
     this.perfectGuardChain = true; 
+    this.currentAttackType = 'normal'; // 敵の攻撃タイプ管理用
+
     this.refreshStatus();
   }
 
@@ -98,6 +94,7 @@ export class BattleScene extends BaseScene {
       this.lb.setVisible(GAME_DATA.player.stress >= GAME_DATA.player.maxStress);
   }
 
+  // --- メニュー関連 (省略せず記述) ---
   createSkillMenu(w, h) {
     this.sm = this.add.container(0, h-320).setVisible(false).setDepth(50);
     const bg = this.add.graphics().fillStyle(0x000, 0.9).lineStyle(2, 0xfff).fillRoundedRect(10, 0, w-20, 310, 10).strokeRoundedRect(10, 0, w-20, 310, 10);
@@ -149,7 +146,7 @@ export class BattleScene extends BaseScene {
       if(!this.isPlayerTurn) return;
       this.mm.setVisible(false);
       this.im.setVisible(true);
-      this.im.each(c => { if(c.list && c.y < 250) c.destroy(); }); // 戻るボタン以外を削除
+      this.im.each(c => { if(c.list && c.y < 250) c.destroy(); }); 
       
       const items = Object.keys(GAME_DATA.player.items).map(id => {
           const count = GAME_DATA.player.items[id];
@@ -181,7 +178,6 @@ export class BattleScene extends BaseScene {
       this.im.setVisible(false);
       GAME_DATA.player.items[it.id]--;
       this.updateMessage(`${it.name} を使った！`);
-      
       if(it.type === 'ap_full') {
           GAME_DATA.player.ap = GAME_DATA.player.maxAp;
           this.refreshStatus();
@@ -220,6 +216,7 @@ export class BattleScene extends BaseScene {
       }
   }
 
+  // --- プレイヤー攻撃処理 ---
   playSwordAnimation(cb) {
       const animType = this.selS ? this.selS.anim : 'normal';
       const s = this.add.graphics(); 
@@ -347,7 +344,6 @@ export class BattleScene extends BaseScene {
     this.time.delayedCall(2000, () => { 
         const dmg = Math.floor(GAME_DATA.player.atk * 150); 
         this.selS = { anim: 'heavy' };
-        
         this.playSwordAnimation(() => {
             if ((this.ed.hp - dmg) <= 0) {
                  this.createExplosion(this.es.x, this.es.y);
@@ -376,14 +372,9 @@ export class BattleScene extends BaseScene {
     else this.time.delayedCall(1000, () => this.startEnemyTurn());
   }
 
-  triggerGuardPenalty() {
-    if (this.guardBroken) return;
-    this.guardBroken = true; this.px.setVisible(true); this.ps.setTint(0x888); 
-    this.cameras.main.shake(100,0.01); this.vibrate(200);
-    this.perfectGuardChain = false; 
-  }
-
+  // --- 敵のターン処理 ---
   startEnemyTurn() {
+    // 敵の状態異常チェック
     if (this.ed.status === 'burn') {
         const dmg = Math.floor(this.ed.maxHp * 0.05);
         this.ed.hp -= dmg;
@@ -403,22 +394,34 @@ export class BattleScene extends BaseScene {
 
     this.qteMode = 'defense_wait'; this.guardBroken = false; this.px.setVisible(false); this.ps.clearTint();
     this.perfectGuardChain = true; 
+    this.currentAttackType = 'normal'; // デフォルト
 
     this.tweens.add({ targets: this.es, x: this.es.x + 20, duration: 500, ease: 'Power2' });
 
+    // パターン抽選
     let pattern = 0;
     const stage = GAME_DATA.stageIndex;
+    const rnd = Math.random();
 
+    // ステージが進むほど多彩な攻撃をしてくる
     if (stage <= 1) {
-        pattern = (Math.random() < 0.8) ? 0 : 1; 
-    } else if (stage <= 4) {
-        const r = Math.random();
-        if (r < 0.5) pattern = 0; else if (r < 0.8) pattern = 1; else pattern = 2;
+        // 通常攻撃のみ (たまに連撃)
+        pattern = rnd < 0.8 ? 0 : 1;
+    } else if (stage <= 3) {
+        // フェイント(2)追加
+        if (rnd < 0.5) pattern = 0;
+        else if (rnd < 0.7) pattern = 1;
+        else pattern = 2;
     } else {
-        const r = Math.random();
-        if (r < 0.3) pattern = 0; else if (r < 0.7) pattern = 1; else pattern = 2;
+        // 状態異常(3)とディレイ(4)追加
+        if (rnd < 0.3) pattern = 0; // 通常
+        else if (rnd < 0.5) pattern = 1; // 3連撃
+        else if (rnd < 0.7) pattern = 2; // フェイント
+        else if (rnd < 0.85) pattern = 3; // 状態異常
+        else pattern = 4; // ディレイ
     }
 
+    // 攻撃開始
     if (pattern === 0) {
         this.updateMessage(`${this.ed.name} の攻撃！`);
         this.time.delayedCall(Phaser.Math.Between(1000, 2000), () => this.launchAttack());
@@ -428,7 +431,7 @@ export class BattleScene extends BaseScene {
         this.rapidCount = 3;
         this.time.delayedCall(1000, () => this.launchRapidAttack());
     } 
-    else {
+    else if (pattern === 2) {
         this.updateMessage(`${this.ed.name} が様子を見ている...`);
         this.time.delayedCall(1000, () => {
             this.tweens.add({ targets: this.es, x: this.es.x - 30, duration: 100, yoyo: true });
@@ -438,7 +441,20 @@ export class BattleScene extends BaseScene {
             });
         });
     }
+    else if (pattern === 3) {
+        // 状態異常攻撃
+        this.currentAttackType = 'status'; // 失敗すると状態異常
+        this.updateMessage(`${this.ed.name} の怪しい動き...！`);
+        this.time.delayedCall(1500, () => this.launchStatusAttack());
+    }
+    else if (pattern === 4) {
+        // ディレイ攻撃
+        this.updateMessage(`${this.ed.name} が構えた！`);
+        this.time.delayedCall(1000, () => this.launchDelayAttack());
+    }
   }
+
+  // --- 敵の攻撃パターン実装 ---
 
   launchAttack() {
       if (this.guardBroken) { this.executeDefense(false); return; }
@@ -455,14 +471,59 @@ export class BattleScene extends BaseScene {
           else this.time.delayedCall(500, () => this.endEnemyTurn());
           return;
       }
-      
       if (this.guardBroken) { this.executeDefense(false, true); return; }
-
       this.qteMode = 'defense_active'; this.gs.setVisible(true);
       this.eat = this.tweens.add({
           targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In',
           onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } }
       });
+  }
+
+  // 【新規】状態異常攻撃
+  launchStatusAttack() {
+      if (this.guardBroken) { this.executeDefense(false); return; }
+      this.qteMode = 'defense_active'; this.gs.setVisible(true);
+      // 紫色に光りながらゆっくり来る
+      this.es.setTint(0xff00ff);
+      this.eat = this.tweens.add({
+          targets: this.es, x: this.ps.x + 50, duration: 500, ease: 'Quad.InOut', // 少し遅い
+          onComplete: () => { 
+              this.es.clearTint();
+              if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } 
+          }
+      });
+  }
+
+  // 【新規】ディレイ攻撃
+  launchDelayAttack() {
+      if (this.guardBroken) { this.executeDefense(false); return; }
+      this.qteMode = 'defense_active'; this.gs.setVisible(true);
+      
+      // 1. 近くまで来て止まる
+      this.tweens.add({
+          targets: this.es, x: this.ps.x + 150, duration: 400, ease: 'Quad.Out',
+          onComplete: () => {
+              // 2. 止まる (ランダムな時間)
+              this.time.delayedCall(Phaser.Math.Between(400, 1000), () => {
+                  if (this.guardBroken) return; // 待機中にボタン押しちゃったらペナルティ済み
+                  // 3. 急加速で殴る
+                  this.eat = this.tweens.add({
+                      targets: this.es, x: this.ps.x + 50, duration: 100, ease: 'Expo.In', // 超速い
+                      onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
+                  });
+              });
+          }
+      });
+  }
+
+  triggerGuardPenalty() {
+    if (this.guardBroken) return;
+    this.guardBroken = true; this.px.setVisible(true); this.ps.setTint(0x888); 
+    this.cameras.main.shake(100,0.01); this.vibrate(200);
+    this.perfectGuardChain = false; 
+    
+    // ディレイ攻撃の待機中などに押してしまった場合、攻撃トゥイーンを止める必要はない
+    // 攻撃が来た瞬間に `guardBroken` が true なら直撃するロジックになっている
   }
 
   resolveDefenseQTE() {
@@ -479,6 +540,7 @@ export class BattleScene extends BaseScene {
     let dmg = Math.floor(this.ed.atk * (isRapid ? 0.6 : 1.0));
     
     if (suc) { 
+        // 成功
         dmg = 0; this.playSound('se_parry'); this.vibrate(30); 
         GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
         this.showApPopup(this.ps.x, this.ps.y - 50);
@@ -486,7 +548,21 @@ export class BattleScene extends BaseScene {
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
         this.tweens.add({ targets: this.es, x: this.ebx, duration: 150, ease: 'Back.Out' });
     } else { 
+        // 失敗
         this.perfectGuardChain = false;
+        
+        // 状態異常攻撃を受けてしまった場合
+        if (this.currentAttackType === 'status') {
+            const rnd = Math.random();
+            if (rnd < 0.5) {
+                GAME_DATA.player.status = 'burn';
+                this.showStatusPopup(this.ps.x, this.ps.y - 50, "炎上した！");
+            } else {
+                GAME_DATA.player.status = 'sleep';
+                this.showStatusPopup(this.ps.x, this.ps.y - 50, "眠らされた！");
+            }
+        }
+
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
         GAME_DATA.player.hp -= dmg; this.cameras.main.shake(100, 0.02); this.vibrate(100); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
@@ -494,6 +570,7 @@ export class BattleScene extends BaseScene {
     }
     
     this.qteMode = null;
+    this.es.clearTint(); // 色戻す
     this.refreshStatus();
     
     if (GAME_DATA.player.hp <= 0) {
@@ -540,6 +617,30 @@ export class BattleScene extends BaseScene {
   }
 
   endEnemyTurn() {
+      // プレイヤーのターン開始処理
+      
+      // プレイヤーの状態異常チェック
+      if (GAME_DATA.player.status === 'burn') {
+          const dmg = Math.floor(GAME_DATA.player.maxHp * 0.05);
+          GAME_DATA.player.hp -= dmg;
+          this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
+          this.showStatusPopup(this.ps.x, this.ps.y - 80, "炎上中...");
+          this.refreshStatus();
+          if (GAME_DATA.player.hp <= 0) {
+              this.updateMessage("敗北... (クリックで戻る)");
+              this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); });
+              return;
+          }
+      }
+
+      if (GAME_DATA.player.status === 'sleep') {
+          GAME_DATA.player.status = null; // 1回休みで解除
+          this.showStatusPopup(this.ps.x, this.ps.y - 50, "Zzz...(行動不能)");
+          this.updateMessage("眠っていて動けない！");
+          this.time.delayedCall(1500, () => this.startEnemyTurn()); // 敵ターンへ戻る
+          return;
+      }
+
       this.isPlayerTurn = true; 
       GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
       this.showApPopup(this.ps.x, this.ps.y - 50);
