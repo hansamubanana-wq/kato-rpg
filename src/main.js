@@ -37,23 +37,23 @@ const STAGES = [
   { id: 2, name: '松田先生', hp: 600, atk: 25, exp: 80, gold: 250, key: 'matsuda' },
   { id: 3, name: '北井先生', hp: 1200, atk: 35, exp: 120, gold: 400, key: 'kitai' },
   { id: 4, name: '福盛田先生', hp: 2500, atk: 45, exp: 200, gold: 600, key: 'fukumorita' },
-  { id: 5, name: '青田校長', hp: 5000, atk: 60, exp: 500, gold: 1000, key: 'aota' }, 
+  { id: 5, name: '青田校長', hp: 5000, atk: 60, exp: 500, gold: 1000, key: 'aota' },
   { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
 
 const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃。確実に出席をとる。' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, desc: 'スナップを効かせた投擲。' },
   { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, desc: '威力は低いが、当てやすい。' },
-  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, desc: '長い定規で切り裂く。威力大。' },
-  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, desc: '超威力だが、判定が激ムズ。' },
-  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, desc: '基本となる回復魔法。' },
-  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義。' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, desc: 'スナップを効かせた投擲。' },
   { id: 8, name: 'コンパス突き', type: 'attack', power: 55, speed: 1.4, cost: 300, desc: '鋭い一撃。判定が少し速い。' },
+  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 350, desc: '基本となる回復魔法。' },
+  { id: 4, name: '定規ソード', type: 'attack', power: 75, speed: 1.5, cost: 500, desc: '長い定規で切り裂く。威力大。' },
   { id: 9, name: '分厚い教科書', type: 'attack', power: 100, speed: 0.9, cost: 800, desc: '鈍器のような重み。当てやすい。' },
-  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, desc: '高速採点による連続攻撃。' },
   { id: 11, name: '保健室の鍵', type: 'heal', power: 300, speed: 0, cost: 1000, desc: '体力を大幅に回復する。' },
-  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, desc: '絶望的な威力。判定は一瞬。' }
+  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, desc: '超威力だが、判定が激ムズ。' },
+  { id: 10, name: '赤ペン連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, desc: '高速採点による連続攻撃。' },
+  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, desc: '絶望的な威力。判定は一瞬。' },
+  { id: 7, name: '居残り指導', type: 'attack', power: 250, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義。' }
 ];
 
 const GAME_DATA = {
@@ -130,7 +130,7 @@ class BaseScene extends Phaser.Scene {
     if(type==='shop') { wallColor = 0xaaccff; floorColor = 0xcccccc; }
     if(type==='skill') { wallColor = 0xaaaaaa; floorColor = 0x666666; }
     if(type==='battle') { wallColor = 0x552255; floorColor = 0x221122; }
-    if(type==='secret') { wallColor = 0x220000; floorColor = 0x110000; } // 裏ボス用
+    if(type==='secret') { wallColor = 0x220000; floorColor = 0x110000; }
 
     wall.fillStyle(wallColor, 1).fillRect(0, 0, w, h*0.6);
     floor.fillStyle(floorColor, 1).fillRect(0, h*0.6, w, h*0.4);
@@ -196,20 +196,34 @@ class BaseScene extends Phaser.Scene {
     return c;
   }
 
+  // 【修正】スクロールボタンのバグ修正版
   createScrollableButton(x, y, text, color, cb, w=220, h=50, subText="") {
     const c = this.add.container(x, y);
     const vc = this.add.container(0, 0);
     const sh = this.add.graphics().fillStyle(0x000, 0.5).fillRoundedRect(-w/2+4, -h/2+4, w, h, 8);
     const bg = this.add.graphics().fillStyle(color, 1).lineStyle(2, 0xfff).fillRoundedRect(-w/2, -h/2, w, h, 8).strokeRoundedRect(-w/2, -h/2, w, h, 8);
+    
+    // レイアウト調整
     const tx = this.add.text(w>220? -w/2 + 20 : 0, -5, text, { font: `22px ${GAME_FONT}`, color: '#fff' }).setOrigin(w>220?0:0.5, 0.5);
     vc.add([sh, bg, tx]);
+    
     if(subText) {
         const sub = this.add.text(w>220? -w/2 + 20 : 0, 18, subText, { font: `14px ${GAME_FONT}`, color: '#ccc' }).setOrigin(w>220?0:0.5, 0.5);
         vc.add(sub);
     }
+    
     const hit = this.add.rectangle(0, 0, w, h, 0x000, 0).setInteractive();
     hit.on('pointerdown', () => { vc.setScale(0.95); });
-    hit.on('pointerup', () => { vc.setScale(1.0); if (!this.scene.isDragging) { this.playSound('se_select'); cb(); } });
+    
+    hit.on('pointerup', () => { 
+        vc.setScale(1.0); 
+        // ★修正点: `this.isDragging` を参照する (this.scene ではない)
+        if (!this.isDragging) {
+            this.playSound('se_select'); 
+            cb(); 
+        }
+    });
+    
     hit.on('pointerout', () => vc.setScale(1.0));
     c.add([vc, hit]);
     return c;
@@ -231,15 +245,42 @@ class BaseScene extends Phaser.Scene {
   }
 
   initScrollView(contentHeight, maskY, maskH) {
-      this.isDragging = false; this.dragStartY = 0; this.containerStartY = 0;
+      this.isDragging = false;
+      this.dragStartY = 0;
+      this.containerStartY = 0;
       this.scrollContainer = this.add.container(0, maskY);
-      const shape = this.make.graphics(); shape.fillStyle(0xffffff); shape.fillRect(0, maskY, this.scale.width, maskH);
-      const mask = shape.createGeometryMask(); this.scrollContainer.setMask(mask);
+      
+      const shape = this.make.graphics();
+      shape.fillStyle(0xffffff);
+      shape.fillRect(0, maskY, this.scale.width, maskH);
+      const mask = shape.createGeometryMask();
+      this.scrollContainer.setMask(mask);
+
       const hitZone = this.add.rectangle(this.scale.width/2, maskY + maskH/2, this.scale.width, maskH, 0x000000, 0).setInteractive();
-      const minScroll = Math.min(0, maskH - contentHeight - 50); const maxScroll = 0;
-      this.input.on('pointerdown', (pointer) => { this.isDragging = false; this.dragStartY = pointer.y; this.containerStartY = this.scrollContainer.y; });
-      this.input.on('pointermove', (pointer) => { if (pointer.isDown) { const diff = pointer.y - this.dragStartY; if (Math.abs(diff) > 10) this.isDragging = true; if (this.isDragging) { this.scrollContainer.y = Phaser.Math.Clamp(this.containerStartY + diff, minScroll + maskY, maxScroll + maskY); } } });
-      this.input.on('pointerup', () => { this.time.delayedCall(100, () => { this.isDragging = false; }); });
+      
+      const minScroll = Math.min(0, maskH - contentHeight - 50); 
+      const maxScroll = 0;
+
+      this.input.on('pointerdown', (pointer) => {
+          this.isDragging = false;
+          this.dragStartY = pointer.y;
+          this.containerStartY = this.scrollContainer.y;
+      });
+
+      this.input.on('pointermove', (pointer) => {
+          if (pointer.isDown) {
+              const diff = pointer.y - this.dragStartY;
+              if (Math.abs(diff) > 10) this.isDragging = true;
+              if (this.isDragging) {
+                  this.scrollContainer.y = Phaser.Math.Clamp(this.containerStartY + diff, minScroll + maskY, maxScroll + maskY);
+              }
+          }
+      });
+
+      this.input.on('pointerup', () => {
+          this.time.delayedCall(100, () => { this.isDragging = false; });
+      });
+      
       return this.scrollContainer;
   }
 }
@@ -256,20 +297,19 @@ class OpeningScene extends BaseScene {
     this.add.rectangle(w/2, h/2, w, h, 0x000000);
 
     const storyText = `
-東京都品川区
-青稜中学校。
+私立レトロ高校。
+かつては進学校だったこの場所も
+今は『赤点ドラゴン』の呪いにより
+無法地帯と化していた……。
 
-自由な校風で知られるこの名門校に
-突如として『教育崩壊』の波が押し寄せた。
+生徒は宿題を忘れ、
+教師は授業を放棄。
+校内には魔物が跋扈する始末。
 
-生徒たちはスマホに支配され、
-教師たちはやる気を失い、
-校内は荒廃の一途をたどっていた。
-
-だが、一人の男が立ち上がる。
+しかし、一人の男が立ち上がる。
 数学教師・加藤。
 
-「私が青稜の規律を取り戻す！！」
+「私が全員、補習にしてやる！！」
 
 愛のムチ（物理）で
 学園の平和を取り戻せ！
@@ -280,7 +320,7 @@ class OpeningScene extends BaseScene {
     }).setOrigin(0.5, 0);
 
     this.tweens.add({
-        targets: textObj, y: -600, duration: 20000, ease: 'Linear',
+        targets: textObj, y: -600, duration: 15000, ease: 'Linear',
         onComplete: () => this.transitionTo('TutorialScene')
     });
 
@@ -289,12 +329,13 @@ class OpeningScene extends BaseScene {
 }
 
 // ================================================================
-//  4. チュートリアルシーン
+//  4. チュートリアルシーン (2ページ構成)
 // ================================================================
 class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
   create() {
     this.fadeInScene(); this.createGameBackground('skill');
+    this.page = 1;
     this.showPage1();
   }
 
@@ -302,6 +343,7 @@ class TutorialScene extends BaseScene {
     this.children.removeAll(); 
     this.createGameBackground('skill');
     const w = this.scale.width; const h = this.scale.height;
+
     this.add.text(w/2, 50, "【チュートリアル 1/2】", { font: `28px ${GAME_FONT}`, color: '#fff' }).setOrigin(0.5);
     this.add.text(w/2, 120, "1. 攻 撃", { font: `24px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
     const ring = this.add.graphics();
@@ -327,7 +369,7 @@ class TutorialScene extends BaseScene {
 }
 
 // ================================================================
-//  5. 職員室
+//  5. 職員室 (World)
 // ================================================================
 class WorldScene extends BaseScene {
   constructor() { super('WorldScene'); }
@@ -341,12 +383,10 @@ class WorldScene extends BaseScene {
     this.add.text(30, 60, `Gold: ${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' });
     const kato = this.add.sprite(w/2, h*0.35, 'kato').setScale(6); this.startIdleAnimation(kato);
     this.add.text(w/2, h*0.5, "「次はどうしますか？」", { font:`20px ${GAME_FONT}` }).setOrigin(0.5);
-    
     let sn = "裏ボス";
     if (GAME_DATA.stageIndex < STAGES.length - 1) {
         sn = `Stage ${GAME_DATA.stageIndex+1}: ${STAGES[GAME_DATA.stageIndex].name}`;
     }
-
     this.createButton(w/2, h*0.65, '出撃する', 0xc33, () => this.transitionTo('BattleScene'), true);
     this.add.text(w/2, h*0.65 + 40, `(${sn})`, {font:`14px ${GAME_FONT}`, color:'#aaa'}).setOrigin(0.5);
     this.createButton(w/2, h*0.8, '購買部', 0x33c, () => this.transitionTo('ShopScene'));
@@ -355,7 +395,7 @@ class WorldScene extends BaseScene {
 }
 
 // ================================================================
-//  6. 購買部 & 7. 編成
+//  6. 購買部
 // ================================================================
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
@@ -376,13 +416,18 @@ class ShopScene extends BaseScene {
     skillList.forEach((s) => {
         const has = GAME_DATA.player.ownedSkillIds.includes(s.id);
         const spec = (s.type === 'heal') ? `回復力:${s.power}` : `威力:${s.power} / 速度:${s.speed}`;
+        
+        // ★修正: 金額表示をボタン内部の相対座標に配置
         const btn = this.createScrollableButton(w/2, y, s.name, has?0x333333:0x000000, () => {
             if(has) return;
             if(GAME_DATA.gold >= s.cost) { GAME_DATA.gold -= s.cost; GAME_DATA.player.ownedSkillIds.push(s.id); this.scene.restart(); }
             else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
         }, w-40, 75, `${s.desc}\n[${spec}]`);
-        const priceTxt = this.add.text(w/2 + (w-40)/2 - 10, y, has?"済":`${s.cost}G`, {font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
-        btn.add(priceTxt);
+        
+        // 金額テキストをボタンの右端（相対座標）に追加
+        const priceTxt = this.add.text((w-40)/2 - 10, 0, has?"済":`${s.cost}G`, {font:`22px ${GAME_FONT}`, color:'#ff0'}).setOrigin(1, 0.5);
+        btn.list[0].add(priceTxt);
+
         if(has) btn.list[0].list[2].setColor('#888'); 
         container.add(btn);
         y += itemHeight;
@@ -390,6 +435,9 @@ class ShopScene extends BaseScene {
   }
 }
 
+// ================================================================
+//  7. 編成
+// ================================================================
 class SkillScene extends BaseScene {
   constructor() { super('SkillScene'); }
   create() {
@@ -435,7 +483,7 @@ class SkillScene extends BaseScene {
 }
 
 // ================================================================
-//  新設シーン: NormalClear / SecretBossIntro / TrueClear
+//  8. シーン各種
 // ================================================================
 class NormalClearScene extends BaseScene {
   constructor() { super('NormalClearScene'); }
@@ -443,12 +491,9 @@ class NormalClearScene extends BaseScene {
     this.fadeInScene();
     this.createGameBackground('world');
     const w = this.scale.width; const h = this.scale.height;
-    
     this.add.text(w/2, h*0.3, "青田校長を撃破！\n青稜に平和が戻った...？", {font:`24px ${GAME_FONT}`, align:'center'}).setOrigin(0.5);
-    
     this.createButton(w/2, h*0.6, '裏ボスに挑戦する', 0xcc0000, () => {
-        this.sound.stopAll();
-        this.transitionTo('SecretBossIntroScene');
+        this.sound.stopAll(); this.transitionTo('SecretBossIntroScene');
     }, true);
   }
 }
@@ -459,10 +504,8 @@ class SecretBossIntroScene extends BaseScene {
     this.cameras.main.fadeIn(2000, 0, 0, 0);
     const w = this.scale.width; const h = this.scale.height;
     this.add.rectangle(w/2, h/2, w, h, 0x000000);
-
     const t1 = this.add.text(w/2, h*0.4, "学園を影から操る\n真の支配者...", {font:`28px ${GAME_FONT}`, color:'#f00', align:'center'}).setOrigin(0.5).setAlpha(0);
     const t2 = this.add.text(w/2, h*0.6, "金 月  降 臨", {font:`48px ${GAME_FONT}`, color:'#fff', align:'center'}).setOrigin(0.5).setAlpha(0);
-
     this.tweens.add({ targets: t1, alpha: 1, duration: 2000 });
     this.tweens.add({ targets: t2, alpha: 1, duration: 1000, delay: 2000, onComplete: () => {
         this.time.delayedCall(2000, () => this.transitionTo('BattleScene'));
@@ -475,27 +518,21 @@ class TrueClearScene extends BaseScene {
   create() {
     this.fadeInScene();
     const w = this.scale.width; const h = this.scale.height;
-    this.add.rectangle(w/2, h/2, w, h, 0xffffff); // 真っ白な背景
-
+    this.add.rectangle(w/2, h/2, w, h, 0xffffff); 
     this.add.text(w/2, h*0.3, "祝・完全制覇！", {font:`40px ${GAME_FONT}`, color:'#000', stroke:'#fff', strokeThickness:4}).setOrigin(0.5);
     this.add.text(w/2, h*0.5, "青稜中学校は\n加藤先生の手によって\n真の姿を取り戻した！\n\nThank you for playing!", {font:`24px ${GAME_FONT}`, color:'#000', align:'center'}).setOrigin(0.5);
-
-    this.createButton(w/2, h*0.8, 'タイトルへ戻る', 0x555555, () => {
-        location.reload(); // リロードして最初から
-    });
+    this.createButton(w/2, h*0.8, 'タイトルへ戻る', 0x555555, () => { location.reload(); });
   }
 }
 
 // ================================================================
-//  8. バトルシーン (分岐対応)
+//  9. バトルシーン
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
   create() {
     this.playBGM('bgm_battle');
     this.fadeInScene(); 
-    
-    // 裏ボスなら背景を変える
     const isSecret = (GAME_DATA.stageIndex >= STAGES.length - 1);
     this.createGameBackground(isSecret ? 'secret' : 'battle'); 
     
@@ -613,7 +650,6 @@ class BattleScene extends BaseScene {
         else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); v = 20; }
         
         if ((this.ed.hp - dmg) <= 0) {
-            // WIN演出
             this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1;
             this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
             const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
@@ -784,7 +820,6 @@ class BattleScene extends BaseScene {
               let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
               
               if ((this.ed.hp - dmg) <= 0) {
-                  // --- WIN演出 ---
                   this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1;
                   this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
                   const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
