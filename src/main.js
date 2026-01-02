@@ -1,25 +1,30 @@
 import Phaser from 'phaser';
 
 // ----------------------------------------------------------------
-// ゲームのデータ（ステータスなど）
+// 1. ゲームデータ（セーブデータの代わり）
 // ----------------------------------------------------------------
 const GAME_DATA = {
   player: {
     name: '加藤先生',
+    level: 1,
+    exp: 0,
+    nextExp: 50, // 次のレベルまで
     hp: 100,
     maxHp: 100,
     atk: 15,
-    healPower: 30, // 回復量
-    items: [] // 手に入れたアイテムが入るリスト
-  },
-  enemy: {
-    name: '赤点ドラゴン',
-    hp: 60,
-    maxHp: 60,
-    atk: 10,
-    dropItem: '魔法のチョーク' // 倒した時に落とすもの
+    healPower: 30,
+    items: [] // { name: '薬草', type: 'heal', value: 50 } のようなオブジェクトが入る
   }
 };
+
+// ----------------------------------------------------------------
+// 2. 敵のデータベース
+// ----------------------------------------------------------------
+const ENEMY_LIST = [
+  { name: '宿題の忘れ物', hp: 30, atk: 5, exp: 10, color: 0x88ccff, drop: { name: 'エナジードリンク', type: 'heal', value: 30 } },
+  { name: '居眠り生徒', hp: 50, atk: 8, exp: 20, color: 0xffff88, drop: { name: '三角定規', type: 'buff', value: 2 } },
+  { name: '赤点ドラゴン', hp: 120, atk: 15, exp: 100, color: 0xff0000, drop: { name: '魔法のチョーク', type: 'super_atk', value: 50 } }
+];
 
 class BattleScene extends Phaser.Scene {
   constructor() {
@@ -27,152 +32,225 @@ class BattleScene extends Phaser.Scene {
   }
 
   create() {
-    // 背景色
-    this.cameras.main.setBackgroundColor('#2c5e2e');
+    this.cameras.main.setBackgroundColor('#222222');
     const width = this.scale.width;
     const height = this.scale.height;
 
-    // --- 1. キャラクター表示 ---
-    // 加藤先生
+    // --- 画面パーツの初期化 ---
+    // プレイヤー表示
     this.add.rectangle(width * 0.25, height * 0.6, 60, 100, 0xffffff);
-    this.add.text(width * 0.25, height * 0.6 - 30, GAME_DATA.player.name, { font: '20px Arial', color: '#ffffff' }).setOrigin(0.5);
-    // 加藤先生のHP表示
-    this.playerHpText = this.add.text(width * 0.25, height * 0.6 + 60, `HP: ${GAME_DATA.player.hp}/${GAME_DATA.player.maxHp}`, { font: '24px Arial', color: '#00ff00' }).setOrigin(0.5);
+    this.playerNameText = this.add.text(width * 0.25, height * 0.6 - 30, '', { font: '20px Arial', color: '#ffffff' }).setOrigin(0.5);
+    this.playerHpText = this.add.text(width * 0.25, height * 0.6 + 60, '', { font: '24px Arial', color: '#00ff00' }).setOrigin(0.5);
+    this.playerLvText = this.add.text(width * 0.25, height * 0.6 + 90, '', { font: '16px Arial', color: '#ffff00' }).setOrigin(0.5);
 
-    // 赤点ドラゴン
-    this.add.rectangle(width * 0.75, height * 0.4, 80, 80, 0xff0000);
-    this.add.text(width * 0.75, height * 0.4 - 30, GAME_DATA.enemy.name, { font: '20px Arial', color: '#ff0000' }).setOrigin(0.5);
-    // ドラゴンのHP表示
-    this.enemyHpText = this.add.text(width * 0.75, height * 0.4 + 50, `HP: ${GAME_DATA.enemy.hp}/${GAME_DATA.enemy.maxHp}`, { font: '24px Arial', color: '#ffaaaa' }).setOrigin(0.5);
+    // 敵表示（最初は空っぽ）
+    this.enemyRect = this.add.rectangle(width * 0.75, height * 0.4, 80, 80, 0xff0000);
+    this.enemyNameText = this.add.text(width * 0.75, height * 0.4 - 30, '', { font: '20px Arial', color: '#ffaaaa' }).setOrigin(0.5);
+    this.enemyHpText = this.add.text(width * 0.75, height * 0.4 + 50, '', { font: '24px Arial', color: '#ffaaaa' }).setOrigin(0.5);
 
-    // --- 2. メッセージウィンドウ ---
+    // メッセージウィンドウ
     this.createMessageBox(width, height);
 
-    // --- 3. コマンドボタン ---
-    // [たたかう] ボタン
-    this.attackBtn = this.createButton(width - 120, height - 260, 'たたかう', 0xcc3333, () => {
-      this.playerTurn('attack');
-    });
+    // --- コマンドボタン群 ---
+    this.btnGroup = this.add.group();
+    
+    // [たたかう]
+    const attackBtn = this.createButton(width - 100, height - 280, 'たたかう', 0xcc3333, () => this.playerTurn('attack'));
+    
+    // [回復]
+    const healBtn = this.createButton(width - 240, height - 280, '回復', 0x33cc33, () => this.playerTurn('heal'));
 
-    // [回復する] ボタン（将来的にアイテム使用などに変更可能）
-    this.healBtn = this.createButton(width - 250, height - 260, '回復', 0x3333cc, () => {
-      this.playerTurn('heal');
-    });
+    // [アイテム]
+    const itemBtn = this.createButton(width - 100, height - 210, 'アイテム', 0x3333cc, () => this.openItemMenu());
 
-    // 初期状態の設定
-    this.isPlayerTurn = true; // プレイヤーのターンから開始
-    this.updateMessage(`${GAME_DATA.enemy.name} があらわれた！`);
+    this.btnGroup.add(attackBtn);
+    this.btnGroup.add(healBtn);
+    this.btnGroup.add(itemBtn);
+
+    // --- 次へ進むボタン（戦闘終了後に出る） ---
+    this.nextBtn = this.add.rectangle(width / 2, height / 2, 200, 80, 0xffaa00).setInteractive().setVisible(false);
+    this.nextBtnText = this.add.text(width / 2, height / 2, '次の戦いへ', { font: '28px Arial', color: '#000000' }).setOrigin(0.5).setVisible(false);
+    this.nextBtn.on('pointerdown', () => this.startBattle());
+
+    // --- ゲーム開始 ---
+    this.currentEnemy = null;
+    this.isPlayerTurn = true;
+    this.refreshStatus();
+    
+    // 最初の敵を出現させる
+    this.startBattle();
   }
 
-  // ボタン作成用の便利関数
-  createButton(x, y, text, color, callback) {
-    const btn = this.add.rectangle(x, y, 100, 50, color).setInteractive();
-    const label = this.add.text(x, y, text, { font: '20px Arial', color: '#ffffff' }).setOrigin(0.5);
+  // --- バトル開始処理 ---
+  startBattle() {
+    this.nextBtn.setVisible(false);
+    this.nextBtnText.setVisible(false);
+    this.btnGroup.setVisible(true);
+
+    // ランダムに敵を選ぶ
+    const enemyData = ENEMY_LIST[Math.floor(Math.random() * ENEMY_LIST.length)];
     
-    // ボタンを押した時の動作
-    btn.on('pointerdown', () => {
-      // 自分のターンでなければ反応しない
-      if (this.isPlayerTurn) {
-        callback();
+    // 敵データをコピーしてセット（HPなどを個別に管理するため）
+    this.currentEnemy = { ...enemyData }; 
+    this.currentEnemy.maxHp = enemyData.hp;
+
+    // 敵の見た目更新
+    this.enemyRect.setFillStyle(this.currentEnemy.color);
+    this.enemyNameText.setText(this.currentEnemy.name);
+    this.enemyRect.setVisible(true);
+    this.enemyHpText.setVisible(true);
+    this.enemyNameText.setVisible(true);
+
+    this.updateMessage(`${this.currentEnemy.name} があらわれた！`);
+    this.isPlayerTurn = true;
+    this.refreshStatus();
+  }
+
+  // --- プレイヤーの行動 ---
+  playerTurn(action, item = null) {
+    if (!this.isPlayerTurn) return;
+    this.isPlayerTurn = false;
+
+    if (action === 'attack') {
+      const damage = GAME_DATA.player.atk;
+      this.currentEnemy.hp -= damage;
+      this.updateMessage(`${GAME_DATA.player.name} の攻撃！\n${damage} のダメージ！`);
+      this.cameras.main.shake(100, 0.01);
+
+    } else if (action === 'heal') {
+      const heal = GAME_DATA.player.healPower;
+      GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + heal, GAME_DATA.player.maxHp);
+      this.updateMessage(`加藤先生は一息ついた。\nHPが ${heal} 回復！`);
+
+    } else if (action === 'item') {
+      // アイテム使用処理
+      if (item.type === 'heal') {
+        GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + item.value, GAME_DATA.player.maxHp);
+        this.updateMessage(`${item.name} を使った！\nHPが ${item.value} 回復！`);
+      } else if (item.type === 'buff') {
+        GAME_DATA.player.atk += item.value;
+        this.updateMessage(`${item.name} を使った！\n攻撃力が ${item.value} 上がった！`);
+      } else if (item.type === 'super_atk') {
+        const damage = item.value;
+        this.currentEnemy.hp -= damage;
+        this.updateMessage(`${item.name} を投げつけた！\n${damage} の大ダメージ！`);
       }
-    });
+      
+      // 使ったアイテムを消す
+      const index = GAME_DATA.player.items.indexOf(item);
+      if (index > -1) GAME_DATA.player.items.splice(index, 1);
+    }
+
+    this.refreshStatus();
+
+    // 判定
+    if (this.currentEnemy.hp <= 0) {
+      this.currentEnemy.hp = 0;
+      this.time.delayedCall(1000, () => this.winBattle());
+    } else {
+      this.time.delayedCall(1200, () => this.enemyTurn());
+    }
+  }
+
+  // --- 敵の行動 ---
+  enemyTurn() {
+    if (this.currentEnemy.hp <= 0) return;
+
+    const damage = this.currentEnemy.atk;
+    GAME_DATA.player.hp -= damage;
+    this.updateMessage(`${this.currentEnemy.name} の攻撃！\n${damage} のダメージを受けた！`);
+    this.cameras.main.shake(200, 0.02);
+    this.refreshStatus();
+
+    if (GAME_DATA.player.hp <= 0) {
+        GAME_DATA.player.hp = 0;
+        this.updateMessage(`目の前が真っ暗になった... (リロードして再挑戦)`);
+        // ここでゲームオーバー処理（今回は簡易的に停止）
+    } else {
+        this.isPlayerTurn = true;
+    }
+  }
+
+  // --- 勝利処理 ---
+  winBattle() {
+    this.enemyRect.setVisible(false);
+    this.enemyHpText.setVisible(false);
+    this.enemyNameText.setVisible(false);
+    this.btnGroup.setVisible(false); // コマンドを隠す
+
+    // 経験値獲得
+    GAME_DATA.player.exp += this.currentEnemy.exp;
+    let msg = `${this.currentEnemy.name} を倒した！\n経験値 ${this.currentEnemy.exp} を獲得！`;
+
+    // アイテムドロップ（100%ドロップに設定中）
+    if (this.currentEnemy.drop) {
+      GAME_DATA.player.items.push(this.currentEnemy.drop);
+      msg += `\n[${this.currentEnemy.drop.name}] を手に入れた！`;
+    }
+
+    // レベルアップ判定
+    if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) {
+      GAME_DATA.player.level++;
+      GAME_DATA.player.maxHp += 20;
+      GAME_DATA.player.hp = GAME_DATA.player.maxHp; // 全回復
+      GAME_DATA.player.atk += 5;
+      GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5);
+      msg += `\nレベルアップ！ Lv${GAME_DATA.player.level} になった！`;
+    }
+
+    this.updateMessage(msg);
+
+    // 次へボタン表示
+    this.nextBtn.setVisible(true);
+    this.nextBtnText.setVisible(true);
+  }
+
+  // --- UI関連 ---
+  refreshStatus() {
+    this.playerNameText.setText(GAME_DATA.player.name);
+    this.playerHpText.setText(`HP: ${GAME_DATA.player.hp} / ${GAME_DATA.player.maxHp}`);
+    this.playerLvText.setText(`Lv: ${GAME_DATA.player.level}`);
+    
+    if (this.currentEnemy) {
+        this.enemyHpText.setText(`HP: ${Math.max(0, this.currentEnemy.hp)} / ${this.currentEnemy.maxHp}`);
+    }
+  }
+
+  createButton(x, y, text, color, callback) {
+    const btn = this.add.rectangle(x, y, 120, 50, color).setInteractive();
+    this.add.text(x, y, text, { font: '20px Arial', color: '#ffffff' }).setOrigin(0.5);
+    btn.on('pointerdown', callback);
     return btn;
   }
 
-  // メッセージボックス作成
   createMessageBox(width, height) {
-    this.add.rectangle(width / 2, height - 100, width - 40, 150, 0x000000).setStrokeStyle(4, 0xffffff);
-    this.messageText = this.add.text(40, height - 160, '', {
-      font: '18px Arial',
-      color: '#ffffff',
-      wordWrap: { width: width - 80 }
-    });
+    this.add.rectangle(width / 2, height - 100, width - 20, 160, 0x000000).setStrokeStyle(4, 0xffffff);
+    this.messageText = this.add.text(30, height - 160, '', { font: '18px Arial', color: '#ffffff', wordWrap: { width: width - 60 } });
   }
 
-  // メッセージ更新
   updateMessage(text) {
     this.messageText.setText(text);
   }
 
-  // --- プレイヤーのターン処理 ---
-  playerTurn(action) {
-    this.isPlayerTurn = false; // ボタン連打防止
-
-    if (action === 'attack') {
-      // 攻撃の処理
-      const damage = GAME_DATA.player.atk;
-      GAME_DATA.enemy.hp -= damage;
-      if (GAME_DATA.enemy.hp < 0) GAME_DATA.enemy.hp = 0;
-
-      this.updateMessage(`${GAME_DATA.player.name} の攻撃！\n${GAME_DATA.enemy.name} に ${damage} のダメージ！`);
-      this.cameras.main.shake(100, 0.01); // 揺らす
-
-    } else if (action === 'heal') {
-      // 回復の処理
-      const heal = GAME_DATA.player.healPower;
-      GAME_DATA.player.hp += heal;
-      if (GAME_DATA.player.hp > GAME_DATA.player.maxHp) GAME_DATA.player.hp = GAME_DATA.player.maxHp;
-
-      this.updateMessage(`${GAME_DATA.player.name} は ホイミ的な計算 をした！\nHPが ${heal} 回復した！`);
-    }
-
-    // HP表示の更新
-    this.refreshHpText();
-
-    // 敵が倒れたかチェック
-    if (GAME_DATA.enemy.hp <= 0) {
-      this.time.delayedCall(1500, () => this.battleWin());
-    } else {
-      // 敵のターンへ
-      this.time.delayedCall(1500, () => this.enemyTurn());
-    }
-  }
-
-  // --- 敵のターン処理 ---
-  enemyTurn() {
-    const damage = GAME_DATA.enemy.atk;
-    GAME_DATA.player.hp -= damage;
-    if (GAME_DATA.player.hp < 0) GAME_DATA.player.hp = 0;
-
-    this.updateMessage(`${GAME_DATA.enemy.name} の攻撃！\n${GAME_DATA.player.name} は ${damage} のダメージを受けた！`);
-    this.cameras.main.shake(200, 0.02); // 強く揺らす
-
-    // HP表示の更新
-    this.refreshHpText();
-
-    // プレイヤーが負けたかチェック
-    if (GAME_DATA.player.hp <= 0) {
-      this.time.delayedCall(1500, () => this.battleLose());
-    } else {
-      // プレイヤーのターンに戻る
-      this.time.delayedCall(1500, () => {
-        this.updateMessage(`${GAME_DATA.player.name} のターン！`);
-        this.isPlayerTurn = true;
-      });
-    }
-  }
-
-  // HP表示を最新にする
-  refreshHpText() {
-    this.playerHpText.setText(`HP: ${GAME_DATA.player.hp}/${GAME_DATA.player.maxHp}`);
-    this.enemyHpText.setText(`HP: ${GAME_DATA.enemy.hp}/${GAME_DATA.enemy.maxHp}`);
-  }
-
-  // --- 勝利処理 ---
-  battleWin() {
-    // アイテム獲得
-    GAME_DATA.player.items.push(GAME_DATA.enemy.dropItem);
-
-    this.updateMessage(`${GAME_DATA.enemy.name} を倒した！\n戦利品: [${GAME_DATA.enemy.dropItem}] を手に入れた！`);
+  // --- アイテムメニュー（簡易版） ---
+  openItemMenu() {
+    if (!this.isPlayerTurn) return;
     
-    // ここで勝利BGMなどを流す想定
-    // 戦闘終了後の処理（マップに戻るなど）は今後ここに追加
-  }
+    if (GAME_DATA.player.items.length === 0) {
+        this.updateMessage("アイテムを持っていない！");
+        return;
+    }
 
-  // --- 敗北処理 ---
-  battleLose() {
-    this.updateMessage(`${GAME_DATA.player.name} は計算ミスで倒れた...\n目の前が真っ暗になった！`);
-    // ゲームオーバー処理
+    // 最新のアイテムを使う（簡易実装として、リストの最後のアイテムを自動使用）
+    // 本来は一覧画面を作るが、まずは「持っているアイテムを使う」体験を優先
+    const item = GAME_DATA.player.items[GAME_DATA.player.items.length - 1];
+    
+    // 確認メッセージ
+    this.updateMessage(`これを使いますか？\n[${item.name}]`);
+    
+    // 一時的にボタンの動作を上書きするなどの処理が必要だが
+    // 今回は「アイテムボタンを押したら即座に最新アイテム使用」とする
+    this.playerTurn('item', item);
   }
 }
 
@@ -182,10 +260,7 @@ const config = {
   height: 800,
   backgroundColor: '#000000',
   parent: 'game-container',
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [BattleScene]
 };
 
