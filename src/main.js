@@ -12,7 +12,7 @@ document.head.appendChild(fontStyle);
 const GAME_FONT = 'DotGothic16';
 
 // ================================================================
-//  1. データ定義
+//  1. データ定義 (HP超強化版)
 // ================================================================
 const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0' };
 const ARTS = {
@@ -26,18 +26,17 @@ const ARTS = {
   kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."]
 };
 
-// 敵データ
+// 【調整】後半の敵のHPを大幅に引き上げ
 const STAGES = [
-  { id: 0, name: '土蔵', hp: 120, atk: 12, exp: 20, gold: 100, key: 'dozo' },
-  { id: 1, name: '前田', hp: 200, atk: 18, exp: 40, gold: 150, key: 'maeda' },
-  { id: 2, name: '松田先生', hp: 350, atk: 25, exp: 80, gold: 250, key: 'matsuda' },
-  { id: 3, name: '北井先生', hp: 500, atk: 35, exp: 120, gold: 400, key: 'kitai' },
-  { id: 4, name: '福盛田先生', hp: 800, atk: 45, exp: 200, gold: 600, key: 'fukumorita' },
-  { id: 5, name: '青田校長', hp: 1500, atk: 60, exp: 500, gold: 1000, key: 'aota' },
-  { id: 6, name: '金月', hp: 3000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
+  { id: 0, name: '土蔵', hp: 150, atk: 12, exp: 20, gold: 100, key: 'dozo' },
+  { id: 1, name: '前田', hp: 300, atk: 18, exp: 40, gold: 150, key: 'maeda' },
+  { id: 2, name: '松田先生', hp: 600, atk: 25, exp: 80, gold: 250, key: 'matsuda' },
+  { id: 3, name: '北井先生', hp: 1200, atk: 35, exp: 120, gold: 400, key: 'kitai' },
+  { id: 4, name: '福盛田先生', hp: 2500, atk: 45, exp: 200, gold: 600, key: 'fukumorita' },
+  { id: 5, name: '青田校長', hp: 5000, atk: 60, exp: 500, gold: 1000, key: 'aota' }, // 5000!
+  { id: 6, name: '金月', hp: 10000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' } // 1万!
 ];
 
-// スキルデータ
 const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃' },
   { id: 2, name: 'チョーク投げ', type: 'attack', power: 35, speed: 1.2, cost: 150, desc: '威力中・速度中' },
@@ -373,7 +372,7 @@ class SkillScene extends BaseScene {
 }
 
 // ================================================================
-//  8. バトルシーン (段階的難易度 & カウンター)
+//  8. バトルシーン (段階的難易度 & カウンター修正版)
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
@@ -628,13 +627,19 @@ class BattleScene extends BaseScene {
     this.gs.setVisible(false); this.qteMode = null; if (this.eat) this.eat.stop();
     this.createImpactEffect(this.es.x - 30, this.es.y);
     this.cameras.main.flash(100, 255, 255, 255); 
+    
+    // 連続攻撃中なら文字を変えるなどしても良い
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
     
-    if (this.rapidCount > 0) this.executeDefense(true, true);
-    else this.executeDefense(true, false);
+    if (this.rapidCount > 0) {
+        this.executeDefense(true, true);
+    } else {
+        this.executeDefense(true, false);
+    }
   }
 
+  // isRapid: 連続攻撃中フラグ
   executeDefense(suc, isRapid = false) {
     let dmg = Math.floor(this.ed.atk * (isRapid ? 0.6 : 1.0));
     
@@ -677,13 +682,21 @@ class BattleScene extends BaseScene {
       this.time.delayedCall(200, () => {
           this.updateMessage("見切った！ カウンター！");
           this.playSwordAnimation(() => {
-              // プレイヤーの攻撃力x2のダメージ
-              let dmg = Math.floor(GAME_DATA.player.atk * 15 * 2.0);
+              // プレイヤーの攻撃力x50 + 敵HPの10%
+              let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
+              
               this.ed.hp -= dmg;
               this.showDamagePopup(this.es.x, this.es.y, dmg, true);
               this.playSound('se_attack');
               this.vibrate([50, 50, 100]);
-              this.checkEnd();
+              
+              // 【修正】カウンター後は敵のターンに戻るのではなく、勝敗判定をしてからプレイヤーのターンへ
+              this.refreshStatus();
+              if (this.ed.hp <= 0) {
+                  this.winBattle();
+              } else {
+                  this.time.delayedCall(1000, () => this.endEnemyTurn());
+              }
           });
       });
   }
