@@ -12,7 +12,7 @@ document.head.appendChild(fontStyle);
 const GAME_FONT = 'DotGothic16';
 
 // ================================================================
-//  1. データ定義
+//  1. データ定義 (バランス調整版)
 // ================================================================
 const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0' };
 const ARTS = {
@@ -25,30 +25,35 @@ const ARTS = {
   aota: ["......0000......",".....000000.....","....00....00....","....01111110....","....01011010....","....01111110....",".....223322.....","....33333333....","....33333333....","....33333333....","....77777777....","....77....77....","....77....77....","....00....00...."],
   kingetsu: [".....66..66.....","....666..666....","...6666..6666...","...6111111116...","...6101111016...","...6111111116...","...6111111116...","...2222222222...","..222222222222..","..222222222222..","..777777777777..","...777....777...","...777....777...","...000....000..."]
 };
+
+// 【調整】敵を大幅強化 (HP 3~5倍 / ATK 2倍)
 const STAGES = [
-  { id: 0, name: '土蔵', hp: 30, atk: 5, exp: 10, gold: 50, key: 'dozo' },
-  { id: 1, name: '前田', hp: 50, atk: 8, exp: 20, gold: 80, key: 'maeda' },
-  { id: 2, name: '松田先生', hp: 80, atk: 12, exp: 40, gold: 120, key: 'matsuda' },
-  { id: 3, name: '北井先生', hp: 120, atk: 15, exp: 60, gold: 150, key: 'kitai' },
-  { id: 4, name: '福盛田先生', hp: 160, atk: 18, exp: 80, gold: 200, key: 'fukumorita' },
-  { id: 5, name: '青田校長', hp: 300, atk: 25, exp: 200, gold: 500, key: 'aota' },
-  { id: 6, name: '金月', hp: 500, atk: 40, exp: 500, gold: 999, key: 'kingetsu' }
+  { id: 0, name: '土蔵', hp: 120, atk: 12, exp: 20, gold: 100, key: 'dozo' },
+  { id: 1, name: '前田', hp: 200, atk: 18, exp: 40, gold: 150, key: 'maeda' },
+  { id: 2, name: '松田先生', hp: 350, atk: 25, exp: 80, gold: 250, key: 'matsuda' },
+  { id: 3, name: '北井先生', hp: 500, atk: 35, exp: 120, gold: 400, key: 'kitai' },
+  { id: 4, name: '福盛田先生', hp: 800, atk: 45, exp: 200, gold: 600, key: 'fukumorita' },
+  { id: 5, name: '青田校長', hp: 1500, atk: 60, exp: 500, gold: 1000, key: 'aota' },
+  { id: 6, name: '金月', hp: 3000, atk: 99, exp: 1000, gold: 2000, key: 'kingetsu' }
 ];
+
+// 【調整】スキルのバランス (初期技は弱く、高い技は強く)
 const SKILL_DB = [
-  { id: 1, name: '出席確認', type: 'attack', power: 10, speed: 1.0, cost: 0, desc: '基本攻撃' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 25, speed: 1.2, cost: 100, desc: '威力中・速度中' },
-  { id: 3, name: '小テスト', type: 'attack', power: 15, speed: 0.7, cost: 50, desc: '威力小・当てやすい' },
-  { id: 4, name: '定規ソード', type: 'attack', power: 45, speed: 1.6, cost: 300, desc: '威力大・難しい' },
-  { id: 5, name: '難問の出題', type: 'attack', power: 70, speed: 2.2, cost: 800, desc: '超威力・激ムズ' },
-  { id: 6, name: '公式の確認', type: 'heal', power: 50, speed: 0, cost: 200, desc: 'HP回復魔法' },
-  { id: 7, name: '居残り指導', type: 'attack', power: 100, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義' }
+  { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, desc: '基本攻撃' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 35, speed: 1.2, cost: 150, desc: '威力中・速度中' },
+  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, desc: '威力小・当てやすい' },
+  { id: 4, name: '定規ソード', type: 'attack', power: 70, speed: 1.5, cost: 500, desc: '威力大・難しい' },
+  { id: 5, name: '難問の出題', type: 'attack', power: 120, speed: 2.2, cost: 1200, desc: '超威力・激ムズ' },
+  { id: 6, name: '公式の確認', type: 'heal', power: 80, speed: 0, cost: 300, desc: 'HP回復魔法' },
+  { id: 7, name: '居残り指導', type: 'attack', power: 200, speed: 2.5, cost: 0, desc: 'ドロップ限定奥義' }
 ];
+
 const GAME_DATA = {
   gold: 0,
   stageIndex: 0,
   player: {
     name: '加藤先生', level: 1, exp: 0, nextExp: 50,
-    hp: 100, maxHp: 100, atk: 1.0,
+    hp: 80, maxHp: 80, atk: 1.0, // HPを少し下げて緊張感を出す
     stress: 0, maxStress: 100,
     ownedSkillIds: [1],
     equippedSkillIds: [1]
@@ -56,24 +61,17 @@ const GAME_DATA = {
 };
 
 // ================================================================
-//  2. 共通UI & システム (音声読み込み対応)
+//  2. 共通UI & システム
 // ================================================================
 class BaseScene extends Phaser.Scene {
-  // ここで画像と【音声ファイル】を読み込みます
   preload() {
-    // ドット絵生成
     Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
-
-    // --- 音声ファイルのロード (public/sounds/フォルダ内) ---
-    // ※ 自分で用意したファイル名に合わせてください
     this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
     this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
     this.load.audio('se_select', '/sounds/se_select.mp3');
     this.load.audio('se_attack', '/sounds/se_attack.mp3');
     this.load.audio('se_parry', '/sounds/se_parry.mp3');
     this.load.audio('se_win', '/sounds/se_win.mp3');
-    // ファイルがない場合のダミーロードを防ぐため、存在しないファイルはコメントアウトするか
-    // 実際にファイルを置いてください。
   }
 
   createTextureFromText(key, art) {
@@ -84,28 +82,16 @@ class BaseScene extends Phaser.Scene {
     this.textures.addCanvas(key, cvs);
   }
 
-  // 音を鳴らすヘルパー
-  playSound(key, config = {}) {
-      // ファイルがロードできているか確認してから再生
-      if (this.sound.get(key) || this.cache.audio.exists(key)) {
-          this.sound.play(key, config);
-      }
-  }
-
-  // BGMを鳴らす (シーンをまたいでも管理できるように)
+  playSound(key, config = {}) { if (this.sound.get(key) || this.cache.audio.exists(key)) this.sound.play(key, config); }
+  
   playBGM(key) {
-      // 既に同じ曲が鳴っていたら何もしない
       const current = this.sound.getAll('bgm_world').concat(this.sound.getAll('bgm_battle'));
       let isPlaying = false;
-      
       current.forEach(sound => {
           if (sound.key === key && sound.isPlaying) isPlaying = true;
-          else sound.stop(); // 他のBGMは止める
+          else sound.stop();
       });
-
-      if (!isPlaying) {
-          this.playSound(key, { loop: true, volume: 0.5 });
-      }
+      if (!isPlaying) this.playSound(key, { loop: true, volume: 0.5 });
   }
 
   vibrate(pattern) { if (navigator.vibrate) navigator.vibrate(pattern); }
@@ -169,11 +155,7 @@ class BaseScene extends Phaser.Scene {
     
     const hit = this.add.rectangle(0, 0, w+10, h+20, 0x000, 0).setInteractive();
     hit.on('pointerdown', () => { vc.setScale(0.95); this.vibrate(5); });
-    hit.on('pointerup', () => { 
-        vc.setScale(1.0); 
-        this.playSound('se_select'); // 決定音
-        cb(); 
-    });
+    hit.on('pointerup', () => { vc.setScale(1.0); this.playSound('se_select'); cb(); });
     hit.on('pointerout', () => vc.setScale(1.0));
     c.add([vc, hit]);
     return c;
@@ -201,7 +183,7 @@ class BaseScene extends Phaser.Scene {
 class WorldScene extends BaseScene {
   constructor() { super('WorldScene'); }
   create() {
-    this.playBGM('bgm_world'); // ワールドBGM再生
+    this.playBGM('bgm_world');
     this.fadeInScene(); this.createPatternBackground(0x444, 0x333);
     const w = this.scale.width; const h = this.scale.height;
     this.createPanel(10, 10, w-20, 80);
@@ -219,7 +201,7 @@ class WorldScene extends BaseScene {
 }
 
 // ================================================================
-//  4. 購買部
+//  4. 購買部 & 5. 編成 (省略なし)
 // ================================================================
 class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
@@ -241,7 +223,7 @@ class ShopScene extends BaseScene {
         hit.on('pointerdown', () => {
             if(has) return;
             if(GAME_DATA.gold >= s.cost) { GAME_DATA.gold -= s.cost; GAME_DATA.player.ownedSkillIds.push(s.id); this.playSound('se_select'); this.scene.restart(); }
-            else { this.playSound('se_select'); /*キャンセル音あれば変える*/ pr.setText("不足!"); this.time.delayedCall(500, ()=>this.scene.restart()); }
+            else { this.playSound('se_select'); pr.setText("不足!"); this.time.delayedCall(500, ()=>this.scene.restart()); }
         });
         c.add([bg, t1, t2, pr, hit]); c.setScale(0);
         this.tweens.add({ targets: c, scale: 1, duration: 300, delay: i*50, ease: 'Back.Out' });
@@ -250,9 +232,6 @@ class ShopScene extends BaseScene {
   }
 }
 
-// ================================================================
-//  5. スキル編成
-// ================================================================
 class SkillScene extends BaseScene {
   constructor() { super('SkillScene'); }
   create() {
@@ -260,7 +239,7 @@ class SkillScene extends BaseScene {
     const w = this.scale.width;
     this.add.text(w/2, 40, "スキル編成", {font:`28px ${GAME_FONT}`}).setOrigin(0.5);
     this.createButton(w/2, this.scale.height-60, '完了', 0x555, () => this.transitionTo('WorldScene'));
-    this.add.text(30, 90, "装備中 (タップで外す)", {font:`18px ${GAME_FONT}`, color:'#8f8'});
+    this.add.text(30, 90, "装備中", {font:`18px ${GAME_FONT}`, color:'#8f8'});
     let y = 120;
     const makeItem = (s, i, eq) => {
         const c = this.add.container(0, 0);
@@ -284,12 +263,12 @@ class SkillScene extends BaseScene {
 }
 
 // ================================================================
-//  6. バトルシーン
+//  6. バトルシーン (フィニッシュ演出強化)
 // ================================================================
 class BattleScene extends BaseScene {
   constructor() { super('BattleScene'); }
   create() {
-    this.playBGM('bgm_battle'); // バトルBGM
+    this.playBGM('bgm_battle');
     this.fadeInScene(); this.createPatternBackground(0x522, 0x311);
     const w = this.scale.width; const h = this.scale.height;
     const idx = Math.min(GAME_DATA.stageIndex, STAGES.length-1);
@@ -327,7 +306,7 @@ class BattleScene extends BaseScene {
 
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
-      this.ehb.update(this.ed.hp, this.ed.maxHp);
+      this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
       this.sb.update(GAME_DATA.player.stress, GAME_DATA.player.maxStress);
       this.lb.setVisible(GAME_DATA.player.stress >= GAME_DATA.player.maxStress);
   }
@@ -363,16 +342,6 @@ class BattleScene extends BaseScene {
   openSkillMenu() { if(this.isPlayerTurn) { this.vibrate(10); this.mm.setVisible(false); this.openWindowAnimation(this.sm); this.updateMessage("行動を選択"); } }
   selectSkill(s) { this.sm.setVisible(false); this.selS = s; if (s.type === 'heal') this.executeHeal(s); else this.startAttackQTE(s); }
 
-  activateLimitBreak() {
-    this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
-    // ここで音を鳴らす
-    // this.playSound('se_attack'); // 適当な音
-    this.vibrate(1000); this.cameras.main.flash(500, 255, 0, 0); this.cameras.main.shake(500, 0.05);      
-    this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
-    const dmg = Math.floor(GAME_DATA.player.atk * 150); this.ed.hp -= dmg;
-    this.time.delayedCall(1000, () => { this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd(); });
-  }
-
   playSwordAnimation(cb) {
       const s = this.add.graphics(); s.fillStyle(0x0ff, 0.8).lineStyle(2, 0xfff, 1);
       s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.strokePath();
@@ -405,6 +374,8 @@ class BattleScene extends BaseScene {
     this.qtxt.setText(res).setVisible(true).setScale(0);
     this.tweens.add({ targets: this.qtxt, scale:1.5, duration:300, yoyo:true, onComplete:()=>{ this.qtxt.setVisible(false); this.executeAttack(res); }});
   }
+
+  // --- 攻撃実行（フィニッシュ演出付き） ---
   executeAttack(res) {
     this.playSwordAnimation(() => {
         let dmg = this.selS.power * GAME_DATA.player.atk;
@@ -412,21 +383,69 @@ class BattleScene extends BaseScene {
         if (res==='PERFECT') { dmg = Math.floor(dmg*1.5); v = [50, 50, 300]; this.cameras.main.shake(300, 0.04); this.hitStop(200); c = true; } 
         else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); v = 20; }
         
-        this.playSound('se_attack'); // 攻撃音
-        this.vibrate(v); 
-        this.ed.hp -= dmg;
-        this.showDamagePopup(this.es.x, this.es.y, dmg, c);
-        GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
-        this.checkEnd();
+        // トドメかどうかの判定
+        if ((this.ed.hp - dmg) <= 0) {
+            // フィニッシュ演出！
+            this.vibrate(1000); 
+            this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); // ズームイン
+            this.tweens.timeScale = 0.1; // 超スロー
+            this.cameras.main.flash(1000, 255, 255, 255); // 長いフラッシュ
+            this.playSound('se_attack');
+            
+            // WIN文字
+            const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
+            this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' });
+
+            this.ed.hp -= dmg;
+            this.showDamagePopup(this.es.x, this.es.y, dmg, true);
+            this.refreshStatus();
+
+            this.time.delayedCall(1500, () => {
+                this.tweens.timeScale = 1.0; 
+                this.cameras.main.zoomTo(1.0, 500); // ズーム戻す
+                this.winBattle();
+            });
+        } else {
+            // 通常ヒット
+            this.playSound('se_attack'); this.vibrate(v); 
+            this.ed.hp -= dmg;
+            this.showDamagePopup(this.es.x, this.es.y, dmg, c);
+            GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
+            this.checkEnd();
+        }
     });
   }
+
+  activateLimitBreak() {
+    this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
+    this.vibrate(1000); this.cameras.main.flash(500, 255, 0, 0); this.cameras.main.shake(500, 0.05);      
+    this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`);
+    const dmg = Math.floor(GAME_DATA.player.atk * 150); 
+    
+    this.time.delayedCall(1000, () => { 
+        if ((this.ed.hp - dmg) <= 0) {
+             // 必殺トドメ演出
+             this.cameras.main.zoomTo(1.5, 200);
+             this.tweens.timeScale = 0.1;
+             this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5);
+             this.ed.hp -= dmg;
+             this.showDamagePopup(this.es.x, this.es.y, dmg, true);
+             this.refreshStatus();
+             this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
+        } else {
+             this.ed.hp -= dmg;
+             this.showDamagePopup(this.es.x, this.es.y, dmg, true);
+             this.checkEnd();
+        }
+    });
+  }
+
   executeHeal(s) {
     this.isPlayerTurn = false; const h = s.power;
     GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + h, GAME_DATA.player.maxHp);
     const ht = this.add.text(this.ps.x, this.ps.y-50, `+${h}`, { font:`32px ${GAME_FONT}`, color:'#0f0', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
     this.tweens.add({ targets: ht, y: ht.y-50, alpha:0, duration:1000, onComplete:()=>ht.destroy() });
     this.tweens.add({targets:this.ps, tint:0x0f0, duration:200, yoyo:true, onComplete:()=>this.ps.clearTint()});
-    // 回復音があればここで鳴らす
     this.checkEnd();
   }
   checkEnd() {
@@ -439,7 +458,6 @@ class BattleScene extends BaseScene {
     if (this.guardBroken) return;
     this.guardBroken = true; this.px.setVisible(true); this.ps.setTint(0x888); 
     this.cameras.main.shake(100,0.01); this.vibrate(200);
-    // this.playSound('se_cancel'); 
   }
 
   startEnemyTurn() {
@@ -470,12 +488,10 @@ class BattleScene extends BaseScene {
     let dmg = this.ed.atk;
     if (suc) { 
         dmg = 0; 
-        this.playSound('se_parry'); // パリィ音
-        this.vibrate([20, 20, 20, 20, 500]); 
+        this.playSound('se_parry'); this.vibrate([20, 20, 20, 20, 500]); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 20);
         this.tweens.add({ targets: this.es, x: this.ebx, duration: 300, ease: 'Back.Out' });
     } else { 
-        // this.playSound('se_damage'); // ダメージ音
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
         GAME_DATA.player.hp -= dmg; this.cameras.main.shake(200, 0.02); this.vibrate(300); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
@@ -495,7 +511,8 @@ class BattleScene extends BaseScene {
 
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; GAME_DATA.stageIndex++; 
-    this.playSound('se_win'); // 勝利ジングル
+    this.sound.stopAll(); // BGM止める
+    this.playSound('se_win'); 
     this.vibrate([100, 50, 100, 50, 200]); 
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) {
