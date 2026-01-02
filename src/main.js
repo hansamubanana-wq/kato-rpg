@@ -1,67 +1,31 @@
 import Phaser from 'phaser';
 
 // ----------------------------------------------------------------
-// 0. ドット絵の設計図（ここをいじると絵が変わります）
+// 0. ドット絵リソース（前回と同じ）
 // ----------------------------------------------------------------
-// パレット（数字と色の対応）
 const PALETTE = {
-  '.': null,      // 透明
-  '0': '#000000', // 黒（輪郭/髪）
-  '1': '#ffe0c0', // 肌色
-  '2': '#ffffff', // 白（白衣）
-  '3': '#3333cc', // 青（ネクタイ/ズボン）
-  '4': '#ff3333', // 赤（敵）
-  '5': '#cc0000', // 暗い赤（敵の影）
-  '6': '#8888ff', // 薄い青（スライム）
-  '7': '#4444aa', // 濃い青
+  '.': null, '0': '#000000', '1': '#ffe0c0', '2': '#ffffff',
+  '3': '#3333cc', '4': '#ff3333', '5': '#cc0000', '6': '#8888ff', '7': '#4444aa'
 };
 
-// 加藤先生のドット絵（16x16）
 const KATO_ART = [
-  "......0000......",
-  ".....000000.....",
-  "....00000000....",
-  "....00000000....", // 髪
-  "....01111110....", // 顔
-  "....03111130....", // メガネ
-  "....01111110....",
-  ".....222222.....", // 白衣
-  "....22233222....", // ネクタイ
-  "....22222222....",
-  "....22222222....",
-  ".....33..33.....", // 足
-  ".....33..33.....",
-  ".....00..00....."  // 靴
+  "......0000......", ".....000000.....", "....00000000....", "....00000000....",
+  "....01111110....", "....03111130....", "....01111110....", ".....222222.....",
+  "....22233222....", "....22222222....", "....22222222....", ".....33..33.....",
+  ".....33..33.....", ".....00..00....."
 ];
 
-// 敵：数式スライム（16x16）
 const SLIME_ART = [
-  "................",
-  "................",
-  "......6666......",
-  "....66666666....",
-  "...6667667666...", // 目
-  "..666666666666..",
-  "..666606606666..", // 口
-  ".66666666666666.",
-  "6666666666666666",
-  "................"
+  "................", "................", "......6666......", "....66666666....",
+  "...6667667666...", "..666666666666..", "..666606606666..", ".66666666666666.",
+  "6666666666666666", "................"
 ];
 
-// 敵：赤点ドラゴン（16x16）
 const DRAGON_ART = [
-  ".......44.......",
-  "......4444......",
-  ".....445544.....", // 目
-  "....44444444....",
-  "...4440000444...", // 口
-  "..444444444444..",
-  ".444..4444..444.", // 翼
-  "44....4444....44",
-  "......4444......",
-  "......4..4......"
+  ".......44.......", "......4444......", ".....445544.....", "....44444444....",
+  "...4440000444...", "..444444444444..", ".444..4444..444.", "44....4444....44",
+  "......4444......", "......4..4......"
 ];
-
 
 // ----------------------------------------------------------------
 // 1. ゲームデータ
@@ -69,20 +33,15 @@ const DRAGON_ART = [
 const GAME_DATA = {
   player: {
     name: '加藤先生',
-    level: 1,
-    exp: 0,
-    nextExp: 50,
-    hp: 100,
-    maxHp: 100,
-    atk: 15,
-    healPower: 30,
-    items: [] 
+    level: 1, exp: 0, nextExp: 50,
+    hp: 100, maxHp: 100, atk: 15, healPower: 30,
+    items: []
   }
 };
 
 const ENEMY_LIST = [
-  { name: '数式スライム', hp: 30, atk: 5, exp: 10, key: 'slime', drop: { name: '消しゴム', type: 'heal', value: 30 } },
-  { name: '赤点ドラゴン', hp: 120, atk: 15, exp: 100, key: 'dragon', drop: { name: '魔法のチョーク', type: 'super_atk', value: 50 } }
+  { name: '数式スライム', hp: 40, atk: 8, exp: 10, key: 'slime', drop: { name: '消しゴム', type: 'heal', value: 30 } },
+  { name: '赤点ドラゴン', hp: 150, atk: 20, exp: 100, key: 'dragon', drop: { name: '魔法のチョーク', type: 'super_atk', value: 50 } }
 ];
 
 class BattleScene extends Phaser.Scene {
@@ -90,7 +49,6 @@ class BattleScene extends Phaser.Scene {
     super('BattleScene');
   }
 
-  // ここで「文字」を「画像」に変換して登録します
   preload() {
     this.createTextureFromText('kato', KATO_ART);
     this.createTextureFromText('slime', SLIME_ART);
@@ -102,219 +60,353 @@ class BattleScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
 
-    // --- プレイヤー表示（画像に変更） ---
-    // ドット絵は小さいので、setScale(4)で4倍に拡大表示します
+    // --- UIエリア ---
+    // プレイヤー
     this.playerSprite = this.add.sprite(width * 0.25, height * 0.6, 'kato').setScale(5);
     this.playerNameText = this.add.text(width * 0.25, height * 0.6 - 50, '', { font: '20px Arial', color: '#ffffff' }).setOrigin(0.5);
     this.playerHpText = this.add.text(width * 0.25, height * 0.6 + 60, '', { font: '24px Arial', color: '#00ff00' }).setOrigin(0.5);
     this.playerLvText = this.add.text(width * 0.25, height * 0.6 + 90, '', { font: '16px Arial', color: '#ffff00' }).setOrigin(0.5);
 
-    // --- 敵表示（画像に変更） ---
+    // 敵
     this.enemySprite = this.add.sprite(width * 0.75, height * 0.4, 'slime').setScale(5).setVisible(false);
     this.enemyNameText = this.add.text(width * 0.75, height * 0.4 - 50, '', { font: '20px Arial', color: '#ffaaaa' }).setOrigin(0.5);
     this.enemyHpText = this.add.text(width * 0.75, height * 0.4 + 50, '', { font: '24px Arial', color: '#ffaaaa' }).setOrigin(0.5);
 
+    // QTE用パーツ（最初は非表示）
+    // 攻撃用リング
+    this.qteRing = this.add.graphics();
+    this.qteTarget = this.add.graphics();
+    this.qteText = this.add.text(width/2, height/2 - 100, '', { font: '40px Arial', color: '#ffcc00', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5).setDepth(10);
+    
+    // 防御用シグナル
+    this.guardSignal = this.add.text(width/2, height/2, '！', { font: '80px Arial', color: '#ff0000', stroke: '#fff', strokeThickness: 6 }).setOrigin(0.5).setVisible(false).setDepth(10);
+
     // メッセージウィンドウ
     this.createMessageBox(width, height);
 
-    // --- コマンドボタン群 ---
+    // ボタン
     this.btnGroup = this.add.group();
-    const attackBtn = this.createButton(width - 100, height - 280, 'たたかう', 0xcc3333, () => this.playerTurn('attack'));
+    const attackBtn = this.createButton(width - 100, height - 280, 'たたかう', 0xcc3333, () => this.startAttackQTE()); // 直接攻撃せずQTEへ
     const healBtn = this.createButton(width - 240, height - 280, '回復', 0x33cc33, () => this.playerTurn('heal'));
     const itemBtn = this.createButton(width - 100, height - 210, 'アイテム', 0x3333cc, () => this.openItemMenu());
     this.btnGroup.add(attackBtn);
     this.btnGroup.add(healBtn);
     this.btnGroup.add(itemBtn);
 
+    // グローバル入力リスナー（QTE判定用）
+    this.input.on('pointerdown', () => this.handleInput());
+
     // 次へボタン
     this.nextBtn = this.add.rectangle(width / 2, height / 2, 200, 80, 0xffaa00).setInteractive().setVisible(false);
     this.nextBtnText = this.add.text(width / 2, height / 2, '次の戦いへ', { font: '28px Arial', color: '#000000' }).setOrigin(0.5).setVisible(false);
     this.nextBtn.on('pointerdown', () => this.startBattle());
 
-    // ゲーム開始
-    this.currentEnemy = null;
+    // 初期化
     this.isPlayerTurn = true;
+    this.qteMode = null; // 'attack' or 'defense' or null
+    this.qteActive = false;
     this.refreshStatus();
     this.startBattle();
   }
 
-  // --- ドット絵生成システム ---
-  createTextureFromText(key, artArray) {
-    const pixelSize = 1; // 1文字1ピクセルとして扱う
-    const width = artArray[0].length;
-    const height = artArray.length;
-    
-    // Canvasを作って絵を描く
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
+  // --- 入力判定（QTE用） ---
+  handleInput() {
+    if (!this.qteActive) return;
 
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const char = artArray[y][x];
-        const color = PALETTE[char];
-        if (color) {
-          ctx.fillStyle = color;
-          ctx.fillRect(x, y, 1, 1);
+    if (this.qteMode === 'attack') {
+      this.resolveAttackQTE();
+    } else if (this.qteMode === 'defense') {
+      this.resolveDefenseQTE();
+    }
+  }
+
+  // --- 攻撃QTE（タイミングリング） ---
+  startAttackQTE() {
+    if (!this.isPlayerTurn) return;
+    this.isPlayerTurn = false; // 操作ロック
+    this.qteMode = 'attack';
+    this.qteActive = true;
+    this.btnGroup.setVisible(false);
+    
+    this.updateMessage("タイミングよくタップせよ！");
+
+    // ターゲット円（固定）を描画
+    const targetX = this.enemySprite.x;
+    const targetY = this.enemySprite.y;
+    this.qteTarget.clear();
+    this.qteTarget.lineStyle(4, 0xffffff);
+    this.qteTarget.strokeCircle(targetX, targetY, 50); // 目標サイズ
+    this.qteTarget.setVisible(true);
+
+    // 収縮するリング
+    this.qteRing.clear();
+    this.qteRingScale = 2.5; // 初期サイズ倍率
+    
+    // アニメーションループ開始
+    this.qteEvent = this.time.addEvent({
+      delay: 16, // 約60fps
+      loop: true,
+      callback: () => {
+        if (!this.qteActive) return;
+        
+        this.qteRingScale -= 0.04; // 縮小スピード
+        
+        this.qteRing.clear();
+        this.qteRing.lineStyle(4, 0xffff00);
+        this.qteRing.strokeCircle(targetX, targetY, 50 * this.qteRingScale);
+
+        // 小さくなりすぎたら失敗
+        if (this.qteRingScale <= 0.5) {
+            this.finishQTE('MISS');
         }
       }
-    }
-    // Phaserにテクスチャとして登録
-    this.textures.addCanvas(key, canvas);
-  }
-
-  // --- バトル開始処理 ---
-  startBattle() {
-    this.nextBtn.setVisible(false);
-    this.nextBtnText.setVisible(false);
-    this.btnGroup.setVisible(true);
-
-    const enemyData = ENEMY_LIST[Math.floor(Math.random() * ENEMY_LIST.length)];
-    this.currentEnemy = { ...enemyData };
-    this.currentEnemy.maxHp = enemyData.hp;
-
-    // 敵の画像を変更
-    this.enemySprite.setTexture(this.currentEnemy.key);
-    this.enemySprite.setVisible(true);
-    this.enemyHpText.setVisible(true);
-    this.enemyNameText.setText(this.currentEnemy.name);
-    this.enemyNameText.setVisible(true);
-
-    this.updateMessage(`${this.currentEnemy.name} があらわれた！`);
-    
-    // 登場アニメーション（ピョンと跳ねる）
-    this.tweens.add({
-        targets: this.enemySprite,
-        y: this.enemySprite.y - 20,
-        duration: 200,
-        yoyo: true,
-        ease: 'Power1'
     });
-
-    this.isPlayerTurn = true;
-    this.refreshStatus();
   }
 
-  // --- プレイヤー処理 ---
-  playerTurn(action, item = null) {
-    if (!this.isPlayerTurn) return;
-    this.isPlayerTurn = false;
+  resolveAttackQTE() {
+    this.qteActive = false;
+    this.qteEvent.remove();
+    this.qteRing.clear();
+    this.qteTarget.clear();
 
-    // 攻撃アニメーション（前に出る）
+    // 判定：1.0に近いほど良い (0.8 ~ 1.2 を成功とする)
+    const diff = Math.abs(this.qteRingScale - 1.0);
+    
+    if (diff < 0.15) {
+        this.finishQTE('PERFECT');
+    } else if (diff < 0.4) {
+        this.finishQTE('GOOD');
+    } else {
+        this.finishQTE('BAD');
+    }
+  }
+
+  finishQTE(result) {
+    this.qteText.setText(result);
+    this.qteText.setVisible(true);
+    this.qteText.setScale(0);
+    
+    // テキストがボヨヨンと出る演出
+    this.tweens.add({
+        targets: this.qteText,
+        scale: 1.5,
+        duration: 300,
+        yoyo: true,
+        onComplete: () => {
+            this.qteText.setVisible(false);
+            if (this.qteMode === 'attack') {
+                this.executeAttack(result);
+            }
+        }
+    });
+  }
+
+  executeAttack(rank) {
+    let damage = GAME_DATA.player.atk;
+    let msg = "";
+
+    if (rank === 'PERFECT') {
+        damage = Math.floor(damage * 1.5); // 1.5倍
+        msg = "会心の一撃！！";
+        this.cameras.main.shake(200, 0.03);
+    } else if (rank === 'GOOD') {
+        msg = "ナイスタイミング！"; // 通常ダメージ
+    } else if (rank === 'BAD' || rank === 'MISS') {
+        damage = Math.floor(damage * 0.5); // 半減
+        msg = "タイミングが悪い...";
+    }
+
+    this.currentEnemy.hp -= damage;
+    this.updateMessage(`${msg}\n${damage} のダメージ！`);
+    
+    // 攻撃アニメ
     this.tweens.add({
         targets: this.playerSprite,
-        x: this.playerSprite.x + 30,
+        x: this.playerSprite.x + 50,
         duration: 100,
         yoyo: true
     });
 
-    if (action === 'attack') {
-      const damage = GAME_DATA.player.atk;
-      this.currentEnemy.hp -= damage;
-      this.updateMessage(`${GAME_DATA.player.name} の攻撃！\n${damage} のダメージ！`);
-      this.cameras.main.shake(100, 0.01);
-
-    } else if (action === 'heal') {
-      const heal = GAME_DATA.player.healPower;
-      GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + heal, GAME_DATA.player.maxHp);
-      this.updateMessage(`加藤先生は一息ついた。\nHPが ${heal} 回復！`);
-
-    } else if (action === 'item') {
-      if (item.type === 'heal') {
-        GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + item.value, GAME_DATA.player.maxHp);
-        this.updateMessage(`${item.name} を使った！\nHPが ${item.value} 回復！`);
-      } else if (item.type === 'super_atk') {
-        const damage = item.value;
-        this.currentEnemy.hp -= damage;
-        this.updateMessage(`${item.name} を投げつけた！\n${damage} の大ダメージ！`);
-      }
-      const index = GAME_DATA.player.items.indexOf(item);
-      if (index > -1) GAME_DATA.player.items.splice(index, 1);
-    }
-
-    this.refreshStatus();
-
-    if (this.currentEnemy.hp <= 0) {
-      this.currentEnemy.hp = 0;
-      this.time.delayedCall(1000, () => this.winBattle());
-    } else {
-      this.time.delayedCall(1200, () => this.enemyTurn());
-    }
+    this.checkBattleEnd();
   }
 
-  // --- 敵の行動 ---
-  enemyTurn() {
+  // --- 防御QTE（ジャストガード） ---
+  startEnemyTurn() {
     if (this.currentEnemy.hp <= 0) return;
+    
+    this.updateMessage(`${this.currentEnemy.name} が攻撃を構えた...`);
+    
+    // ランダムなタイミングで「！」を出す
+    const delay = Phaser.Math.Between(1000, 2000);
+    
+    this.time.delayedCall(delay, () => {
+        // 「！」表示
+        this.guardSignal.setVisible(true);
+        this.guardSignal.setScale(1);
+        this.qteMode = 'defense';
+        this.qteActive = true;
+        this.guardSuccess = false;
 
-    // 攻撃アニメーション（前に出る）
+        // 一瞬だけ受付時間を作る（0.4秒）
+        this.time.delayedCall(400, () => {
+            if (this.qteActive) {
+                // 時間切れ＝被弾
+                this.qteActive = false;
+                this.guardSignal.setVisible(false);
+                this.executeDefense(false);
+            }
+        });
+    });
+  }
+
+  resolveDefenseQTE() {
+    this.qteActive = false;
+    this.guardSignal.setVisible(false);
+    
+    // 成功演出
+    this.qteText.setText("BLOCK!");
+    this.qteText.setVisible(true);
+    this.qteText.setScale(1);
+    this.tweens.add({
+        targets: this.qteText,
+        y: this.qteText.y - 50,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => {
+            this.qteText.setVisible(false);
+            this.qteText.setAlpha(1);
+            this.qteText.y += 50;
+        }
+    });
+
+    this.executeDefense(true);
+  }
+
+  executeDefense(success) {
+    let damage = this.currentEnemy.atk;
+    
+    // 敵のアニメーション
     this.tweens.add({
         targets: this.enemySprite,
-        x: this.enemySprite.x - 30,
+        x: this.enemySprite.x - 50,
         duration: 100,
         yoyo: true
     });
 
-    const damage = this.currentEnemy.atk;
-    GAME_DATA.player.hp -= damage;
-    this.updateMessage(`${this.currentEnemy.name} の攻撃！\n${damage} のダメージを受けた！`);
-    this.cameras.main.shake(200, 0.02);
+    if (success) {
+        damage = 0; // 完全ガード（またはダメージ軽減）
+        this.updateMessage(`見事に見切った！\nダメージ 0！`);
+    } else {
+        GAME_DATA.player.hp -= damage;
+        this.updateMessage(`直撃を受けた！\n${damage} のダメージ！`);
+        this.cameras.main.shake(200, 0.02);
+    }
+    
     this.refreshStatus();
 
     if (GAME_DATA.player.hp <= 0) {
         GAME_DATA.player.hp = 0;
-        this.updateMessage(`目の前が真っ暗になった... (リロードして再挑戦)`);
+        this.updateMessage(`目の前が真っ暗になった... (リロード)`);
     } else {
-        this.isPlayerTurn = true;
+        // プレイヤーのターンへ戻る
+        this.time.delayedCall(1500, () => {
+            this.isPlayerTurn = true;
+            this.btnGroup.setVisible(true);
+            this.updateMessage(`${GAME_DATA.player.name} のターン`);
+        });
     }
   }
 
-  winBattle() {
-    // 敵が点滅して消える演出
-    this.tweens.add({
-        targets: this.enemySprite,
-        alpha: 0,
-        duration: 200,
-        repeat: 3,
-        onComplete: () => {
-            this.enemySprite.setVisible(false);
-            this.enemySprite.alpha = 1; // 元に戻す
+  // --- 共通処理 ---
+  playerTurn(action, item = null) {
+    // 回復とアイテムはQTEなし（即時発動）
+    if (!this.isPlayerTurn) return;
+    this.isPlayerTurn = false;
+
+    if (action === 'heal') {
+        const heal = GAME_DATA.player.healPower;
+        GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + heal, GAME_DATA.player.maxHp);
+        this.updateMessage(`計算式を整理した。\nHPが ${heal} 回復！`);
+        this.checkBattleEnd();
+    } else if (action === 'item') {
+        // ...アイテム処理（省略せず実装）...
+        if (item.type === 'heal') {
+            GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + item.value, GAME_DATA.player.maxHp);
+            this.updateMessage(`${item.name} を使った！\nHPが ${item.value} 回復！`);
+        } else if (item.type === 'super_atk') {
+            const damage = item.value;
+            this.currentEnemy.hp -= damage;
+            this.updateMessage(`${item.name} を投げた！\n${damage} のダメージ！`);
         }
-    });
-    
+        const index = GAME_DATA.player.items.indexOf(item);
+        if (index > -1) GAME_DATA.player.items.splice(index, 1);
+        this.checkBattleEnd();
+    }
+  }
+
+  checkBattleEnd() {
+    this.refreshStatus();
+    if (this.currentEnemy.hp <= 0) {
+        this.currentEnemy.hp = 0;
+        this.time.delayedCall(1000, () => this.winBattle());
+    } else {
+        // 敵のターンへ（ここで防御QTEが始まる）
+        this.time.delayedCall(1200, () => this.startEnemyTurn());
+    }
+  }
+
+  startBattle() {
+    this.nextBtn.setVisible(false);
+    this.nextBtnText.setVisible(false);
+    this.btnGroup.setVisible(true);
+    const enemyData = ENEMY_LIST[Math.floor(Math.random() * ENEMY_LIST.length)];
+    this.currentEnemy = { ...enemyData };
+    this.currentEnemy.maxHp = enemyData.hp;
+
+    this.enemySprite.setTexture(this.currentEnemy.key).setVisible(true);
+    this.enemyHpText.setVisible(true);
+    this.enemyNameText.setText(this.currentEnemy.name).setVisible(true);
+
+    this.updateMessage(`${this.currentEnemy.name} があらわれた！`);
+    this.isPlayerTurn = true;
+    this.refreshStatus();
+  }
+
+  winBattle() {
+    this.enemySprite.setVisible(false);
     this.enemyHpText.setVisible(false);
     this.enemyNameText.setVisible(false);
-    this.btnGroup.setVisible(false);
-
+    
     GAME_DATA.player.exp += this.currentEnemy.exp;
-    let msg = `${this.currentEnemy.name} を倒した！\n経験値 ${this.currentEnemy.exp} を獲得！`;
-
+    let msg = `${this.currentEnemy.name} を倒した！\nExp +${this.currentEnemy.exp}`;
     if (this.currentEnemy.drop) {
-      GAME_DATA.player.items.push(this.currentEnemy.drop);
-      msg += `\n[${this.currentEnemy.drop.name}] を手に入れた！`;
+        GAME_DATA.player.items.push(this.currentEnemy.drop);
+        msg += `\n[${this.currentEnemy.drop.name}] Get!`;
     }
-
     if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) {
-      GAME_DATA.player.level++;
-      GAME_DATA.player.maxHp += 20;
-      GAME_DATA.player.hp = GAME_DATA.player.maxHp;
-      GAME_DATA.player.atk += 5;
-      GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5);
-      msg += `\nレベルアップ！ Lv${GAME_DATA.player.level} になった！`;
+        GAME_DATA.player.level++;
+        GAME_DATA.player.maxHp += 20;
+        GAME_DATA.player.hp = GAME_DATA.player.maxHp;
+        GAME_DATA.player.atk += 5;
+        GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5);
+        msg += `\nLvUp! Lv${GAME_DATA.player.level}`;
     }
-
     this.updateMessage(msg);
     this.nextBtn.setVisible(true);
     this.nextBtnText.setVisible(true);
   }
 
-  refreshStatus() {
-    this.playerNameText.setText(GAME_DATA.player.name);
-    this.playerHpText.setText(`HP: ${GAME_DATA.player.hp} / ${GAME_DATA.player.maxHp}`);
-    this.playerLvText.setText(`Lv: ${GAME_DATA.player.level}`);
-    if (this.currentEnemy) {
-        this.enemyHpText.setText(`HP: ${Math.max(0, this.currentEnemy.hp)} / ${this.currentEnemy.maxHp}`);
+  // --- ツール ---
+  createTextureFromText(key, art) {
+    const canvas = document.createElement('canvas');
+    canvas.width = art[0].length; canvas.height = art.length;
+    const ctx = canvas.getContext('2d');
+    for (let y = 0; y < art.length; y++) {
+      for (let x = 0; x < art[0].length; x++) {
+        if (PALETTE[art[y][x]]) { ctx.fillStyle = PALETTE[art[y][x]]; ctx.fillRect(x, y, 1, 1); }
+      }
     }
+    this.textures.addCanvas(key, canvas);
   }
 
   createButton(x, y, text, color, callback) {
@@ -324,36 +416,31 @@ class BattleScene extends Phaser.Scene {
     return btn;
   }
 
-  createMessageBox(width, height) {
-    this.add.rectangle(width / 2, height - 100, width - 20, 160, 0x000000).setStrokeStyle(4, 0xffffff);
-    this.messageText = this.add.text(30, height - 160, '', { font: '18px Arial', color: '#ffffff', wordWrap: { width: width - 60 } });
+  createMessageBox(w, h) {
+    this.add.rectangle(w / 2, h - 100, w - 20, 160, 0x000000).setStrokeStyle(4, 0xffffff);
+    this.messageText = this.add.text(30, h - 160, '', { font: '18px Arial', color: '#ffffff', wordWrap: { width: w - 60 } });
   }
 
-  updateMessage(text) {
-    this.messageText.setText(text);
+  updateMessage(t) { this.messageText.setText(t); }
+  
+  refreshStatus() {
+    this.playerNameText.setText(GAME_DATA.player.name);
+    this.playerHpText.setText(`HP: ${GAME_DATA.player.hp} / ${GAME_DATA.player.maxHp}`);
+    this.playerLvText.setText(`Lv: ${GAME_DATA.player.level}`);
+    if(this.currentEnemy) this.enemyHpText.setText(`HP: ${Math.max(0, this.currentEnemy.hp)}`);
   }
-
+  
   openItemMenu() {
-    if (!this.isPlayerTurn) return;
-    if (GAME_DATA.player.items.length === 0) {
-        this.updateMessage("アイテムを持っていない！");
-        return;
-    }
-    const item = GAME_DATA.player.items[GAME_DATA.player.items.length - 1];
-    this.updateMessage(`これを使いますか？\n[${item.name}]`);
-    this.playerTurn('item', item);
+      if (!this.isPlayerTurn) return;
+      if (GAME_DATA.player.items.length === 0) { this.updateMessage("なし"); return; }
+      this.playerTurn('item', GAME_DATA.player.items[GAME_DATA.player.items.length - 1]);
   }
 }
 
 const config = {
-  type: Phaser.AUTO,
-  width: 400,
-  height: 800,
-  backgroundColor: '#000000',
-  parent: 'game-container',
-  pixelArt: true, // ドット絵をくっきり表示する設定
+  type: Phaser.AUTO, width: 400, height: 800, backgroundColor: '#000000',
+  parent: 'game-container', pixelArt: true,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [BattleScene]
 };
-
 const game = new Phaser.Game(config);
