@@ -746,7 +746,7 @@ export class BattleScene extends BaseScene {
       this.isPlayerTurn = true; 
       GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
       this.showApPopup(this.ps.x, this.ps.y - 50);
-      this.mm.setVisible(true);  this.ps.clearTint(); 
+      this.mm.setVisible(true); this.px.setVisible(false); this.ps.clearTint(); 
       
       this.setCinematicMode(false);
       this.cameras.main.zoomTo(1.0, 500); 
