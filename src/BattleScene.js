@@ -166,6 +166,7 @@ export class BattleScene extends BaseScene {
       });
   }
 
+  // --- ロジック ---
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
@@ -305,7 +306,6 @@ export class BattleScene extends BaseScene {
       const s = this.add.graphics(); 
       s.setDepth(200);
 
-      // 安全策：完了処理を関数化
       let isFinished = false;
       const finish = () => {
           if(isFinished) return;
@@ -479,6 +479,7 @@ export class BattleScene extends BaseScene {
     this.isPlayerTurn = false; 
     let h = 10;
     try { h = getSkillPower(s); } catch(e) { h = s.power; }
+    
     GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + h, GAME_DATA.player.maxHp);
     const ht = this.add.text(this.ps.x, this.ps.y-50, `+${h}`, { font:`32px ${GAME_FONT}`, color:'#0f0', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
     this.tweens.add({ targets: ht, y: ht.y-50, alpha: 0, duration: 1000, onComplete:()=>ht.destroy() });
@@ -512,11 +513,11 @@ export class BattleScene extends BaseScene {
     if (this.hammer) {
         this.tweens.add({
             targets: this.hammer,
-            angle: -45, // 振りかぶる
+            angle: -90, // 大きく振りかぶる
+            x: this.es.x - 80, // 少し後ろへ
             duration: 500,
             ease: 'Back.Out',
             onComplete: () => {
-                // 振りかぶり完了後、攻撃パターン分岐
                 if (this.isTutorial) {
                     this.updateMessage("敵の攻撃だ！\n「！」が出たらタップ！");
                     this.time.delayedCall(500, () => this.launchAttack());
@@ -526,7 +527,6 @@ export class BattleScene extends BaseScene {
             }
         });
     } else {
-         // ハンマー生成失敗時は従来通り
          this.time.delayedCall(500, () => this.launchAttack());
     }
   }
@@ -535,10 +535,8 @@ export class BattleScene extends BaseScene {
       if (this.hammer) this.hammer.destroy();
       this.hammer = this.add.container(this.es.x - 60, this.es.y - 50);
       
-      // ハンマーの絵を描く (持ち手とヘッド)
       const handle = this.add.rectangle(0, 40, 10, 80, 0x8B4513);
       const head = this.add.rectangle(0, 0, 60, 40, 0xFF0000).setStrokeStyle(2, 0xFFFF00);
-      // ピコピコハンマーっぽい模様
       const detail1 = this.add.circle(0, 0, 10, 0xFFFF00);
       
       this.hammer.add([handle, head, detail1]);
@@ -565,19 +563,15 @@ export class BattleScene extends BaseScene {
       this.setCinematicMode(true);
       this.cameras.main.zoomTo(1.1, 200);
 
-      // ハンマーを振り下ろす
       if (this.hammer) {
           this.eat = this.tweens.add({
               targets: this.hammer,
-              angle: 90, // 振り下ろす
-              x: this.ps.x, 
-              y: this.ps.y - 50,
+              angle: 90, x: this.ps.x, y: this.ps.y - 50,
               duration: this.isTutorial ? 600 : 300,
               ease: 'Power2',
               onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
           });
       } else {
-          // ハンマーがない場合のフォールバック（体当たり）
            this.eat = this.tweens.add({
               targets: this.es, x: this.ps.x + 50, duration: this.isTutorial ? 600 : 300, 
               ease: 'Expo.In',
@@ -586,27 +580,42 @@ export class BattleScene extends BaseScene {
       }
   }
 
+  // ★修正した三連撃（ラッシュ）ロジック
   launchRapidAttack() { 
       if (this.rapidCount <= 0) { if (this.perfectGuardChain) this.triggerCounterAttack(); else this.time.delayedCall(500, () => this.endEnemyTurn()); return; } 
       if (this.guardBroken) { this.executeDefense(false, true); return; } 
+      
       this.qteMode = 'defense_active'; this.gs.setVisible(true); 
       this.setCinematicMode(true);
       this.cameras.main.zoomTo(1.1, 200);
 
-      // ハンマーで3回叩く
       if (this.hammer) {
-          // 一旦振りかぶってから叩く
-          this.hammer.angle = -45; 
-          this.hammer.x = this.es.x - 60;
-          this.hammer.y = this.es.y - 50;
-          
-          this.eat = this.tweens.chain({
-              targets: this.hammer,
-              tweens: [
-                  { angle: -60, duration: 100 }, // 予備動作
-                  { angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: 200, ease: 'Power2', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }
-              ]
-          });
+          // 3発目は強攻撃、それ以外は弱攻撃
+          if (this.rapidCount === 1) {
+              // --- 3発目：大振りフィニッシュ ---
+              this.hammer.angle = -45; 
+              this.eat = this.tweens.chain({
+                  targets: this.hammer,
+                  tweens: [
+                      // ググッと大きく振りかぶる
+                      { angle: -160, x: this.es.x - 80, y: this.es.y - 60, duration: 800, ease: 'Power2' },
+                      // 一瞬止まる（タメ）
+                      { angle: -160, duration: 150 },
+                      // ドカン！と振り下ろす
+                      { angle: 100, x: this.ps.x, y: this.ps.y - 30, duration: 200, ease: 'Bounce.Out', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }
+                  ]
+              });
+          } else {
+              // --- 1,2発目：通常攻撃 ---
+              this.hammer.angle = -45;
+              this.eat = this.tweens.chain({
+                  targets: this.hammer,
+                  tweens: [
+                      { angle: -90, duration: 300, ease: 'Back.Out' },
+                      { angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: 250, ease: 'Power2', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }
+                  ]
+              });
+          }
       } else {
            this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }); 
       }
@@ -617,7 +626,6 @@ export class BattleScene extends BaseScene {
       this.qteMode = 'defense_active'; this.gs.setVisible(true); this.es.setTint(0xff00ff); 
       this.setCinematicMode(true);
       this.cameras.main.zoomTo(1.1, 200);
-      // ゆらゆら近づく
       this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 500, ease: 'Quad.InOut', onComplete: () => { this.es.clearTint(); if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); 
   }
 
@@ -627,7 +635,6 @@ export class BattleScene extends BaseScene {
       this.setCinematicMode(true);
       this.cameras.main.zoomTo(1.1, 200);
       
-      // フェイント：ハンマーを一度止める
        if (this.hammer) {
            this.tweens.add({
                targets: this.hammer, angle: -20, duration: 400, yoyo: true, 
@@ -660,8 +667,14 @@ export class BattleScene extends BaseScene {
     if (this.rapidCount > 0) this.executeDefense(true, true); else this.executeDefense(true, false);
   }
 
+  // ★修正したダメージ計算ロジック
   executeDefense(suc, isRapid = false) {
-    let dmg = Math.floor(this.ed.atk * (isRapid ? 0.6 : 1.0));
+    let multiplier = 1.0;
+    if (isRapid) {
+        // 残り1回(=3発目)なら威力2.5倍、それ以外は0.5倍
+        multiplier = (this.rapidCount === 1) ? 2.5 : 0.5;
+    }
+    let dmg = Math.floor(this.ed.atk * multiplier);
     if(this.isTutorial && !suc && dmg >= GAME_DATA.player.hp) { dmg = GAME_DATA.player.hp - 1; }
 
     if (suc) { 
@@ -669,7 +682,6 @@ export class BattleScene extends BaseScene {
         GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
         this.showApPopup(this.ps.x, this.ps.y - 50);
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
-        // ハンマーを戻す
         if(this.hammer) this.tweens.add({ targets: this.hammer, x: this.es.x - 60, y: this.es.y - 50, angle: -45, duration: 150 });
         this.tweens.add({ targets: this.es, x: this.ebx, y: this.eby, angle: 0, duration: 150, ease: 'Back.Out' });
     } else { 
@@ -677,9 +689,18 @@ export class BattleScene extends BaseScene {
         this.cameras.main.zoomTo(1.0, 200);
         this.setCinematicMode(false);
         this.perfectGuardChain = false;
+        
+        // 3発目を食らったら大きく揺らす
+        if (isRapid && this.rapidCount === 1) {
+            this.cameras.main.shake(300, 0.05);
+        } else {
+            this.cameras.main.shake(100, 0.02);
+        }
+
         if (this.currentAttackType === 'status') { const rnd = Math.random(); if (rnd < 0.5) { GAME_DATA.player.status = 'burn'; this.showStatusPopup(this.ps.x, this.ps.y - 50, "炎上した！"); } else { GAME_DATA.player.status = 'sleep'; this.showStatusPopup(this.ps.x, this.ps.y - 50, "眠らされた！"); } }
         this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
-        GAME_DATA.player.hp -= dmg; this.cameras.main.shake(100, 0.02); this.vibrate(100); 
+        GAME_DATA.player.hp -= dmg; 
+        this.vibrate(100); 
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
         if(this.hammer) this.tweens.add({ targets: this.hammer, x: this.es.x - 60, y: this.es.y - 50, angle: -45, duration: 150 });
         this.tweens.add({ targets: this.es, x: this.ebx, y: this.eby, angle: 0, delay: 100, duration: 200, ease: 'Power2' });
@@ -717,7 +738,7 @@ export class BattleScene extends BaseScene {
   }
 
   endEnemyTurn() {
-      if(this.hammer) { this.hammer.destroy(); this.hammer = null; } // ターン終了時にハンマーを片付ける
+      if(this.hammer) { this.hammer.destroy(); this.hammer = null; } 
 
       if (GAME_DATA.player.status === 'burn') { const dmg = Math.floor(GAME_DATA.player.maxHp * 0.05); GAME_DATA.player.hp -= dmg; this.showDamagePopup(this.ps.x, this.ps.y, dmg, false); this.showStatusPopup(this.ps.x, this.ps.y - 80, "炎上中..."); this.damageFlash(this.ps); this.refreshStatus(); if (GAME_DATA.player.hp <= 0) { this.updateMessage("敗北... (クリックで戻る)"); this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); }); return; } }
       if (GAME_DATA.player.status === 'sleep') { GAME_DATA.player.status = null; this.showStatusPopup(this.ps.x, this.ps.y - 50, "Zzz...(行動不能)"); this.updateMessage("眠っていて動けない！"); this.time.delayedCall(1500, () => this.startEnemyTurn()); return; }
