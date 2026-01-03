@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { OpeningScene, TutorialScene, WorldScene, ShopScene, SkillScene, NormalClearScene, SecretBossIntroScene, TrueClearScene } from './MenuScenes';
 import { BattleScene } from './BattleScene';
-import { loadGame } from './data'; // データをロードする関数をインポート
+import { loadGame } from './data'; 
 
-// ★重要：ゲーム起動時に必ずセーブデータをロードする！
+// ゲーム起動時にセーブデータを読み込む
 loadGame();
 
 const config = {
@@ -28,9 +28,8 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  // スマホで音が鳴らない問題対策
   audio: {
-    disableWebAudio: false
+    disableWebAudio: false // スマホでの音再生対策
   }
 };
 

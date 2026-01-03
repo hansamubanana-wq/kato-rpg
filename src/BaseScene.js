@@ -36,19 +36,18 @@ export class BaseScene extends Phaser.Scene {
 
   vibrate(pattern) { if (navigator.vibrate) navigator.vibrate(pattern); }
 
-  // 【強化】ヒットストップ演出（時間を一瞬遅くする）
+  // ヒットストップ演出
   hitStop(duration) {
-      this.tweens.timeScale = 0.1; // 世界をスローに
+      this.tweens.timeScale = 0.1; 
       this.time.delayedCall(duration, () => { 
-          this.tweens.timeScale = 1.0; // 元に戻す
+          this.tweens.timeScale = 1.0;
       });
   }
 
-  // 【追加】敵を白く光らせて揺らす演出
+  // 被弾時のフラッシュ演出
   damageFlash(target) {
       if(!target || !target.scene) return;
-      target.setTintFill(0xffffff); // 真っ白にする
-      // 揺らす
+      target.setTintFill(0xffffff); 
       this.tweens.add({
           targets: target,
           x: target.x + (Math.random() < 0.5 ? 10 : -10),
@@ -56,7 +55,7 @@ export class BaseScene extends Phaser.Scene {
           yoyo: true,
           repeat: 1,
           onComplete: () => {
-              target.clearTint(); // 色を戻す
+              target.clearTint();
           }
       });
   }
