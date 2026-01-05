@@ -12,7 +12,8 @@ export class BattleScene extends BaseScene {
     this.playBGM('bgm_battle');
     this.fadeInScene(); 
     
-    if (!this.isTutorial) {
+    // 戦闘開始時にHP全回復
+    if (!this.isTutorial) { 
         GAME_DATA.player.hp = GAME_DATA.player.maxHp;
         GAME_DATA.player.stress = 0; 
     }
@@ -45,16 +46,20 @@ export class BattleScene extends BaseScene {
     this.es = this.add.sprite(w*0.75, h*0.4, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
 
-    // --- UI ---
+    // --- UIグループ化 ---
     this.topUI = this.add.container(0, 0);
     const topY = 40;
+    
     const eName = this.add.text(w-20, topY, this.ed.name, {font:`20px ${GAME_FONT}`}).setOrigin(1, 0);
     this.ehb = this.createHpBar(w-170, topY+30, 150, 15, this.ed.hp, this.ed.maxHp); 
+    
     const pName = this.add.text(20, topY, GAME_DATA.player.name, {font:`20px ${GAME_FONT}`});
     this.phb = this.createHpBar(20, topY+30, 150, 15, GAME_DATA.player.hp, GAME_DATA.player.maxHp);
+    
     const sLabel = this.add.text(20, topY+55, "ストレス", {font:`14px ${GAME_FONT}`, color:'#fa0'});
     this.sb = this.createStressBar(80, topY+63, 90, 10); 
     this.apBar = this.createApBar(w/2 - 90, topY + 90);
+
     this.topUI.add([eName, this.ehb, pName, this.phb, sLabel, this.sb, this.apBar]);
 
     // --- チュートリアルスキップ ---
@@ -77,14 +82,17 @@ export class BattleScene extends BaseScene {
     // --- 下部UI ---
     this.createMessageBox(w, h); 
     this.mm = this.add.container(0, 0);
+    
     const cmdY = h - 230; 
     const btnW = 160; const btnH = 60; const gapX = 10;
+    
     this.btnPos = {
         cmd: { x: w/2 - btnW/2 - gapX, y: cmdY },
         item: { x: w/2 + btnW/2 + gapX, y: cmdY },
         lb: { x: w/2 - btnW/2 - gapX, y: cmdY + btnH + 15 },
         pass: { x: w/2 + btnW/2 + gapX, y: cmdY + btnH + 15 }
     };
+
     this.btnCmd = this.createButton(this.btnPos.cmd.x, this.btnPos.cmd.y, 'コマンド', 0xc33, () => this.openSkillMenu(), btnW, btnH);
     this.mm.add(this.btnCmd);
     this.mm.add(this.createButton(this.btnPos.item.x, this.btnPos.item.y, 'アイテム', 0x383, () => this.openItemMenu(), btnW, btnH));
@@ -125,7 +133,11 @@ export class BattleScene extends BaseScene {
   setCinematicMode(enabled) {
       this.topUI.setVisible(!enabled);
       this.msgContainer.setVisible(!enabled);
-      if (enabled) { this.mm.setVisible(false); } else { if (this.isPlayerTurn) this.mm.setVisible(true); }
+      if (enabled) {
+          this.mm.setVisible(false);
+      } else {
+          if (this.isPlayerTurn) this.mm.setVisible(true);
+      }
   }
 
   // --- チュートリアル ---
@@ -161,7 +173,6 @@ export class BattleScene extends BaseScene {
       });
   }
 
-  // --- ロジック ---
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
@@ -176,6 +187,7 @@ export class BattleScene extends BaseScene {
     this.sm.add(bg);
     this.skillDescText = this.add.text(w/2, 25, "技を選択してください", {font:`16px ${GAME_FONT}`, color:'#ccc'}).setOrigin(0.5);
     this.sm.add(this.skillDescText);
+
     this.skillButtons = [];
     const eq = GAME_DATA.player.equippedSkillIds.map(id => SKILL_DB.find(s => s.id === id));
     eq.forEach((s, i) => {
@@ -195,7 +207,10 @@ export class BattleScene extends BaseScene {
         c.add([b, t, sub, hRect]); this.sm.add(c);
         this.skillButtons.push({ container: c, bg: b, skill: s });
     });
-    const bc = this.createBackButton(w, () => { if(this.isTutorial && !this.tutorialFreeMode) return; this.sm.setVisible(false); this.mm.setVisible(true); });
+    const bc = this.createBackButton(w, () => { 
+        if(this.isTutorial && !this.tutorialFreeMode) return;
+        this.sm.setVisible(false); this.mm.setVisible(true); 
+    });
     this.sm.add(bc);
   }
 
@@ -261,11 +276,12 @@ export class BattleScene extends BaseScene {
   handleInput() {
     if (this.qteMode === 'attack' && this.qteActive) this.resolveAttackQTE();
     else if (this.qteMode === 'defense_wait') {
-        // 先行入力ペナルティ
+        // 先行入力ペナルティ (defense_missにする)
         this.qteMode = 'defense_miss'; 
         this.gs.setVisible(false);
         this.ps.setTint(0x888888); 
         this.updateMessage("パリィ失敗！");
+        // ここではまだダメージは発生しない。ダメージは timer 側で発生させる
     }
     else if (this.qteMode === 'defense_active') this.resolveDefenseQTE();
   }
@@ -302,13 +318,30 @@ export class BattleScene extends BaseScene {
       const animType = this.selS ? this.selS.anim : 'normal';
       const s = this.add.graphics(); 
       s.setDepth(200);
+
       let isFinished = false;
-      const finish = () => { if(isFinished) return; isFinished = true; if(s && s.scene) s.destroy(); if(cb) cb(); };
+      const finish = () => {
+          if(isFinished) return;
+          isFinished = true;
+          if(s && s.scene) s.destroy();
+          if(cb) cb();
+      };
 
       try {
           if (animType === 'check') {
               s.lineStyle(8, 0x00ff00); s.beginPath(); const startX = this.es.x - 40; const startY = this.es.y; s.moveTo(startX, startY);
-              this.tweens.addCounter({ from: 0, to: 100, duration: 300, onUpdate: (tw) => { if(!s.scene) return; s.clear(); s.lineStyle(8, 0x00ff00); s.beginPath(); s.moveTo(startX, startY); const p = tw.getValue(); if(p < 40) s.lineTo(startX + p, startY + p); else { s.lineTo(startX + 40, startY + 40); s.lineTo(startX + 40 + (p-40)*1.5, startY + 40 - (p-40)*2.5); } s.strokePath(); }, onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); finish(); } });
+              this.tweens.addCounter({ 
+                  from: 0, to: 100, duration: 300, 
+                  onUpdate: (tw) => { 
+                      if(!s.scene) return;
+                      s.clear(); s.lineStyle(8, 0x00ff00); s.beginPath(); s.moveTo(startX, startY); 
+                      const p = tw.getValue(); 
+                      if(p < 40) s.lineTo(startX + p, startY + p); 
+                      else { s.lineTo(startX + 40, startY + 40); s.lineTo(startX + 40 + (p-40)*1.5, startY + 40 - (p-40)*2.5); } 
+                      s.strokePath(); 
+                  }, 
+                  onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); finish(); } 
+              });
           } else if (animType === 'chalk') {
               const chalk = this.add.rectangle(this.ps.x, this.ps.y, 40, 10, 0xffffff).setDepth(200);
               this.tweens.add({ targets: chalk, x: this.es.x, y: this.es.y, angle: 360, duration: 300, ease: 'Linear', onComplete: () => { chalk.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
@@ -316,28 +349,65 @@ export class BattleScene extends BaseScene {
               const book = this.add.rectangle(this.es.x, this.es.y - 300, 80, 100, 0x3366cc).setStrokeStyle(4, 0xffffff).setDepth(200);
               this.tweens.add({ targets: book, y: this.es.y, angle: 20, duration: 400, ease: 'Bounce.Out', onComplete: () => { this.cameras.main.shake(100, 0.05); book.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
           } else if (animType === 'food') {
-              const h1 = this.add.text(this.ps.x, this.ps.y, "🍞", {fontSize:'40px'}).setDepth(200); const h2 = this.add.text(this.ps.x, this.ps.y, "🥛", {fontSize:'40px'}).setDepth(200);
-              this.tweens.add({ targets: h1, y: this.ps.y-100, x: this.ps.x-30, alpha: 0, duration: 800, onComplete:()=>h1.destroy() }); this.tweens.add({ targets: h2, y: this.ps.y-100, x: this.ps.x+30, alpha: 0, duration: 800, delay: 200, onComplete: () => { h2.destroy(); finish(); } });
+              const h1 = this.add.text(this.ps.x, this.ps.y, "🍞", {fontSize:'40px'}).setDepth(200); 
+              const h2 = this.add.text(this.ps.x, this.ps.y, "🥛", {fontSize:'40px'}).setDepth(200);
+              this.tweens.add({ targets: h1, y: this.ps.y-100, x: this.ps.x-30, alpha: 0, duration: 800, onComplete:()=>h1.destroy() }); 
+              this.tweens.add({ targets: h2, y: this.ps.y-100, x: this.ps.x+30, alpha: 0, duration: 800, delay: 200, onComplete: () => { h2.destroy(); finish(); } });
           } else if (animType === 'run') {
-              let completeCount = 0; for(let i=0; i<5; i++) { const d = this.add.circle(this.es.x + (Math.random()-0.5)*100, this.es.y+50, 15, 0xaaaaaa, 0.8).setDepth(200); this.tweens.add({ targets: d, scale: 2, alpha: 0, y: d.y-50, duration: 600, delay: i*100, onComplete: () => { d.destroy(); completeCount++; if(completeCount === 5) finish(); } }); }
+              let completeCount = 0;
+              for(let i=0; i<5; i++) { 
+                  const d = this.add.circle(this.es.x + (Math.random()-0.5)*100, this.es.y+50, 15, 0xaaaaaa, 0.8).setDepth(200); 
+                  this.tweens.add({ 
+                      targets: d, scale: 2, alpha: 0, y: d.y-50, duration: 600, delay: i*100, 
+                      onComplete: () => { 
+                          d.destroy(); completeCount++;
+                          if(completeCount === 5) finish(); 
+                      } 
+                  }); 
+              }
           } else if (animType === 'rapid') {
-              s.clear(); this.tweens.addCounter({ from: 0, to: 5, duration: 400, onUpdate: (tw) => { if(!s.scene) return; const val = tw.getValue(); const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100; s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath(); }, onComplete: () => { s.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
+              s.clear(); 
+              this.tweens.addCounter({ from: 0, to: 5, duration: 400, 
+                  onUpdate: (tw) => { 
+                      if(!s.scene) return;
+                      const val = tw.getValue(); 
+                      const ox = (Math.random()-0.5)*100; const oy = (Math.random()-0.5)*100; 
+                      s.clear().lineStyle(2, 0xffffff).beginPath().moveTo(this.es.x+ox, this.es.y+oy).lineTo(this.es.x-ox, this.es.y-oy).strokePath(); 
+                  }, 
+                  onComplete: () => { s.destroy(); this.createImpactEffect(this.es.x, this.es.y); finish(); } 
+              });
           } else if (animType === 'heavy') {
-              s.fillStyle(0xffaa00, 1).fillCircle(0,0,50); s.y -= 200; s.x = this.ps.x; this.tweens.add({ targets: s, x: this.es.x, y: this.es.y, duration: 300, ease: 'Bounce.Out', onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
+              s.fillStyle(0xffaa00, 1).fillCircle(0,0,50); s.y -= 200; s.x = this.ps.x; 
+              this.tweens.add({ targets: s, x: this.es.x, y: this.es.y, duration: 300, ease: 'Bounce.Out', onComplete: () => { s.destroy(); this.cameras.main.shake(100,0.05); this.createImpactEffect(this.es.x, this.es.y); finish(); } });
           } else if (animType === 'magic') {
-              s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10); s.x = this.ps.x; s.y = this.ps.y; this.tweens.add({ targets: s, scale: 5, alpha: 0, duration: 500, onComplete: () => { s.destroy(); finish(); } });
+              s.lineStyle(4, 0x00ff00).strokeCircle(0,0,10); s.x = this.ps.x; s.y = this.ps.y; 
+              this.tweens.add({ targets: s, scale: 5, alpha: 0, duration: 500, onComplete: () => { s.destroy(); finish(); } });
           } else {
-              s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1); s.x = this.ps.x; s.y = this.ps.y; s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.angle = -30; this.tweens.chain({ targets: s, tweens: [ { angle: -60, duration: 200, ease: 'Back.Out' }, { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); finish(); } } ] });
+              s.fillStyle(0x00ffff, 0.8).lineStyle(2, 0xffffff, 1); s.x = this.ps.x; s.y = this.ps.y; 
+              s.beginPath(); s.moveTo(0,0); s.lineTo(20, -100); s.lineTo(40, 0); s.closePath(); s.fillPath(); s.angle = -30; 
+              this.tweens.chain({ 
+                  targets: s, 
+                  tweens: [ 
+                      { angle: -60, duration: 200, ease: 'Back.Out' }, 
+                      { angle: 120, x: this.es.x-30, y: this.es.y, duration: 150, ease: 'Quad.In', onComplete: () => { this.createImpactEffect(this.es.x, this.es.y); s.destroy(); finish(); } } 
+                  ] 
+              });
           }
-      } catch(e) { console.error("Anim error", e); finish(); }
+      } catch(e) {
+          console.error("Anim error", e);
+          finish(); 
+      }
   }
 
   startAttackQTE(s) {
     this.isPlayerTurn = false; 
+    if(this.isTutorial) this.updateMessage("黄色い輪が重なる瞬間に\n画面をタップ！");
+    else this.updateMessage(`${s.name}！\nタイミング！`);
     const tx = this.es.x; const ty = this.es.y;
     this.qt.clear().lineStyle(4, 0xffffff).strokeCircle(tx, ty, 50).setVisible(true);
     this.qr.clear().lineStyle(4, 0xffff00).strokeCircle(tx, ty, 50 * 2.5);
-    this.qrs = 2.5; this.qteMode = 'attack';
+    this.qrs = 2.5;
+    this.qteMode = 'attack';
     this.time.delayedCall(200, () => {
         this.qteActive = true;
         this.qe = this.time.addEvent({ delay: 16, loop: true, callback: () => {
@@ -350,7 +420,8 @@ export class BattleScene extends BaseScene {
   }
   resolveAttackQTE() {
     this.qteActive = false; this.qe.remove(); this.qr.clear(); this.qt.clear();
-    this.vibrate(20); const d = Math.abs(this.qrs - 1.0);
+    this.vibrate(20); 
+    const d = Math.abs(this.qrs - 1.0);
     if (d < 0.15) this.finishQTE('PERFECT'); else if (d < 0.4) this.finishQTE('GOOD'); else this.finishQTE('BAD');
   }
   finishQTE(res) {
@@ -360,95 +431,157 @@ export class BattleScene extends BaseScene {
 
   executeAttack(res) {
     this.playSwordAnimation(() => {
-        this.cameras.main.zoomTo(1.0, 200); this.setCinematicMode(false);
-        let power = 10; try { power = getSkillPower(this.selS); } catch(e) { power = this.selS.power; }
+        this.cameras.main.zoomTo(1.0, 200);
+        this.setCinematicMode(false);
+
+        let power = 10;
+        try { power = getSkillPower(this.selS); } catch(e) { power = this.selS.power; }
+        
         let dmg = power * GAME_DATA.player.atk;
+        
         let v = 50; let c = false;
         if (res==='PERFECT') { dmg = Math.floor(dmg*1.5); v = [50, 50, 300]; this.cameras.main.shake(300, 0.04); this.hitStop(200); this.damageFlash(this.es); c = true; } 
         else if (res!=='GOOD') { dmg = Math.floor(dmg*0.5); v = 20; }
         else if (res==='MISS') { dmg = 0; }
         if(this.isTutorial && dmg===0) dmg = 10;
+
         if ((this.ed.hp - dmg) <= 0) {
-            this.createExplosion(this.es.x, this.es.y); this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1; this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
+            this.createExplosion(this.es.x, this.es.y);
+            this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1;
+            this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
             const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
-            this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' }); this.ed.hp -= dmg; this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.winBattle(); });
+            this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' });
+            this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus();
+            this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
         } else {
             if(dmg>0) { this.playSound('se_attack'); this.damageFlash(this.es); }
             this.vibrate(v); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, c);
-            if (this.selS.status) { this.ed.status = this.selS.status; this.showStatusPopup(this.es.x, this.es.y - 50, "付与!"); }
+            if (this.selS.status) {
+                this.ed.status = this.selS.status;
+                const txt = this.selS.status==='sleep'?"居眠り": "炎上";
+                this.showStatusPopup(this.es.x, this.es.y - 50, txt+"付与!");
+            }
             GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5); this.checkEnd();
         }
     });
   }
 
   activateLimitBreak() {
-      this.isPlayerTurn = false; GAME_DATA.player.stress = 0; this.refreshStatus(); this.vibrate(1000); this.playBuiltInSe('limit'); this.setCinematicMode(true);
+      this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
+      this.refreshStatus(); this.vibrate(1000); 
+      this.playBuiltInSe('limit'); 
+      this.setCinematicMode(true);
       const bg = this.add.rectangle(this.scale.width/2, this.scale.height/2, this.scale.width, this.scale.height, 0x000000).setDepth(290).setAlpha(0);
       this.tweens.add({ targets: bg, alpha: 0.8, duration: 200 });
+      if(!this.textures.exists('kato_cutin')) this.createTextureFromText('kato_cutin', ARTS.kato_cutin);
       const cutin = this.add.sprite(-200, this.scale.height/2, 'kato_cutin').setScale(15).setDepth(300);
       this.tweens.chain({ targets: cutin, tweens: [ { x: this.scale.width/2, duration: 300, ease: 'Back.Out' }, { scale: 18, duration: 1000 }, { x: this.scale.width + 300, duration: 200, ease: 'Quad.In', onComplete: () => { bg.destroy(); cutin.destroy(); } } ] });
+      this.time.delayedCall(500, () => { this.cameras.main.flash(500, 255, 0, 0); this.cameras.main.shake(500, 0.05); this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`); });
       this.time.delayedCall(2000, () => { 
-          const baseDmg = GAME_DATA.player.atk * 300; const dmg = Math.floor(baseDmg); this.selS = { anim: 'heavy' };
+          const baseDmg = GAME_DATA.player.atk * 300; 
+          const dmg = Math.floor(baseDmg); 
+          this.selS = { anim: 'heavy' };
           this.playSwordAnimation(() => {
-              this.hitStop(300); this.damageFlash(this.es); this.setCinematicMode(false);
-              if ((this.ed.hp - dmg) <= 0) { this.winBattle(); } else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd(); }
+              this.hitStop(300); this.damageFlash(this.es);
+              this.setCinematicMode(false);
+              if ((this.ed.hp - dmg) <= 0) { this.createExplosion(this.es.x, this.es.y); this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1; this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); }); } 
+              else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd(); }
           });
       });
   }
 
   executeHeal(s) {
-    this.isPlayerTurn = false; let h = 10; try { h = getSkillPower(s); } catch(e) { h = s.power; }
+    this.isPlayerTurn = false; 
+    let h = 10;
+    try { h = getSkillPower(s); } catch(e) { h = s.power; }
+    
     GAME_DATA.player.hp = Math.min(GAME_DATA.player.hp + h, GAME_DATA.player.maxHp);
-    this.showStatusPopup(this.ps.x, this.ps.y - 50, `+${h}`); this.checkEnd();
+    const ht = this.add.text(this.ps.x, this.ps.y-50, `+${h}`, { font:`32px ${GAME_FONT}`, color:'#0f0', stroke:'#000', strokeThickness:4}).setOrigin(0.5);
+    this.tweens.add({ targets: ht, y: ht.y-50, alpha: 0, duration: 1000, onComplete:()=>ht.destroy() });
+    this.tweens.add({targets:this.ps, tint:0x0f0, duration:200, yoyo:true, onComplete:()=>this.ps.clearTint()});
+    this.checkEnd();
   }
-  checkEnd() { this.refreshStatus(); if (this.ed.hp <= 0) this.winBattle(); else this.time.delayedCall(1000, () => this.startEnemyTurn()); }
+  checkEnd() {
+    this.refreshStatus();
+    if (this.ed.hp <= 0) this.winBattle();
+    else this.time.delayedCall(1000, () => this.startEnemyTurn());
+  }
 
   triggerGuardPenalty() {
     if (this.guardBroken) return;
-    this.guardBroken = true; this.ps.setTint(0x888888); this.cameras.main.shake(100,0.01); this.vibrate(200); this.perfectGuardChain = false; 
+    this.guardBroken = true; 
+    this.ps.setTint(0x888); 
+    this.cameras.main.shake(100,0.01); this.vibrate(200);
+    this.perfectGuardChain = false; 
   }
 
   startEnemyTurn() {
-    if (this.ed.status === 'burn') { const dmg = Math.floor(this.ed.maxHp * 0.05); this.ed.hp -= dmg; this.damageFlash(this.es); if (this.ed.hp <= 0) { this.winBattle(); return; } }
-    if (this.ed.status === 'sleep') { this.ed.status = null; this.updateMessage(`${this.ed.name} は眠っている`); this.time.delayedCall(1500, () => this.endEnemyTurn()); return; }
+    if (this.ed.status === 'burn') { const dmg = Math.floor(this.ed.maxHp * 0.05); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, false); this.showStatusPopup(this.es.x, this.es.y - 80, "炎上ダメージ"); this.damageFlash(this.es); this.refreshStatus(); if (this.ed.hp <= 0) { this.winBattle(); return; } }
+    if (this.ed.status === 'sleep') { this.ed.status = null; this.showStatusPopup(this.es.x, this.es.y - 50, "Zzz..."); this.updateMessage(`${this.ed.name} は眠っている`); this.time.delayedCall(1500, () => this.endEnemyTurn()); return; }
 
-    this.qteMode = 'defense_wait'; this.guardBroken = false; this.ps.clearTint(); this.perfectGuardChain = true; 
+    this.qteMode = 'defense_wait'; this.guardBroken = false; 
+    this.ps.clearTint();
+    this.perfectGuardChain = true; 
+    
+    // 予備動作: ピコピコハンマーを表示して振りかぶる
     this.createHammerVisual();
-    this.tweens.add({
-        targets: this.hammer, angle: -90, x: this.es.x - 80, duration: 600, ease: 'Back.Out',
-        onComplete: () => this.determineEnemyAction()
-    });
+    if (this.hammer) {
+        this.tweens.add({
+            targets: this.hammer,
+            angle: -90, // 大きく振りかぶる
+            x: this.es.x - 80, // 少し後ろへ
+            duration: 500,
+            ease: 'Back.Out',
+            onComplete: () => {
+                if (this.isTutorial) {
+                    this.updateMessage("敵の攻撃だ！\n「！」が出たらタップ！");
+                    this.time.delayedCall(500, () => this.launchAttack());
+                } else {
+                    this.determineEnemyAction();
+                }
+            }
+        });
+    } else {
+         this.time.delayedCall(500, () => this.launchAttack());
+    }
   }
 
   createHammerVisual() {
       if (this.hammer) this.hammer.destroy();
       this.hammer = this.add.container(this.es.x - 60, this.es.y - 50);
+      
       const handle = this.add.rectangle(0, 40, 10, 80, 0x8B4513);
       const head = this.add.rectangle(0, 0, 60, 40, 0xFF0000).setStrokeStyle(2, 0xFFFF00);
-      this.hammer.add([handle, head]); this.hammer.setDepth(this.es.depth + 1); this.hammer.angle = 0; 
+      const detail1 = this.add.circle(0, 0, 10, 0xFFFF00);
+      
+      this.hammer.add([handle, head, detail1]);
+      this.hammer.setDepth(this.es.depth + 1);
+      this.hammer.angle = 0; 
   }
 
   determineEnemyAction() {
-      let pattern = 0; const rnd = Math.random();
-      if (GAME_DATA.stageIndex <= 1) pattern = rnd < 0.8 ? 0 : 1;
-      else if (GAME_DATA.stageIndex <= 3) { if (rnd < 0.5) pattern = 0; else if (rnd < 0.7) pattern = 1; else pattern = 2; }
-      else { if (rnd < 0.3) pattern = 0; else if (rnd < 0.5) pattern = 1; else if (rnd < 0.7) pattern = 2; else pattern = 4; }
+      let pattern = 0; const stage = GAME_DATA.stageIndex; const rnd = Math.random();
+      if (stage <= 1) { pattern = rnd < 0.8 ? 0 : 1; } 
+      else if (stage <= 3) { if (rnd < 0.5) pattern = 0; else if (rnd < 0.7) pattern = 1; else pattern = 2; } 
+      else { if (rnd < 0.3) pattern = 0; else if (rnd < 0.5) pattern = 1; else if (rnd < 0.7) pattern = 2; else if (rnd < 0.85) pattern = 3; else pattern = 4; }
 
       if (pattern === 0) { this.updateMessage(`${this.ed.name} の攻撃！`); this.launchAttack(); } 
       else if (pattern === 1) { this.updateMessage(`${this.ed.name} の三連撃！`); this.rapidCount = 3; this.launchRapidAttack(); } 
-      else if (pattern === 2) { this.time.delayedCall(500, () => { this.updateMessage("不意打ちだ！"); this.launchAttack(); }); }
+      else if (pattern === 2) { this.updateMessage(`${this.ed.name} が様子を見ている...`); this.time.delayedCall(500, () => { this.tweens.add({ targets: this.es, x: this.es.x - 30, duration: 100, yoyo: true }); this.time.delayedCall(1000, () => { this.updateMessage("不意打ちだ！"); this.launchAttack(); }); }); }
+      else if (pattern === 3) { this.currentAttackType = 'status'; this.updateMessage(`${this.ed.name} の怪しい動き...！`); this.launchStatusAttack(); }
       else if (pattern === 4) { this.updateMessage(`${this.ed.name} が構えた！`); this.launchDelayAttack(); }
   }
 
-  // ★修正：パリィ判定ロジック（フリーズ防止＆警告音）
+  // --- パリィ判定コア ---
   startDefenseActive(delay, activeWindow) {
       this.time.delayedCall(delay - activeWindow, () => {
-          // 先行入力ミスしてたら何もしない
-          if (this.qteMode !== 'defense_wait') return;
-          
-          this.qteMode = 'defense_active';
-          this.gs.setVisible(true);
-          this.playBuiltInSe('warning'); // ★警告音追加
+          // ★修正：早押しミスしていても処理を続行させる
+          // (但し、成功モードには移行しない)
+          if (this.qteMode === 'defense_wait') {
+              this.qteMode = 'defense_active';
+              this.gs.setVisible(true);
+              this.playBuiltInSe('warning'); // 警告音
+          }
           
           // 判定時間終了後の処理（成功・失敗問わずダメージ処理へ）
           this.time.delayedCall(activeWindow, () => {
@@ -499,6 +632,14 @@ export class BattleScene extends BaseScene {
       } else {
            this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In' }); 
       }
+  }
+
+  launchStatusAttack() { 
+      if (this.guardBroken) { this.executeDefense(false); return; } 
+      this.qteMode = 'defense_active'; this.gs.setVisible(true); this.es.setTint(0xff00ff); 
+      this.setCinematicMode(true);
+      this.cameras.main.zoomTo(1.1, 200);
+      this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 500, ease: 'Quad.InOut', onComplete: () => { this.es.clearTint(); if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); 
   }
 
   launchDelayAttack() {
