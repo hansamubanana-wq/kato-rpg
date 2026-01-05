@@ -11,6 +11,13 @@ export class BattleScene extends BaseScene {
   create() {
     this.playBGM('bgm_battle');
     this.fadeInScene(); 
+    
+    // ★追加：戦闘開始時にプレイヤーの状態をリセット（全回復）
+    if (!this.isTutorial) { // チュートリアル中は固定値を使うので除外
+        GAME_DATA.player.hp = GAME_DATA.player.maxHp;
+        GAME_DATA.player.stress = 0; // ストレスもリセット
+    }
+
     const isSecret = (GAME_DATA.stageIndex >= STAGES.length - 1);
     this.createGameBackground(isSecret ? 'secret' : 'battle'); 
     
