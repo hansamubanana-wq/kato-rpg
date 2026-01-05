@@ -136,7 +136,7 @@ export class BattleScene extends BaseScene {
       if (enabled) { this.mm.setVisible(false); } else { if (this.isPlayerTurn) this.mm.setVisible(true); }
   }
 
-  // ... チュートリアル省略（前回と同じ）...
+  // --- チュートリアル ---
   startTutorialStep1() { this.tutorialStep = 1; this.updateMessage("まずは攻撃だ！\n「コマンド」をタップ！"); this.showGuide(this.btnPos.cmd.x, this.btnPos.cmd.y, 160, 60, () => { this.openSkillMenu(); }); }
   startTutorialStep2() { this.tutorialStep = 2; this.updateMessage("技を選ぼう！\n「出席確認」をタップ！"); const x = this.scale.width * 0.25; const y = this.sm.y + 60; this.showGuide(x, y, 160, 60, () => { const skill = this.skillButtons[0].skill; this.selectSkill(skill); }); }
   startTutorialStep3() { this.tutorialStep = 3; this.tutorialLayer.setVisible(false); this.updateMessage("黄色い輪が重なる瞬間に\n画面をタップ！"); }
@@ -351,11 +351,9 @@ export class BattleScene extends BaseScene {
         else if (res==='MISS') { dmg = 0; }
         if(this.isTutorial && dmg===0) dmg = 10;
         if ((this.ed.hp - dmg) <= 0) {
-            this.createExplosion(this.es.x, this.es.y);
-            this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1;
-            this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
+            this.createExplosion(this.es.x, this.es.y); this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1; this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
             const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
-            this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' }); this.ed.hp -= dmg; this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.winBattle(); });
+            this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' }); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.winBattle(); });
         } else {
             if(dmg>0) { this.playSound('se_attack'); this.damageFlash(this.es); }
             this.vibrate(v); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, c);
@@ -369,10 +367,8 @@ export class BattleScene extends BaseScene {
       this.isPlayerTurn = false; GAME_DATA.player.stress = 0; this.refreshStatus(); this.vibrate(1000); this.playBuiltInSe('limit'); this.setCinematicMode(true);
       const bg = this.add.rectangle(this.scale.width/2, this.scale.height/2, this.scale.width, this.scale.height, 0x000000).setDepth(290).setAlpha(0);
       this.tweens.add({ targets: bg, alpha: 0.8, duration: 200 });
-      if(!this.textures.exists('kato_cutin')) this.createTextureFromText('kato_cutin', ARTS.kato_cutin);
       const cutin = this.add.sprite(-200, this.scale.height/2, 'kato_cutin').setScale(15).setDepth(300);
       this.tweens.chain({ targets: cutin, tweens: [ { x: this.scale.width/2, duration: 300, ease: 'Back.Out' }, { scale: 18, duration: 1000 }, { x: this.scale.width + 300, duration: 200, ease: 'Quad.In', onComplete: () => { bg.destroy(); cutin.destroy(); } } ] });
-      this.time.delayedCall(500, () => { this.cameras.main.flash(500, 255, 0, 0); this.cameras.main.shake(500, 0.05); this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`); });
       this.time.delayedCall(2000, () => { 
           const baseDmg = GAME_DATA.player.atk * 300; const dmg = Math.floor(baseDmg); this.selS = { anim: 'heavy' };
           this.playSwordAnimation(() => {
@@ -404,7 +400,11 @@ export class BattleScene extends BaseScene {
     this.createHammerVisual();
     if (this.hammer) {
         this.tweens.add({
-            targets: this.hammer, angle: -90, x: this.es.x - 80, duration: 500, ease: 'Back.Out',
+            targets: this.hammer,
+            angle: -90, // 大きく振りかぶる
+            x: this.es.x - 80, // 少し後ろへ
+            duration: 600, // ★モーション速度を少し遅くして見やすく
+            ease: 'Back.Out',
             onComplete: () => {
                 if (this.isTutorial) {
                     this.updateMessage("敵の攻撃だ！\n「！」が出たらタップ！");
@@ -424,7 +424,7 @@ export class BattleScene extends BaseScene {
       this.hammer = this.add.container(this.es.x - 60, this.es.y - 50);
       const handle = this.add.rectangle(0, 40, 10, 80, 0x8B4513);
       const head = this.add.rectangle(0, 0, 60, 40, 0xFF0000).setStrokeStyle(2, 0xFFFF00);
-      const detail1 = this.add.circle(0, 0, 10, 0xFFFF00);
+      const detail1 = this.add.circle(0, 0, 10, 0xFFFF00); // ★丸い模様復活
       this.hammer.add([handle, head, detail1]); this.hammer.setDepth(this.es.depth + 1); this.hammer.angle = 0; 
   }
 
@@ -432,7 +432,7 @@ export class BattleScene extends BaseScene {
       let pattern = 0; const rnd = Math.random();
       if (GAME_DATA.stageIndex <= 1) pattern = rnd < 0.8 ? 0 : 1;
       else if (GAME_DATA.stageIndex <= 3) { if (rnd < 0.5) pattern = 0; else if (rnd < 0.7) pattern = 1; else pattern = 2; }
-      else { if (rnd < 0.3) pattern = 0; else if (rnd < 0.5) pattern = 1; else if (rnd < 0.7) pattern = 2; else pattern = 4; }
+      else { if (rnd < 0.3) pattern = 0; else if (rnd < 0.5) pattern = 1; else if (rnd < 0.7) pattern = 2; else if (rnd < 0.85) pattern = 3; else pattern = 4; }
 
       if (pattern === 0) { this.updateMessage(`${this.ed.name} の攻撃！`); this.launchAttack(); } 
       else if (pattern === 1) { this.updateMessage(`${this.ed.name} の三連撃！`); this.rapidCount = 3; this.launchRapidAttack(); } 
@@ -441,7 +441,11 @@ export class BattleScene extends BaseScene {
       else if (pattern === 4) { this.updateMessage(`${this.ed.name} が構えた！`); this.launchDelayAttack(); }
   }
 
+  // --- ★調整：受付時間緩和 (150ms -> 300ms) ---
   startDefenseActive(delay, activeWindow) {
+      // ★受付時間（activeWindow）をここで強制的に広げる
+      activeWindow = Math.max(activeWindow, 300); 
+
       this.time.delayedCall(delay - activeWindow, () => {
           if (this.qteMode === 'defense_wait') {
               this.qteMode = 'defense_active';
@@ -449,7 +453,6 @@ export class BattleScene extends BaseScene {
               this.playBuiltInSe('warning'); 
           }
           this.time.delayedCall(activeWindow, () => {
-              // タイムアウト or 早押しミス -> ダメージ処理へ
               if (this.qteMode === 'defense_active' || this.qteMode === 'defense_miss') {
                   this.gs.setVisible(false);
                   this.executeDefense(false, this.rapidCount > 0);
@@ -460,8 +463,8 @@ export class BattleScene extends BaseScene {
 
   launchAttack() {
       this.qteMode = 'defense_wait';
-      const dur = 400;
-      this.startDefenseActive(dur, 150); 
+      const dur = 600; // ★少し遅くして見やすく
+      this.startDefenseActive(dur, 300); 
       if (this.hammer) {
           this.eat = this.tweens.add({ targets: this.hammer, angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: dur, ease: 'Power2' });
       } else {
@@ -474,11 +477,11 @@ export class BattleScene extends BaseScene {
       this.qteMode = 'defense_wait';
       this.ps.clearTint(); 
 
-      let dur = 300;
+      let dur = 400; // ★少し遅く
       let multiplier = 0.5;
-      if (this.rapidCount === 1) { dur = 1000; multiplier = 2.5; } 
+      if (this.rapidCount === 1) { dur = 1200; multiplier = 2.5; } // 3発目
 
-      this.startDefenseActive(dur, 180);
+      this.startDefenseActive(dur, this.rapidCount===1 ? 400 : 250); // 3発目はさらに甘く
 
       if (this.hammer) {
           if (this.rapidCount === 1) {
@@ -487,7 +490,7 @@ export class BattleScene extends BaseScene {
                   targets: this.hammer,
                   tweens: [
                       { angle: -160, x: this.es.x - 80, y: this.es.y - 60, duration: dur * 0.7, ease: 'Power2' },
-                      { angle: -160, duration: 150 }, // タメ
+                      { angle: -160, duration: 150 }, 
                       { angle: 100, x: this.ps.x, y: this.ps.y - 30, duration: dur * 0.3, ease: 'Bounce.Out' }
                   ]
               });
@@ -511,7 +514,7 @@ export class BattleScene extends BaseScene {
   launchDelayAttack() {
       this.qteMode = 'defense_wait';
       const delay = 1200;
-      this.startDefenseActive(delay, 150);
+      this.startDefenseActive(delay, 300); // ★緩和
       if (this.hammer) {
           this.tweens.add({ targets: this.hammer, angle: -20, duration: 400, yoyo: true, repeat: 1 });
           this.time.delayedCall(800, () => {
@@ -537,7 +540,6 @@ export class BattleScene extends BaseScene {
     let multiplier = isRapid ? (this.rapidCount === 1 ? 2.5 : 0.5) : 1.0;
     let dmg = Math.floor(this.ed.atk * multiplier);
 
-    // ★重要: ダメージ時も判定をリセットして多重入力を防ぐ
     this.qteMode = null; 
 
     if (suc) { 
@@ -564,7 +566,6 @@ export class BattleScene extends BaseScene {
             this.rapidCount--;
             this.time.delayedCall(400, () => this.launchRapidAttack());
         } else {
-            // ★修正：成功時かつカウンター条件成立ならカウンターへ
             if (suc && this.perfectGuardChain) this.triggerCounterAttack();
             else this.time.delayedCall(800, () => this.endEnemyTurn());
         }
@@ -577,13 +578,9 @@ export class BattleScene extends BaseScene {
           const baseDmg = GAME_DATA.player.atk * 150; 
           const dmg = Math.floor(baseDmg);
           this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true);
-          
           // ★修正：カウンター後、敵が死んでいれば勝利、生きていればプレイヤーのターンへ
-          if (this.ed.hp <= 0) {
-              this.winBattle();
-          } else {
-              this.endEnemyTurn();
-          }
+          if (this.ed.hp <= 0) this.winBattle();
+          else this.endEnemyTurn(); 
       });
   }
 
