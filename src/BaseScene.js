@@ -5,12 +5,13 @@ export class BaseScene extends Phaser.Scene {
   preload() {
     Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
     
+    // 既存のファイル読み込み（ファイルがあれば鳴りますが、なくてもエラーで止まらないようにしています）
     this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
     this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
     this.load.audio('se_select', '/sounds/se_select.mp3');
     this.load.audio('se_attack', '/sounds/se_attack.mp3');
     this.load.audio('se_parry', '/sounds/se_parry.mp3');
-    // se_win は存在しないので削除しました
+    // se_win は自動生成するので読み込み不要
   }
 
   createTextureFromText(key, art) {
@@ -22,7 +23,54 @@ export class BaseScene extends Phaser.Scene {
     this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
 
-  playSound(key, config = {}) { if (this.sound.get(key) || this.cache.audio.exists(key)) this.sound.play(key, config); }
+  // ファイルがあればそれを再生、なければ何もしない（エラー防止）
+  playSound(key, config = {}) { 
+      if (this.sound.get(key) || this.cache.audio.exists(key)) {
+          this.sound.play(key, config); 
+      }
+  }
+  
+  // ★新機能：効果音をプログラムで生成して鳴らす！
+  playBuiltInSe(type) {
+      // Web Audio APIのコンテキストを取得
+      const ctx = this.sound.context;
+      if (!ctx) return;
+
+      const t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === 'win') {
+          // 勝利ファンファーレ: ド・ミ・ソ・ド～ (Cメジャー)
+          osc.type = 'square'; // ファミコン風の矩形波
+          osc.frequency.setValueAtTime(523.25, t);       // ド (C5)
+          osc.frequency.setValueAtTime(659.25, t + 0.1); // ミ (E5)
+          osc.frequency.setValueAtTime(783.99, t + 0.2); // ソ (G5)
+          osc.frequency.setValueAtTime(1046.50, t + 0.3); // ド (C6)
+          
+          // 音量調整（減衰）
+          gain.gain.setValueAtTime(0.1, t);
+          gain.gain.linearRampToValueAtTime(0, t + 0.8);
+          
+          osc.start(t);
+          osc.stop(t + 0.8);
+
+      } else if (type === 'limit') {
+          // ブチギレ音: ギュイィィィン！ (のこぎり波でピッチ上昇)
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(100, t);
+          osc.frequency.exponentialRampToValueAtTime(800, t + 1.0); // 1秒かけて音程を上げる
+          
+          // 音量調整
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.linearRampToValueAtTime(0, t + 1.0);
+          
+          osc.start(t);
+          osc.stop(t + 1.0);
+      }
+  }
   
   playBGM(key) {
       const current = this.sound.getAll('bgm_world').concat(this.sound.getAll('bgm_battle'));

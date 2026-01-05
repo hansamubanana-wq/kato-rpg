@@ -639,6 +639,8 @@ export class BattleScene extends BaseScene {
     this.cameras.main.flash(100, 255, 255, 255); 
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
+    // 成功音を鳴らす (parryは元々ファイル読み込み前提だが、なければ鳴らない)
+    this.playSound('se_parry'); 
     this.executeDefense(true, this.rapidCount > 0);
   }
 
@@ -647,7 +649,8 @@ export class BattleScene extends BaseScene {
     let dmg = Math.floor(this.ed.atk * multiplier);
 
     if (suc) { 
-        dmg = 0; this.playSound('se_parry'); this.vibrate(30); 
+        dmg = 0; 
+        this.vibrate(30); 
         GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
         if(this.hammer) this.tweens.add({ targets: this.hammer, x: this.es.x - 60, y: this.es.y - 50, angle: -45, duration: 150 });
@@ -694,13 +697,13 @@ export class BattleScene extends BaseScene {
       this.updateMessage("ターン開始");
   }
 
-  // ★修正済み：winBattleのバグ修正
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; 
     if(!this.isTraining && !this.isTutorial) GAME_DATA.stageIndex++; 
-    this.sound.stopAll(); this.playSound('se_win');
+    this.sound.stopAll(); 
+    this.playBuiltInSe('win'); // ★自作音を鳴らす！
+    
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
-    // ★ここを修正：Object形式に対応
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkills[7]) { 
         GAME_DATA.player.ownedSkills[7] = 1; 
         msg += "\nレア技【居残り指導】習得！"; 
