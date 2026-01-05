@@ -353,7 +353,7 @@ export class BattleScene extends BaseScene {
         if ((this.ed.hp - dmg) <= 0) {
             this.createExplosion(this.es.x, this.es.y); this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1; this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack');
             const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
-            this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' }); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.winBattle(); });
+            this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' }); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); });
         } else {
             if(dmg>0) { this.playSound('se_attack'); this.damageFlash(this.es); }
             this.vibrate(v); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, c);
@@ -369,11 +369,13 @@ export class BattleScene extends BaseScene {
       this.tweens.add({ targets: bg, alpha: 0.8, duration: 200 });
       const cutin = this.add.sprite(-200, this.scale.height/2, 'kato_cutin').setScale(15).setDepth(300);
       this.tweens.chain({ targets: cutin, tweens: [ { x: this.scale.width/2, duration: 300, ease: 'Back.Out' }, { scale: 18, duration: 1000 }, { x: this.scale.width + 300, duration: 200, ease: 'Quad.In', onComplete: () => { bg.destroy(); cutin.destroy(); } } ] });
+      this.time.delayedCall(500, () => { this.cameras.main.flash(500, 255, 0, 0); this.cameras.main.shake(500, 0.05); this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`); });
       this.time.delayedCall(2000, () => { 
           const baseDmg = GAME_DATA.player.atk * 300; const dmg = Math.floor(baseDmg); this.selS = { anim: 'heavy' };
           this.playSwordAnimation(() => {
               this.hitStop(300); this.damageFlash(this.es); this.setCinematicMode(false);
-              if ((this.ed.hp - dmg) <= 0) { this.winBattle(); } else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd(); }
+              if ((this.ed.hp - dmg) <= 0) { this.createExplosion(this.es.x, this.es.y); this.cameras.main.zoomTo(1.5, 200); this.tweens.timeScale = 0.1; this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(1.5); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale=1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); }); } 
+              else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.checkEnd(); }
           });
       });
   }
@@ -441,9 +443,9 @@ export class BattleScene extends BaseScene {
       else if (pattern === 4) { this.updateMessage(`${this.ed.name} が構えた！`); this.launchDelayAttack(); }
   }
 
-  // --- ★調整：受付時間緩和 (150ms -> 300ms) ---
+  // --- ★調整：受付時間緩和 ---
   startDefenseActive(delay, activeWindow) {
-      // ★受付時間（activeWindow）をここで強制的に広げる
+      // 受付時間（activeWindow）を強制的に300ms以上に広げる
       activeWindow = Math.max(activeWindow, 300); 
 
       this.time.delayedCall(delay - activeWindow, () => {
@@ -472,16 +474,24 @@ export class BattleScene extends BaseScene {
       }
   }
 
+  // --- ★調整：三連撃の数値変更 ---
   launchRapidAttack() { 
       if (this.rapidCount <= 0) { if (this.perfectGuardChain) this.triggerCounterAttack(); else this.endEnemyTurn(); return; } 
       this.qteMode = 'defense_wait';
       this.ps.clearTint(); 
 
-      let dur = 400; // ★少し遅く
+      // 1,2発目の速度と受付時間を緩和
+      let dur = 500; // 400->500
+      let win = 350; // 250->350 (受付時間)
       let multiplier = 0.5;
-      if (this.rapidCount === 1) { dur = 1200; multiplier = 2.5; } // 3発目
+      
+      if (this.rapidCount === 1) { 
+          dur = 1200; 
+          win = 500; // 3発目はさらに甘く
+          multiplier = 2.5; 
+      } 
 
-      this.startDefenseActive(dur, this.rapidCount===1 ? 400 : 250); // 3発目はさらに甘く
+      this.startDefenseActive(dur, win);
 
       if (this.hammer) {
           if (this.rapidCount === 1) {
@@ -578,7 +588,6 @@ export class BattleScene extends BaseScene {
           const baseDmg = GAME_DATA.player.atk * 150; 
           const dmg = Math.floor(baseDmg);
           this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true);
-          // ★修正：カウンター後、敵が死んでいれば勝利、生きていればプレイヤーのターンへ
           if (this.ed.hp <= 0) this.winBattle();
           else this.endEnemyTurn(); 
       });
@@ -607,7 +616,6 @@ export class BattleScene extends BaseScene {
     }
     if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) { GAME_DATA.player.level++; GAME_DATA.player.maxHp+=20; GAME_DATA.player.hp = GAME_DATA.player.maxHp; GAME_DATA.player.atk += 0.2; GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5); msg += "\nレベルアップ！"; }
 
-    // ★修正：WIN表示と勝利エフェクトを復活
     const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0);
     this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' });
 
