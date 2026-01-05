@@ -74,7 +74,7 @@ export class OpeningScene extends BaseScene {
 }
 
 // ----------------------------------------------------------------
-//  チュートリアル (文字重なり修正版)
+//  チュートリアル
 // ----------------------------------------------------------------
 export class TutorialScene extends BaseScene {
   constructor() { super('TutorialScene'); }
@@ -145,10 +145,10 @@ export class TutorialScene extends BaseScene {
     this.add.text(w/2, 40, "チュートリアル (4/5)", { font: `24px ${GAME_FONT}` }).setOrigin(0.5);
     this.add.text(w/2, 90, "状態異常とアイテム", { font: `30px ${GAME_FONT}`, color: '#fa0' }).setOrigin(0.5);
 
-    const statusExp = `🔥 炎上 (Burn)\nターン終了時にダメージを受ける。\n\n💤 居眠り (Sleep)\n行動不能になる。攻撃されると起きる。\n\n敵にも有効です！`;
-    this.add.text(w/2, 240, statusExp, { font: `18px ${GAME_FONT}`, align:'left', lineSpacing:12 }).setOrigin(0.5);
+    const statusExp = `🔥 炎上 (Burn)\nターン終了時にダメージを受ける。\n\n💤 居眠り (Sleep)\n行動不能になる。攻撃されると起きる。\n\nこれらは敵にも有効です！\n戦略的に戦いましょう。`;
+    this.add.text(w/2, 280, statusExp, { font: `18px ${GAME_FONT}`, align:'left', lineSpacing:12 }).setOrigin(0.5);
 
-    this.add.text(w/2, 420, "アイテムは「プチレーブ」で購入可能。\nピンチの時は惜しまず使おう！", { font: `16px ${GAME_FONT}`, color: '#ccc', align:'center' }).setOrigin(0.5);
+    this.add.text(w/2, 450, "アイテムは「プチレーブ」で購入可能。\nピンチの時は惜しまず使おう！", { font: `16px ${GAME_FONT}`, color: '#ccc', align:'center', wordWrap:{width:w-40}}).setOrigin(0.5);
 
     this.createButton(w/2, h - 80, '次へ', 0xcc3333, () => this.showPage5());
   }
@@ -164,7 +164,7 @@ export class TutorialScene extends BaseScene {
     const info = `① 敵を倒してGoldを獲得\n\n②「プチレーブ」で\n強力な技の習得・強化\n\n③「編成」で技を装備！\n(最大6つまで装備可能)`;
     this.add.text(w/2, 240, info, { font: `20px ${GAME_FONT}`, align:'center', lineSpacing:15 }).setOrigin(0.5);
     
-    this.add.text(w/2, 420, "⚠ 重要 ⚠\n習得した技は「編成」画面で\nセットしないと使えません！", { font: `22px ${GAME_FONT}`, color: '#f55', align:'center', stroke:'#fff', strokeThickness:2, wordWrap:{width:w-40} }).setOrigin(0.5);
+    this.add.text(w/2, 420, "⚠ 重要 ⚠\n買った技は「編成」画面で\nセットしないと使えません！", { font: `22px ${GAME_FONT}`, color: '#f55', align:'center', stroke:'#fff', strokeThickness:2, wordWrap:{width:w-40} }).setOrigin(0.5);
     
     this.createButton(w/2, h - 80, 'ゲーム開始！', 0xcc3333, () => this.transitionTo('WorldScene'), 220, 50, true);
   }
@@ -204,36 +204,48 @@ export class WorldScene extends BaseScene {
 }
 
 // ----------------------------------------------------------------
-//  ショップ (レベルアップ機能対応)
+//  ショップ (位置記憶対応・鍛錬追加版)
 // ----------------------------------------------------------------
 export class ShopScene extends BaseScene {
   constructor() { super('ShopScene'); }
+
+  // シーン開始時に前回の状態を受け取る
+  init(data) {
+      this.lastMode = data.mode || 'skill';
+      this.lastScrollY = data.scrollY || null;
+  }
+
   create() {
     this.fadeInScene(); 
     this.createGameBackground('shop'); 
     const w = this.scale.width; const h = this.scale.height;
+    
     this.add.text(w/2, 40, `プチレーブ`, { font:`28px ${GAME_FONT}` }).setOrigin(0.5).setDepth(20);
     this.add.text(w/2, 70, `${GAME_DATA.gold} G`, { font:`20px ${GAME_FONT}`, color:'#ff0' }).setOrigin(0.5).setDepth(20);
+    
     this.createButton(w/2, h-60, '戻る', 0x555, () => this.transitionTo('WorldScene')).setDepth(20);
 
-    this.mode = 'skill';
+    // 記憶していたモードを適用
+    this.mode = this.lastMode;
     this.createTabs(w, h);
     this.refreshList(w, h);
+
+    // 記憶していたスクロール位置を復元
+    if (this.lastScrollY !== null && this.listContainer) {
+        this.listContainer.y = this.lastScrollY;
+    }
   }
 
   createTabs(w, h) {
       this.tabContainer = this.add.container(0, 110);
-      const tabW = (w - 40) / 3; const tabH = 50; // 3分割
+      const tabW = (w - 40) / 3; const tabH = 50; 
 
-      // 技
       this.btnSkill = this.createTabBtn(w/2 - tabW, 0, tabW, tabH, "技", () => {
           this.mode = 'skill'; this.updateTabStyle(); this.refreshList(w, h);
       });
-      // 道具
       this.btnItem = this.createTabBtn(w/2, 0, tabW, tabH, "道具", () => {
           this.mode = 'item'; this.updateTabStyle(); this.refreshList(w, h);
       });
-      // 鍛錬
       this.btnTrain = this.createTabBtn(w/2 + tabW, 0, tabW, tabH, "鍛錬", () => {
           this.mode = 'train'; this.updateTabStyle(); this.refreshList(w, h);
       });
@@ -247,7 +259,11 @@ export class ShopScene extends BaseScene {
       const bg = this.add.graphics().fillRoundedRect(-w/2, -h/2, w, h, 10);
       const txt = this.add.text(0, 0, text, {font:`20px ${GAME_FONT}`}).setOrigin(0.5);
       const hit = this.add.rectangle(0, 0, w, h).setInteractive();
-      hit.on('pointerdown', () => { this.playSound('se_select'); cb(); });
+      hit.on('pointerdown', () => { 
+          this.playSound('se_select'); 
+          this.lastScrollY = null; // タブ切り替え時はスクロールリセット
+          cb(); 
+      });
       c.add([bg, txt, hit]);
       c.bg = bg; c.txt = txt;
       return c;
@@ -299,11 +315,11 @@ export class ShopScene extends BaseScene {
                       GAME_DATA.gold -= cost; 
                       if(!GAME_DATA.player.ownedSkills[item.id]) GAME_DATA.player.ownedSkills[item.id] = 0;
                       GAME_DATA.player.ownedSkills[item.id]++;
-                      // 初めて入手したら自動で装備(空きがあれば)
                       if(GAME_DATA.player.ownedSkills[item.id] === 1 && GAME_DATA.player.equippedSkillIds.length < 6) {
                           GAME_DATA.player.equippedSkillIds.push(item.id);
                       }
-                      saveGame(); this.scene.restart(); 
+                      saveGame(); 
+                      this.scene.restart({ mode: this.mode, scrollY: this.listContainer.y }); 
                   } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
               };
 
@@ -317,7 +333,8 @@ export class ShopScene extends BaseScene {
                       GAME_DATA.gold -= item.cost; 
                       if(!GAME_DATA.player.items[item.id]) GAME_DATA.player.items[item.id] = 0; 
                       GAME_DATA.player.items[item.id]++; 
-                      saveGame(); this.scene.restart(); 
+                      saveGame(); 
+                      this.scene.restart({ mode: this.mode, scrollY: this.listContainer.y }); 
                   } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
               };
 
@@ -332,8 +349,9 @@ export class ShopScene extends BaseScene {
                       GAME_DATA.gold -= cost;
                       if(!GAME_DATA.player.upgrades) GAME_DATA.player.upgrades = {atk:0, hp:0};
                       GAME_DATA.player.upgrades[item.id]++;
-                      recalcPlayerStats(); // ステータス更新
-                      saveGame(); this.scene.restart();
+                      recalcPlayerStats(); 
+                      saveGame(); 
+                      this.scene.restart({ mode: this.mode, scrollY: this.listContainer.y });
                   } else { this.time.delayedCall(100, ()=>alert("ゴールドが足りません！")); }
               };
           }
@@ -349,7 +367,7 @@ export class ShopScene extends BaseScene {
 }
 
 // ----------------------------------------------------------------
-//  スキル編成 (レベル表示対応)
+//  スキル編成
 // ----------------------------------------------------------------
 export class SkillScene extends BaseScene {
   constructor() { super('SkillScene'); }
@@ -436,7 +454,7 @@ export class TrueClearScene extends BaseScene {
   constructor() { super('TrueClearScene'); }
   create() {
     this.sound.stopAll();
-    this.playBuiltInSe('win'); 
+    this.playBuiltInSe('win');
     this.time.delayedCall(2000, () => {
         this.playBGM('bgm_world');
     });
