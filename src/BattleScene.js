@@ -39,7 +39,7 @@ export class BattleScene extends BaseScene {
     this.es = this.add.sprite(w*0.75, h*0.4, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
 
-    // --- UIグループ化 (上部) ---
+    // --- UIグループ化 ---
     this.topUI = this.add.container(0, 0);
     const topY = 40;
     
@@ -55,7 +55,7 @@ export class BattleScene extends BaseScene {
 
     this.topUI.add([eName, this.ehb, pName, this.phb, sLabel, this.sb, this.apBar]);
 
-    // --- チュートリアルスキップボタン ---
+    // --- チュートリアルスキップ ---
     if (this.isTutorial) {
         const skipBtn = this.add.container(w - 60, 90);
         const sBg = this.add.rectangle(0, 0, 100, 40, 0x555555).setStrokeStyle(1, 0xffffff);
@@ -77,7 +77,9 @@ export class BattleScene extends BaseScene {
     this.mm = this.add.container(0, 0);
     
     const cmdY = h - 230; 
-    const btnW = 160; const btnH = 60; const gapX = 10;
+    const btnW = 160; 
+    const btnH = 60; 
+    const gapX = 10;
     
     this.btnPos = {
         cmd: { x: w/2 - btnW/2 - gapX, y: cmdY },
@@ -133,7 +135,6 @@ export class BattleScene extends BaseScene {
       }
   }
 
-  // --- チュートリアル ---
   startTutorialStep1() {
       this.tutorialStep = 1;
       this.updateMessage("まずは攻撃だ！\n「コマンド」をタップ！");
@@ -166,7 +167,6 @@ export class BattleScene extends BaseScene {
       });
   }
 
-  // --- ロジック ---
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
@@ -269,7 +269,13 @@ export class BattleScene extends BaseScene {
 
   handleInput() {
     if (this.qteMode === 'attack' && this.qteActive) this.resolveAttackQTE();
-    else if (this.qteMode === 'defense_wait') this.triggerGuardPenalty();
+    else if (this.qteMode === 'defense_wait') {
+        // 先行入力ペナルティ
+        this.qteMode = 'defense_miss'; 
+        this.gs.setVisible(false);
+        this.ps.setTint(0x888888); 
+        this.updateMessage("パリィ失敗！");
+    }
     else if (this.qteMode === 'defense_active') this.resolveDefenseQTE();
   }
 
@@ -557,67 +563,58 @@ export class BattleScene extends BaseScene {
       else if (pattern === 4) { this.updateMessage(`${this.ed.name} が構えた！`); this.launchDelayAttack(); }
   }
 
-  launchAttack() {
-      if (this.guardBroken) { this.executeDefense(false); return; }
-      this.qteMode = 'defense_active'; this.gs.setVisible(true);
-      this.setCinematicMode(true);
-      this.cameras.main.zoomTo(1.1, 200);
+  // --- パリィ判定コア ---
+  startDefenseActive(delay, activeWindow) {
+      // 振りかぶり待ち
+      this.time.delayedCall(delay - activeWindow, () => {
+          if (this.qteMode !== 'defense_wait') return; // 先行入力ミス済みなら何もしない
+          
+          this.qteMode = 'defense_active';
+          this.gs.setVisible(true);
+          
+          // 指定時間経過でパリィ受付終了（被弾）
+          this.time.delayedCall(activeWindow, () => {
+              if (this.qteMode === 'defense_active') {
+                  this.gs.setVisible(false);
+                  this.executeDefense(false, this.rapidCount > 0);
+              }
+          });
+      });
+  }
 
+  launchAttack() {
+      this.qteMode = 'defense_wait';
+      const dur = 400;
+      this.startDefenseActive(dur, 150); // 400ms後にヒット。最後の150msだけ受付。
       if (this.hammer) {
-          this.eat = this.tweens.add({
-              targets: this.hammer,
-              angle: 90, x: this.ps.x, y: this.ps.y - 50,
-              duration: this.isTutorial ? 600 : 300,
-              ease: 'Power2',
-              onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
-          });
-      } else {
-           this.eat = this.tweens.add({
-              targets: this.es, x: this.ps.x + 50, duration: this.isTutorial ? 600 : 300, 
-              ease: 'Expo.In',
-              onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } }
-          });
+          this.eat = this.tweens.add({ targets: this.hammer, angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: dur, ease: 'Power2' });
       }
   }
 
-  // ★修正した三連撃（ラッシュ）ロジック
   launchRapidAttack() { 
-      if (this.rapidCount <= 0) { if (this.perfectGuardChain) this.triggerCounterAttack(); else this.time.delayedCall(500, () => this.endEnemyTurn()); return; } 
-      if (this.guardBroken) { this.executeDefense(false, true); return; } 
-      
-      this.qteMode = 'defense_active'; this.gs.setVisible(true); 
-      this.setCinematicMode(true);
-      this.cameras.main.zoomTo(1.1, 200);
+      if (this.rapidCount <= 0) { if (this.perfectGuardChain) this.triggerCounterAttack(); else this.endEnemyTurn(); return; } 
+      this.qteMode = 'defense_wait';
+      this.ps.clearTint(); // 前の発のペナルティ色をリセット
+
+      let dur = 300;
+      let multiplier = 0.5;
+      if (this.rapidCount === 1) { dur = 1000; multiplier = 2.5; } // 3発目はタメ
+
+      this.startDefenseActive(dur, 180);
 
       if (this.hammer) {
-          // 3発目は強攻撃、それ以外は弱攻撃
           if (this.rapidCount === 1) {
-              // --- 3発目：大振りフィニッシュ ---
-              this.hammer.angle = -45; 
               this.eat = this.tweens.chain({
                   targets: this.hammer,
                   tweens: [
-                      // ググッと大きく振りかぶる
-                      { angle: -160, x: this.es.x - 80, y: this.es.y - 60, duration: 800, ease: 'Power2' },
-                      // 一瞬止まる（タメ）
-                      { angle: -160, duration: 150 },
-                      // ドカン！と振り下ろす
-                      { angle: 100, x: this.ps.x, y: this.ps.y - 30, duration: 200, ease: 'Bounce.Out', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }
+                      { angle: -160, x: this.es.x - 80, y: this.es.y - 60, duration: dur * 0.7, ease: 'Power2' },
+                      { angle: 100, x: this.ps.x, y: this.ps.y - 30, duration: dur * 0.3, ease: 'Power2' }
                   ]
               });
           } else {
-              // --- 1,2発目：通常攻撃 ---
-              this.hammer.angle = -45;
-              this.eat = this.tweens.chain({
-                  targets: this.hammer,
-                  tweens: [
-                      { angle: -90, duration: 300, ease: 'Back.Out' },
-                      { angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: 250, ease: 'Power2', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }
-                  ]
-              });
+              this.hammer.angle = -60;
+              this.eat = this.tweens.add({ targets: this.hammer, angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: dur, ease: 'Power2' });
           }
-      } else {
-           this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false, true); } } }); 
       }
   }
 
@@ -629,53 +626,31 @@ export class BattleScene extends BaseScene {
       this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 500, ease: 'Quad.InOut', onComplete: () => { this.es.clearTint(); if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); 
   }
 
-  launchDelayAttack() { 
-      if (this.guardBroken) { this.executeDefense(false); return; } 
-      this.qteMode = 'defense_active'; this.gs.setVisible(true); 
-      this.setCinematicMode(true);
-      this.cameras.main.zoomTo(1.1, 200);
-      
-       if (this.hammer) {
-           this.tweens.add({
-               targets: this.hammer, angle: -20, duration: 400, yoyo: true, 
-               onComplete: () => {
-                   this.time.delayedCall(Phaser.Math.Between(200, 600), () => {
-                       if (this.guardBroken) return;
-                       this.eat = this.tweens.add({ targets: this.hammer, angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: 150, ease: 'Power2', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } });
-                   });
-               }
-           });
-       } else {
-          this.tweens.add({ targets: this.es, x: this.ps.x + 150, duration: 400, ease: 'Quad.Out', onComplete: () => { this.time.delayedCall(Phaser.Math.Between(400, 1000), () => { if (this.guardBroken) return; this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 100, ease: 'Expo.In', onComplete: () => { if (this.qteMode === 'defense_active') { this.gs.setVisible(false); this.executeDefense(false); } } }); }); } }); 
-       }
+  launchDelayAttack() {
+      this.qteMode = 'defense_wait';
+      const delay = 1200;
+      this.startDefenseActive(delay, 150);
+      if (this.hammer) {
+          this.tweens.add({ targets: this.hammer, angle: -20, duration: 400, yoyo: true, repeat: 1 });
+          this.time.delayedCall(800, () => {
+              this.eat = this.tweens.add({ targets: this.hammer, angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: 400, ease: 'Power2' });
+          });
+      }
   }
 
   resolveDefenseQTE() {
     this.gs.setVisible(false); this.qteMode = null; 
-    if (this.eat) { 
-        if(this.eat.stop) this.eat.stop(); 
-        this.tweens.killTweensOf(this.es); 
-        if(this.hammer) this.tweens.killTweensOf(this.hammer);
-    }
-    this.createImpactEffect(this.es.x - 30, this.es.y);
+    if (this.eat) { if(this.eat.stop) this.eat.stop(); this.tweens.killTweensOf(this.hammer); }
+    this.createImpactEffect(this.ps.x + 30, this.ps.y - 50);
     this.cameras.main.flash(100, 255, 255, 255); 
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
-    this.cameras.main.zoomTo(1.0, 200);
-    if (this.rapidCount <= 0) this.setCinematicMode(false);
-
-    if (this.rapidCount > 0) this.executeDefense(true, true); else this.executeDefense(true, false);
+    this.executeDefense(true, this.rapidCount > 0);
   }
 
-  // ★修正したダメージ計算ロジック
   executeDefense(suc, isRapid = false) {
-    let multiplier = 1.0;
-    if (isRapid) {
-        // 残り1回(=3発目)なら威力2.5倍、それ以外は0.5倍
-        multiplier = (this.rapidCount === 1) ? 2.5 : 0.5;
-    }
+    let multiplier = isRapid ? (this.rapidCount === 1 ? 2.5 : 0.5) : 1.0;
     let dmg = Math.floor(this.ed.atk * multiplier);
-    if(this.isTutorial && !suc && dmg >= GAME_DATA.player.hp) { dmg = GAME_DATA.player.hp - 1; }
 
     if (suc) { 
         dmg = 0; this.playSound('se_parry'); this.vibrate(30); 
@@ -685,101 +660,62 @@ export class BattleScene extends BaseScene {
         if(this.hammer) this.tweens.add({ targets: this.hammer, x: this.es.x - 60, y: this.es.y - 50, angle: -45, duration: 150 });
         this.tweens.add({ targets: this.es, x: this.ebx, y: this.eby, angle: 0, duration: 150, ease: 'Back.Out' });
     } else { 
-        this.damageFlash(this.ps);
-        this.cameras.main.zoomTo(1.0, 200);
-        this.setCinematicMode(false);
-        this.perfectGuardChain = false;
-        
-        // 3発目を食らったら大きく揺らす
-        if (isRapid && this.rapidCount === 1) {
-            this.cameras.main.shake(300, 0.05);
-        } else {
-            this.cameras.main.shake(100, 0.02);
-        }
-
-        if (this.currentAttackType === 'status') { const rnd = Math.random(); if (rnd < 0.5) { GAME_DATA.player.status = 'burn'; this.showStatusPopup(this.ps.x, this.ps.y - 50, "炎上した！"); } else { GAME_DATA.player.status = 'sleep'; this.showStatusPopup(this.ps.x, this.ps.y - 50, "眠らされた！"); } }
-        this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
-        GAME_DATA.player.hp -= dmg; 
-        this.vibrate(100); 
+        this.damageFlash(this.ps); this.perfectGuardChain = false;
+        if (isRapid && this.rapidCount === 1) this.cameras.main.shake(300, 0.05);
+        GAME_DATA.player.hp -= dmg; this.showDamagePopup(this.ps.x, this.ps.y, dmg, false);
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 5);
         if(this.hammer) this.tweens.add({ targets: this.hammer, x: this.es.x - 60, y: this.es.y - 50, angle: -45, duration: 150 });
         this.tweens.add({ targets: this.es, x: this.ebx, y: this.eby, angle: 0, delay: 100, duration: 200, ease: 'Power2' });
     }
     
-    this.qteMode = null; this.es.clearTint(); this.refreshStatus();
-    
+    this.refreshStatus();
     if (GAME_DATA.player.hp <= 0) {
-        this.updateMessage("敗北... (クリックで戻る)");
-        this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); });
+        this.updateMessage("敗北..."); this.input.once('pointerdown', () => this.transitionTo('WorldScene'));
     } else {
         if (isRapid) {
             this.rapidCount--;
-            this.time.delayedCall(400, () => { if(!this.guardBroken) this.qteMode = 'defense_wait'; this.launchRapidAttack(); });
+            this.time.delayedCall(400, () => this.launchRapidAttack());
         } else {
             if (suc && this.perfectGuardChain) this.triggerCounterAttack();
-            else this.time.delayedCall(1000, () => this.endEnemyTurn());
+            else this.time.delayedCall(800, () => this.endEnemyTurn());
         }
     }
   }
 
   triggerCounterAttack() {
-      this.time.delayedCall(200, () => {
-          this.updateMessage("見切った！ カウンター！");
-          this.playSwordAnimation(() => {
-              let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
-              this.hitStop(300); this.damageFlash(this.es);
-              this.setCinematicMode(false);
-              this.cameras.main.zoomTo(1.0, 200); 
-
-              if ((this.ed.hp - dmg) <= 0) { this.vibrate(1000); this.cameras.main.zoomTo(1.5, 1000, 'Power2', true); this.tweens.timeScale = 0.1; this.cameras.main.flash(1000, 255, 255, 255); this.playSound('se_attack'); const winTxt = this.add.text(this.scale.width/2, this.scale.height/2, "WIN!!!", { font: `80px ${GAME_FONT}`, color: '#ffcc00', stroke:'#000', strokeThickness:8 }).setOrigin(0.5).setDepth(300).setScale(0); this.tweens.add({ targets: winTxt, scale: 1.5, duration: 2000, ease: 'Elastic.Out' }); this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.refreshStatus(); this.time.delayedCall(1500, () => { this.tweens.timeScale = 1.0; this.cameras.main.zoomTo(1.0, 500); this.winBattle(); }); } 
-              else { this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true); this.playSound('se_attack'); this.vibrate([50, 50, 100]); this.refreshStatus(); this.time.delayedCall(1000, () => this.endEnemyTurn()); }
-          });
+      this.updateMessage("カウンター！");
+      this.playSwordAnimation(() => {
+          let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
+          this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true);
+          this.checkEnd();
       });
   }
 
   endEnemyTurn() {
-      if(this.hammer) { this.hammer.destroy(); this.hammer = null; } 
-
-      if (GAME_DATA.player.status === 'burn') { const dmg = Math.floor(GAME_DATA.player.maxHp * 0.05); GAME_DATA.player.hp -= dmg; this.showDamagePopup(this.ps.x, this.ps.y, dmg, false); this.showStatusPopup(this.ps.x, this.ps.y - 80, "炎上中..."); this.damageFlash(this.ps); this.refreshStatus(); if (GAME_DATA.player.hp <= 0) { this.updateMessage("敗北... (クリックで戻る)"); this.input.once('pointerdown', () => { GAME_DATA.player.hp=GAME_DATA.player.maxHp; GAME_DATA.player.stress = 0; this.transitionTo('WorldScene'); }); return; } }
-      if (GAME_DATA.player.status === 'sleep') { GAME_DATA.player.status = null; this.showStatusPopup(this.ps.x, this.ps.y - 50, "Zzz...(行動不能)"); this.updateMessage("眠っていて動けない！"); this.time.delayedCall(1500, () => this.startEnemyTurn()); return; }
-
+      if (this.hammer) { this.tweens.add({ targets: this.hammer, alpha: 0, duration: 200, onComplete: () => this.hammer.destroy() }); }
       this.isPlayerTurn = true; 
       GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
-      this.showApPopup(this.ps.x, this.ps.y - 50);
-      this.mm.setVisible(true);  this.ps.clearTint(); 
-      
-      this.setCinematicMode(false);
-      this.cameras.main.zoomTo(1.0, 500); 
-
-      if(this.isTutorial) {
-          this.updateMessage("さあ、反撃だ！\n好きなように戦え！");
-          this.tutorialLayer.setVisible(false); 
-          this.tutorialFreeMode = true;
-      } else {
-          this.updateMessage("ターン開始"); 
-      }
+      this.mm.setVisible(true); this.ps.clearTint(); 
+      this.setCinematicMode(false); this.cameras.main.zoomTo(1.0, 500);
       this.refreshStatus();
+      this.updateMessage("ターン開始");
   }
 
+  // ★修正済み：winBattleのバグ修正
   winBattle() {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; 
-    
     if(!this.isTraining && !this.isTutorial) GAME_DATA.stageIndex++; 
-    
-    this.sound.stopAll(); this.playSound('se_win'); this.vibrate([100, 50, 100, 50, 200]); 
+    this.sound.stopAll(); this.playSound('se_win');
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
-    if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkillIds.includes(7)) { GAME_DATA.player.ownedSkillIds.push(7); msg += "\nレア技【居残り指導】習得！"; }
+    // ★ここを修正：Object形式に対応
+    if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkills[7]) { 
+        GAME_DATA.player.ownedSkills[7] = 1; 
+        msg += "\nレア技【居残り指導】習得！"; 
+    }
     if (GAME_DATA.player.exp >= GAME_DATA.player.nextExp) { GAME_DATA.player.level++; GAME_DATA.player.maxHp+=20; GAME_DATA.player.hp = GAME_DATA.player.maxHp; GAME_DATA.player.atk += 0.2; GAME_DATA.player.nextExp = Math.floor(GAME_DATA.player.nextExp * 1.5); msg += "\nレベルアップ！"; }
-    
-    this.updateMessage(msg + "\n(クリックで次へ)");
-    this.mm.setVisible(false);
-    saveGame(); 
 
-    this.input.once('pointerdown', () => {
-        if(!this.isTraining && GAME_DATA.stageIndex === 12) this.transitionTo('NormalClearScene');
-        else if(!this.isTraining && GAME_DATA.stageIndex === 13) this.transitionTo('TrueClearScene');
-        else this.transitionTo('WorldScene');
-    });
+    this.updateMessage(msg + "\n(クリックで次へ)"); this.mm.setVisible(false);
+    saveGame(); this.input.once('pointerdown', () => this.transitionTo('WorldScene'));
   }
 
   createMessageBox(w, h) {
