@@ -2,7 +2,7 @@
 //  データ & 定数定義
 // ================================================================
 export const GAME_FONT = 'DotGothic16';
-export const SAVE_KEY = 'kato_rpg_save_v12'; // ★バージョンを変更してバグったデータをリセット
+export const SAVE_KEY = 'kato_rpg_save_v13'; // データ構造は同じですが、バランス調整のためv13のまま
 
 // ドット絵データ
 export const P = { '.':null, '0':'#000', '1':'#ffe0c0', '2':'#fff', '3':'#228', '4':'#fcc', '5':'#c00', '6':'#420', '7':'#333', '8':'#aaa', '9':'#ff0', 'A':'#f00' };
@@ -33,7 +33,7 @@ export const ARTS = {
   bg_window_sunset: ["EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE","E555555E","E555555E","E555555E","EEEEEEEE"]
 };
 
-// 敵データ
+// 敵データ (落とすGoldはここで定義されています)
 export const STAGES = [
   { id: 0, name: '土蔵', hp: 150, atk: 12, exp: 20, gold: 100, key: 'dozo' },
   { id: 1, name: '中野', hp: 220, atk: 15, exp: 30, gold: 120, key: 'nakano' },
@@ -50,29 +50,37 @@ export const STAGES = [
   { id: 12, name: '金月', hp: 15000, atk: 99, exp: 2000, gold: 3000, key: 'kingetsu' }
 ];
 
+// ★全体的に価格(cost)を大幅に下げました
 export const SKILL_DB = [
   { id: 1, name: '出席確認', type: 'attack', power: 15, speed: 1.0, cost: 0, apCost: 1, anim:'check', status: null, desc: '基本攻撃。確実に出席をとる。' },
-  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 80, apCost: 2, anim:'normal', status: null, desc: '威力は低いが、当てやすい。' },
-  { id: 13, name: '早弁', type: 'heal', power: 40, speed: 0, cost: 200, apCost: 2, anim:'food', status: null, desc: '授業中にパンを食べる。小回復。' },
-  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 150, apCost: 4, anim:'chalk', status: 'sleep', desc: '確率で敵を「居眠り」させる。' },
-  { id: 8, name: 'コンパス刺し', type: 'attack', power: 55, speed: 1.4, cost: 300, apCost: 3, anim:'rapid', status: null, desc: '鋭い一撃。判定が少し速い。' },
-  { id: 6, name: '生徒を叱る', type: 'heal', power: 80, speed: 0, cost: 350, apCost: 3, anim:'magic', status: null, desc: '大声を出しストレス発散して回復。' },
-  { id: 14, name: '竹刀', type: 'attack', power: 70, speed: 1.1, cost: 450, apCost: 4, anim:'heavy', status: null, desc: '生活指導の必需品。重い一撃。' },
-  { id: 4, name: '風呂キャン', type: 'attack', power: 75, speed: 1.5, cost: 500, apCost: 4, anim:'normal', status: null, desc: '入浴拒否による精神ダメージ。' },
-  { id: 15, name: '校庭10周', type: 'attack', power: 90, speed: 1.5, cost: 1000, apCost: 6, anim:'run', status: 'burn', desc: '理不尽な運動。「炎上」付与。' },
-  { id: 9, name: 'サクシード提出', type: 'attack', power: 100, speed: 0.9, cost: 800, apCost: 5, anim:'book', status: null, desc: '分厚い問題集を叩きつける。' },
-  { id: 11, name: '競馬大勝ち', type: 'heal', power: 300, speed: 0, cost: 1000, apCost: 5, anim:'magic', status: null, desc: '臨時収入で心が大幅に回復。' },
-  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 1200, apCost: 6, anim:'heavy', status: 'burn', desc: '脳を焼き、「炎上」状態にする。' },
-  { id: 10, name: '赤点の連撃', type: 'attack', power: 150, speed: 1.8, cost: 1800, apCost: 7, anim:'rapid', status: 'burn', desc: '容赦ない採点。「炎上」付与。' },
-  { id: 16, name: '三者面談', type: 'attack', power: 300, speed: 0.8, cost: 2500, apCost: 8, anim:'heavy', status: null, desc: '親を呼び出す精神攻撃。超威力。' },
-  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 3000, apCost: 9, anim:'book', status: null, desc: '絶望的な威力。判定は一瞬。' },
+  { id: 3, name: '小テスト', type: 'attack', power: 25, speed: 0.7, cost: 50, apCost: 2, anim:'normal', status: null, desc: '威力は低いが、当てやすい。' },
+  { id: 13, name: '早弁', type: 'heal', power: 40, speed: 0, cost: 100, apCost: 2, anim:'food', status: null, desc: '授業中にパンを食べる。小回復。' },
+  { id: 2, name: 'チョーク投げ', type: 'attack', power: 40, speed: 1.2, cost: 100, apCost: 4, anim:'chalk', status: 'sleep', desc: '確率で敵を「居眠り」させる。' },
+  { id: 8, name: 'コンパス刺し', type: 'attack', power: 55, speed: 1.4, cost: 200, apCost: 3, anim:'rapid', status: null, desc: '鋭い一撃。判定が少し速い。' },
+  { id: 6, name: '生徒を叱る', type: 'heal', power: 80, speed: 0, cost: 250, apCost: 3, anim:'magic', status: null, desc: '大声を出しストレス発散して回復。' },
+  { id: 14, name: '竹刀', type: 'attack', power: 70, speed: 1.1, cost: 300, apCost: 4, anim:'heavy', status: null, desc: '生活指導の必需品。重い一撃。' },
+  { id: 4, name: '風呂キャン', type: 'attack', power: 75, speed: 1.5, cost: 350, apCost: 4, anim:'normal', status: null, desc: '入浴拒否による精神ダメージ。' },
+  { id: 15, name: '校庭10周', type: 'attack', power: 90, speed: 1.5, cost: 600, apCost: 6, anim:'run', status: 'burn', desc: '理不尽な運動。「炎上」付与。' },
+  { id: 9, name: 'サクシード提出', type: 'attack', power: 100, speed: 0.9, cost: 500, apCost: 5, anim:'book', status: null, desc: '分厚い問題集を叩きつける。' },
+  { id: 11, name: '競馬大勝ち', type: 'heal', power: 300, speed: 0, cost: 700, apCost: 5, anim:'magic', status: null, desc: '臨時収入で心が大幅に回復。' },
+  { id: 5, name: '難問の出題', type: 'attack', power: 130, speed: 2.2, cost: 800, apCost: 6, anim:'heavy', status: 'burn', desc: '脳を焼き、「炎上」状態にする。' },
+  { id: 10, name: '赤点の連撃', type: 'attack', power: 150, speed: 1.8, cost: 1200, apCost: 7, anim:'rapid', status: 'burn', desc: '容赦ない採点。「炎上」付与。' },
+  { id: 16, name: '三者面談', type: 'attack', power: 300, speed: 0.8, cost: 1800, apCost: 8, anim:'heavy', status: null, desc: '親を呼び出す精神攻撃。超威力。' },
+  { id: 12, name: '夏休みの宿題', type: 'attack', power: 400, speed: 3.0, cost: 2200, apCost: 9, anim:'book', status: null, desc: '絶望的な威力。判定は一瞬。' },
   { id: 7, name: '居残り', type: 'attack', power: 250, speed: 2.5, cost: 0, apCost: 8, anim:'heavy', status: 'sleep', desc: '長時間拘束。「居眠り」付与。' }
 ];
 
+// ★アイテムも値下げ
 export const ITEM_DB = [
-    { id: 101, name: '酒', cost: 100, desc: 'APを全回復する。', type: 'ap_full' },
-    { id: 102, name: '没収したスマホ', cost: 200, desc: '敵の注意を引く（100%居眠り）。', type: 'enemy_sleep' },
-    { id: 103, name: '火炎瓶', cost: 150, desc: '敵を物理的に燃やす（100%炎上）。', type: 'enemy_burn' }
+    { id: 101, name: '酒', cost: 50, desc: 'APを全回復する。', type: 'ap_full' },
+    { id: 102, name: '没収したスマホ', cost: 100, desc: '敵の注意を引く（100%居眠り）。', type: 'enemy_sleep' },
+    { id: 103, name: '火炎瓶', cost: 80, desc: '敵を物理的に燃やす（100%炎上）。', type: 'enemy_burn' }
+];
+
+// ★基礎ステータス強化（値下げ）
+export const TRAINING_DB = [
+    { id: 'atk', name: '筋トレ (攻撃力UP)', baseCost: 150 },
+    { id: 'hp',  name: '瞑想 (体力UP)',   baseCost: 150 }
 ];
 
 export let GAME_DATA = {
@@ -83,31 +91,44 @@ export let GAME_DATA = {
     hp: 80, maxHp: 80, atk: 1.0, 
     stress: 0, maxStress: 100,
     ap: 3, maxAp: 9,
-    // IDをキー、Lvを値とするオブジェクト
+    upgrades: { atk: 0, hp: 0 },
     ownedSkills: { 1: 1 }, 
     equippedSkillIds: [1],
     items: {} 
   }
 };
 
-// ヘルパー関数
+// --- ヘルパー関数 ---
+
 export function getSkillLevel(id) {
     if (!GAME_DATA.player.ownedSkills) return 0;
     return GAME_DATA.player.ownedSkills[id] || 0;
 }
-
 export function getSkillPower(skill) {
     const lv = getSkillLevel(skill.id);
     if (lv <= 1) return skill.power;
-    // Lv1あがるごとに威力+20%
     return Math.floor(skill.power * (1 + 0.2 * (lv - 1)));
 }
-
 export function getUpgradeCost(skill) {
     const lv = getSkillLevel(skill.id);
-    if (lv === 0) return skill.cost; // 未所持なら定価
-    let base = skill.cost > 0 ? skill.cost : 500;
+    if (lv === 0) return skill.cost; 
+    let base = skill.cost > 0 ? skill.cost : 200; // 初期技の強化費も値下げ
     return Math.floor(base * (0.8 * lv + 0.2)); 
+}
+
+export function getTrainingCost(type) {
+    const lv = GAME_DATA.player.upgrades[type] || 0;
+    const base = TRAINING_DB.find(t=>t.id===type).baseCost;
+    return Math.floor(base * (1 + 0.5 * lv));
+}
+
+export function recalcPlayerStats() {
+    const p = GAME_DATA.player;
+    if(!p.upgrades) p.upgrades = {atk:0, hp:0};
+    // ATK: 基本1.0 + レベルごとの0.1 + 強化Lvごとの0.2
+    p.atk = 1.0 + (p.level - 1) * 0.1 + (p.upgrades.atk * 0.2);
+    // HP: 基本80 + レベルごとの10 + 強化Lvごとの20
+    p.maxHp = 80 + (p.level - 1) * 10 + (p.upgrades.hp * 20);
 }
 
 export function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(GAME_DATA)); } catch(e) {} }
@@ -118,7 +139,6 @@ export function loadGame() {
             const parsed = JSON.parse(d);
             Object.assign(GAME_DATA, parsed);
             if(parsed.player) {
-                // 旧データ(Array)からの移行対応
                 if (Array.isArray(parsed.player.ownedSkillIds)) {
                     GAME_DATA.player.ownedSkills = {};
                     parsed.player.ownedSkillIds.forEach(id => {
@@ -127,9 +147,12 @@ export function loadGame() {
                 } else {
                     Object.assign(GAME_DATA.player, parsed.player);
                 }
+                if(!GAME_DATA.player.upgrades) GAME_DATA.player.upgrades = { atk: 0, hp: 0 };
             }
             if(!GAME_DATA.player.items) GAME_DATA.player.items = {};
             if(!GAME_DATA.player.ownedSkills) GAME_DATA.player.ownedSkills = {1:1};
+            
+            recalcPlayerStats(); 
         }
     } catch(e) {}
 }

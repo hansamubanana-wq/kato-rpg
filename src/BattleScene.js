@@ -463,6 +463,7 @@ export class BattleScene extends BaseScene {
   activateLimitBreak() {
       this.isPlayerTurn = false; GAME_DATA.player.stress = 0; 
       this.refreshStatus(); this.vibrate(1000); 
+      this.playBuiltInSe('limit'); // ★新機能の自作音を鳴らす
       this.setCinematicMode(true);
       const bg = this.add.rectangle(this.scale.width/2, this.scale.height/2, this.scale.width, this.scale.height, 0x000000).setDepth(290).setAlpha(0);
       this.tweens.add({ targets: bg, alpha: 0.8, duration: 200 });
@@ -471,7 +472,9 @@ export class BattleScene extends BaseScene {
       this.tweens.chain({ targets: cutin, tweens: [ { x: this.scale.width/2, duration: 300, ease: 'Back.Out' }, { scale: 18, duration: 1000 }, { x: this.scale.width + 300, duration: 200, ease: 'Quad.In', onComplete: () => { bg.destroy(); cutin.destroy(); } } ] });
       this.time.delayedCall(500, () => { this.cameras.main.flash(500, 255, 0, 0); this.cameras.main.shake(500, 0.05); this.updateMessage(`加藤先生の ブチギレ！\n「いい加減にしなさい！！」`); });
       this.time.delayedCall(2000, () => { 
-          const baseDmg = GAME_DATA.player.atk * 100; const percDmg = this.ed.maxHp * 0.2; const dmg = Math.floor(baseDmg + percDmg); 
+          // ★修正：敵のHPに依存しない固定ダメージ (ATK x 300)
+          const baseDmg = GAME_DATA.player.atk * 300; 
+          const dmg = Math.floor(baseDmg); 
           this.selS = { anim: 'heavy' };
           this.playSwordAnimation(() => {
               this.hitStop(300); this.damageFlash(this.es);
@@ -566,14 +569,10 @@ export class BattleScene extends BaseScene {
 
   // --- パリィ判定コア ---
   startDefenseActive(delay, activeWindow) {
-      // 振りかぶり待ち
       this.time.delayedCall(delay - activeWindow, () => {
-          if (this.qteMode !== 'defense_wait') return; // 先行入力ミス済みなら何もしない
-          
+          if (this.qteMode !== 'defense_wait') return; 
           this.qteMode = 'defense_active';
           this.gs.setVisible(true);
-          
-          // 指定時間経過でパリィ受付終了（被弾）
           this.time.delayedCall(activeWindow, () => {
               if (this.qteMode === 'defense_active') {
                   this.gs.setVisible(false);
@@ -586,20 +585,22 @@ export class BattleScene extends BaseScene {
   launchAttack() {
       this.qteMode = 'defense_wait';
       const dur = 400;
-      this.startDefenseActive(dur, 150); // 400ms後にヒット。最後の150msだけ受付。
+      this.startDefenseActive(dur, 150); 
       if (this.hammer) {
           this.eat = this.tweens.add({ targets: this.hammer, angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: dur, ease: 'Power2' });
+      } else {
+           this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: dur, ease: 'Expo.In' });
       }
   }
 
   launchRapidAttack() { 
       if (this.rapidCount <= 0) { if (this.perfectGuardChain) this.triggerCounterAttack(); else this.endEnemyTurn(); return; } 
       this.qteMode = 'defense_wait';
-      this.ps.clearTint(); // 前の発のペナルティ色をリセット
+      this.ps.clearTint(); 
 
       let dur = 300;
       let multiplier = 0.5;
-      if (this.rapidCount === 1) { dur = 1000; multiplier = 2.5; } // 3発目はタメ
+      if (this.rapidCount === 1) { dur = 1000; multiplier = 2.5; } 
 
       this.startDefenseActive(dur, 180);
 
@@ -616,6 +617,8 @@ export class BattleScene extends BaseScene {
               this.hammer.angle = -60;
               this.eat = this.tweens.add({ targets: this.hammer, angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: dur, ease: 'Power2' });
           }
+      } else {
+           this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 250, ease: 'Expo.In' }); 
       }
   }
 
@@ -636,17 +639,18 @@ export class BattleScene extends BaseScene {
           this.time.delayedCall(800, () => {
               this.eat = this.tweens.add({ targets: this.hammer, angle: 90, x: this.ps.x, y: this.ps.y - 50, duration: 400, ease: 'Power2' });
           });
+      } else {
+          this.tweens.add({ targets: this.es, x: this.ps.x + 150, duration: 400, ease: 'Quad.Out', onComplete: () => { this.time.delayedCall(Phaser.Math.Between(400, 1000), () => { if (this.guardBroken) return; this.eat = this.tweens.add({ targets: this.es, x: this.ps.x + 50, duration: 100, ease: 'Expo.In' }); }); } }); 
       }
   }
 
   resolveDefenseQTE() {
     this.gs.setVisible(false); this.qteMode = null; 
-    if (this.eat) { if(this.eat.stop) this.eat.stop(); this.tweens.killTweensOf(this.hammer); }
+    if (this.eat) { if(this.eat.stop) this.eat.stop(); this.tweens.killTweensOf(this.hammer); this.tweens.killTweensOf(this.es); }
     this.createImpactEffect(this.ps.x + 30, this.ps.y - 50);
     this.cameras.main.flash(100, 255, 255, 255); 
     this.qtxt.setText("PARRY!!").setVisible(true).setScale(1);
     this.tweens.add({targets:this.qtxt, y:this.qtxt.y-50, alpha:0, duration:300, onComplete:()=>{this.qtxt.setVisible(false); this.qtxt.setAlpha(1); this.qtxt.y+=50;}});
-    // 成功音を鳴らす (parryは元々ファイル読み込み前提だが、なければ鳴らない)
     this.playSound('se_parry'); 
     this.executeDefense(true, this.rapidCount > 0);
   }
@@ -688,7 +692,9 @@ export class BattleScene extends BaseScene {
   triggerCounterAttack() {
       this.updateMessage("カウンター！");
       this.playSwordAnimation(() => {
-          let dmg = Math.floor(GAME_DATA.player.atk * 50 + this.ed.maxHp * 0.1);
+          // ★修正：敵のHPに依存しない固定ダメージ (ATK x 150)
+          const baseDmg = GAME_DATA.player.atk * 150; 
+          const dmg = Math.floor(baseDmg);
           this.ed.hp -= dmg; this.showDamagePopup(this.es.x, this.es.y, dmg, true);
           this.checkEnd();
       });
@@ -708,7 +714,7 @@ export class BattleScene extends BaseScene {
     GAME_DATA.gold += this.ed.gold; GAME_DATA.player.exp += this.ed.exp; 
     if(!this.isTraining && !this.isTutorial) GAME_DATA.stageIndex++; 
     this.sound.stopAll(); 
-    this.playBuiltInSe('win'); // ★自作音を鳴らす！
+    this.playBuiltInSe('win'); 
     
     let msg = `勝利！\n${this.ed.gold}G 獲得`;
     if (Math.random() < 0.2 && !GAME_DATA.player.ownedSkills[7]) { 
