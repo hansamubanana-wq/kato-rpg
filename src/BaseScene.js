@@ -5,13 +5,11 @@ export class BaseScene extends Phaser.Scene {
   preload() {
     Object.keys(ARTS).forEach(k => this.createTextureFromText(k, ARTS[k]));
     
-    // 既存のファイル読み込み（ファイルがあれば鳴りますが、なくてもエラーで止まらないようにしています）
     this.load.audio('bgm_world', '/sounds/bgm_world.mp3');
     this.load.audio('bgm_battle', '/sounds/bgm_battle.mp3');
     this.load.audio('se_select', '/sounds/se_select.mp3');
     this.load.audio('se_attack', '/sounds/se_attack.mp3');
     this.load.audio('se_parry', '/sounds/se_parry.mp3');
-    // se_win は自動生成するので読み込み不要
   }
 
   createTextureFromText(key, art) {
@@ -23,16 +21,14 @@ export class BaseScene extends Phaser.Scene {
     this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
 
-  // ファイルがあればそれを再生、なければ何もしない（エラー防止）
   playSound(key, config = {}) { 
       if (this.sound.get(key) || this.cache.audio.exists(key)) {
           this.sound.play(key, config); 
       }
   }
   
-  // ★新機能：効果音をプログラムで生成して鳴らす！
+  // 効果音生成機能
   playBuiltInSe(type) {
-      // Web Audio APIのコンテキストを取得
       const ctx = this.sound.context;
       if (!ctx) return;
 
@@ -43,32 +39,35 @@ export class BaseScene extends Phaser.Scene {
       gain.connect(ctx.destination);
 
       if (type === 'win') {
-          // 勝利ファンファーレ: ド・ミ・ソ・ド～ (Cメジャー)
-          osc.type = 'square'; // ファミコン風の矩形波
-          osc.frequency.setValueAtTime(523.25, t);       // ド (C5)
-          osc.frequency.setValueAtTime(659.25, t + 0.1); // ミ (E5)
-          osc.frequency.setValueAtTime(783.99, t + 0.2); // ソ (G5)
-          osc.frequency.setValueAtTime(1046.50, t + 0.3); // ド (C6)
-          
-          // 音量調整（減衰）
+          // 勝利ファンファーレ
+          osc.type = 'square'; 
+          osc.frequency.setValueAtTime(523.25, t);       
+          osc.frequency.setValueAtTime(659.25, t + 0.1); 
+          osc.frequency.setValueAtTime(783.99, t + 0.2); 
+          osc.frequency.setValueAtTime(1046.50, t + 0.3); 
           gain.gain.setValueAtTime(0.1, t);
           gain.gain.linearRampToValueAtTime(0, t + 0.8);
-          
-          osc.start(t);
-          osc.stop(t + 0.8);
+          osc.start(t); osc.stop(t + 0.8);
 
       } else if (type === 'limit') {
-          // ブチギレ音: ギュイィィィン！ (のこぎり波でピッチ上昇)
+          // ブチギレ音
           osc.type = 'sawtooth';
           osc.frequency.setValueAtTime(100, t);
-          osc.frequency.exponentialRampToValueAtTime(800, t + 1.0); // 1秒かけて音程を上げる
-          
-          // 音量調整
+          osc.frequency.exponentialRampToValueAtTime(800, t + 1.0); 
           gain.gain.setValueAtTime(0.2, t);
           gain.gain.linearRampToValueAtTime(0, t + 1.0);
+          osc.start(t); osc.stop(t + 1.0);
+
+      } else if (type === 'warning') {
+          // ★追加：警告音「ピピッ！」
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(880, t); // ラの音 (高い音)
+          
+          gain.gain.setValueAtTime(0.1, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1); // 一瞬で消える
           
           osc.start(t);
-          osc.stop(t + 1.0);
+          osc.stop(t + 0.1);
       }
   }
   
