@@ -39,7 +39,7 @@ export class BattleScene extends BaseScene {
     this.es = this.add.sprite(w*0.75, h*0.4, this.ed.key).setScale(5); this.startIdleAnimation(this.es);
     this.ebx = this.es.x; this.eby = this.es.y;
 
-    // --- UIグループ化 ---
+    // --- UIグループ化 (上部) ---
     this.topUI = this.add.container(0, 0);
     const topY = 40;
     
@@ -55,7 +55,7 @@ export class BattleScene extends BaseScene {
 
     this.topUI.add([eName, this.ehb, pName, this.phb, sLabel, this.sb, this.apBar]);
 
-    // --- チュートリアルスキップ ---
+    // --- チュートリアルスキップボタン ---
     if (this.isTutorial) {
         const skipBtn = this.add.container(w - 60, 90);
         const sBg = this.add.rectangle(0, 0, 100, 40, 0x555555).setStrokeStyle(1, 0xffffff);
@@ -77,9 +77,7 @@ export class BattleScene extends BaseScene {
     this.mm = this.add.container(0, 0);
     
     const cmdY = h - 230; 
-    const btnW = 160; 
-    const btnH = 60; 
-    const gapX = 10;
+    const btnW = 160; const btnH = 60; const gapX = 10;
     
     this.btnPos = {
         cmd: { x: w/2 - btnW/2 - gapX, y: cmdY },
@@ -135,6 +133,7 @@ export class BattleScene extends BaseScene {
       }
   }
 
+  // --- チュートリアル ---
   startTutorialStep1() {
       this.tutorialStep = 1;
       this.updateMessage("まずは攻撃だ！\n「コマンド」をタップ！");
@@ -167,6 +166,7 @@ export class BattleScene extends BaseScene {
       });
   }
 
+  // --- ロジック ---
   refreshStatus() {
       this.phb.update(GAME_DATA.player.hp, GAME_DATA.player.maxHp);
       this.ehb.update(Math.max(0, this.ed.hp), this.ed.maxHp);
@@ -269,13 +269,7 @@ export class BattleScene extends BaseScene {
 
   handleInput() {
     if (this.qteMode === 'attack' && this.qteActive) this.resolveAttackQTE();
-    else if (this.qteMode === 'defense_wait') {
-        // 先行入力ペナルティ
-        this.qteMode = 'defense_miss'; 
-        this.gs.setVisible(false);
-        this.ps.setTint(0x888888); 
-        this.updateMessage("パリィ失敗！");
-    }
+    else if (this.qteMode === 'defense_wait') this.triggerGuardPenalty();
     else if (this.qteMode === 'defense_active') this.resolveDefenseQTE();
   }
 
@@ -655,7 +649,6 @@ export class BattleScene extends BaseScene {
     if (suc) { 
         dmg = 0; this.playSound('se_parry'); this.vibrate(30); 
         GAME_DATA.player.ap = Math.min(GAME_DATA.player.maxAp, GAME_DATA.player.ap + 1);
-        this.showApPopup(this.ps.x, this.ps.y - 50);
         GAME_DATA.player.stress = Math.min(100, GAME_DATA.player.stress + 10);
         if(this.hammer) this.tweens.add({ targets: this.hammer, x: this.es.x - 60, y: this.es.y - 50, angle: -45, duration: 150 });
         this.tweens.add({ targets: this.es, x: this.ebx, y: this.eby, angle: 0, duration: 150, ease: 'Back.Out' });

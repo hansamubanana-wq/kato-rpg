@@ -10,7 +10,7 @@ export class BaseScene extends Phaser.Scene {
     this.load.audio('se_select', '/sounds/se_select.mp3');
     this.load.audio('se_attack', '/sounds/se_attack.mp3');
     this.load.audio('se_parry', '/sounds/se_parry.mp3');
-    this.load.audio('se_win', '/sounds/se_win.mp3');
+    // se_win は存在しないので削除しました
   }
 
   createTextureFromText(key, art) {
@@ -36,7 +36,6 @@ export class BaseScene extends Phaser.Scene {
 
   vibrate(pattern) { if (navigator.vibrate) navigator.vibrate(pattern); }
 
-  // ヒットストップ演出
   hitStop(duration) {
       this.tweens.timeScale = 0.1; 
       this.time.delayedCall(duration, () => { 
@@ -44,7 +43,6 @@ export class BaseScene extends Phaser.Scene {
       });
   }
 
-  // 被弾時のフラッシュ演出
   damageFlash(target) {
       if(!target || !target.scene) return;
       target.setTintFill(0xffffff); 
